@@ -288,3 +288,6 @@ Part of the **Swiss Public Data MCP Portfolio**:
 
 - [`register-mcp`](https://github.com/malkreide/register-mcp) — Zefix commercial
   register with a company-UID join to the gazettes
+
+<!-- mcp-name: io.github.malkreide/amtsblatt-mcp -->
+
