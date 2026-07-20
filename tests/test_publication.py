@@ -19,9 +19,11 @@ from amtsblatt_mcp.server import (
     _clean_text,
     _days_remaining,
     _format_deadline,
+    _get_client,
     _make_client,
     _parse_publication_xml,
     _pick_language,
+    _reset_client,
     get_publication,
     source_status,
 )
@@ -257,3 +259,25 @@ async def test_source_status_flags_an_unreachable_source():
 async def test_live_source_status():
     result = await source_status(StatusInput())
     assert "✅" in result
+
+
+def test_shared_client_is_reused_across_calls():
+    """SDK-001: one pooled AsyncClient is reused, not created per request."""
+    _reset_client()
+    try:
+        first = _get_client()
+        second = _get_client()
+        assert first is second
+    finally:
+        _reset_client()
+
+
+def test_reset_client_drops_the_shared_instance():
+    """_reset_client forces a fresh client on the next call."""
+    _reset_client()
+    try:
+        first = _get_client()
+        _reset_client()
+        assert _get_client() is not first
+    finally:
+        _reset_client()

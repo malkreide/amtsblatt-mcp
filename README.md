@@ -2,7 +2,7 @@
 
 # 📰 amtsblatt-mcp
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.1-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -94,6 +94,7 @@ amtsblatt-mcp
 | Variable | Default | Purpose |
 |---|---|---|
 | `MCP_TRANSPORT` | `stdio` | `stdio` or `sse` |
+| `MCP_HOST` | `127.0.0.1` | SSE bind address. Defaults to loopback; set `0.0.0.0` to expose on all interfaces (the Docker image does this deliberately). |
 | `MCP_API_KEY` | — | Bearer token; **required** for SSE |
 | `MCP_RATE_LIMIT` / `MCP_RATE_WINDOW` | `60` / `60` | Sliding-window rate limit |
 | `MCP_ALLOWED_HOSTS` | `amtsblattportal.ch,www.amtsblattportal.ch` | Egress allow-list. An override replaces the default entirely. |

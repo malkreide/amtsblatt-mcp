@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-07-20
+
+Hardening release following the first `mcp-audit-skill` audit (run
+`2026-07-20T212024-Z-amtsblatt-mcp`, 46/68 checks applicable). Closes both
+blocking findings; no behavioural change to the tools. See
+[`audits/`](audits/) for the full report.
+
+### Changed
+
+- **Shared HTTP client (SDK-001).** A single `httpx.AsyncClient` is now reused
+  across all upstream requests and closed by a FastMCP lifespan, instead of a
+  new client (and TLS handshake) per call.
+- **Loopback-default SSE bind (SEC-016).** The SSE transport now binds
+  `127.0.0.1` by default; exposing all interfaces requires an explicit
+  `MCP_HOST=0.0.0.0`. The Docker image sets it deliberately.
+- **Container resource limits (SCALE-006).** `compose.yaml` now sets
+  `mem_limit`, `cpus` and `pids_limit`.
+
+### Added
+
+- MCP Registry publishing on release (`mcp-name` marker + `publish-mcp` job).
+- Regression tests for the shared-client lifecycle.
+
 ## [0.1.0] — 2026-07-20
 
 Initial release. Implements the `amtsblatt-mcp` specification split out of
