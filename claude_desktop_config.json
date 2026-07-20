@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "amtsblatt": {
+      "command": "uvx",
+      "args": ["amtsblatt-mcp"]
+    }
+  }
+}
