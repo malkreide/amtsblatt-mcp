@@ -1,10 +1,13 @@
+> 🇨🇭 **Teil des [Swiss Public Data MCP Portfolio](https://github.com/malkreide)**
+
 # 📰 amtsblatt-mcp
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
-[![MCP](https://img.shields.io/badge/MCP-server-purple.svg)](https://modelcontextprotocol.io)
-[![No Auth](https://img.shields.io/badge/auth-none%20required-brightgreen.svg)](#voraussetzungen)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
+[![No Auth Required](https://img.shields.io/badge/auth-none%20required-brightgreen)](https://github.com/malkreide/amtsblatt-mcp)
+![CI](https://github.com/malkreide/amtsblatt-mcp/actions/workflows/ci.yml/badge.svg)
 
 > MCP-Server für **amtsblattportal.ch** — das Schweizer Amtsblattportal
 > (SHAB + 27 kantonale Amtsblätter). Öffentliche Beschaffung und amtliche
@@ -281,7 +284,7 @@ signierte PDF einer Publikation.
 
 ## Autor
 
-malkreide · [github.com/malkreide](https://github.com/malkreide)
+Hayal Oezkan · [malkreide](https://github.com/malkreide)
 
 ## Credits & verwandte Projekte
 
