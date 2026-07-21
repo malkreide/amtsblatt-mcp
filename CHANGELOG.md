@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-07-21
+
+Metadata-fix release so the MCP Registry publish succeeds (0.1.1 published to
+PyPI but the registry rejected it).
+
+### Fixed
+
+- **`server.json` description shortened to ≤100 characters.** The MCP Registry
+  enforces a 100-char limit on the server description; the 120-char string used
+  through 0.1.1 caused `publish` to fail with HTTP 422.
+
+### Changed
+
+- CI `publish.yml` sets `skip-existing: true` on the PyPI upload, so the
+  registry job can be re-driven after a metadata fix without a duplicate-upload
+  failure blocking the run.
+
 ## [0.1.1] — 2026-07-20
 
 Hardening release following the first `mcp-audit-skill` audit (run
