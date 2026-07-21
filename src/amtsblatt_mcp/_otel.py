@@ -12,7 +12,7 @@ import os
 
 from ._log import log_event
 
-_VERSION = "0.1.1"
+_VERSION = "0.1.2"
 
 
 def init_otel() -> bool:
