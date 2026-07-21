@@ -1,0 +1,438 @@
+{
+  "audit_meta": {
+    "server_name": "amtsblatt-mcp",
+    "run_id": "2026-07-20T212024-Z-amtsblatt-mcp"
+  },
+  "policy": "fail-or-partial",
+  "results": {
+    "ARCH-001": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "5 snake_case tools: search_publications, search_procurement, get_publication, list_rubrics, source_status (server.py:983,1128,1252,1366,1505)"
+      ],
+      "gaps": []
+    },
+    "ARCH-002": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Rich multi-paragraph German docstrings per tool + FastMCP instructions block (server.py:727)"
+      ],
+      "gaps": []
+    },
+    "ARCH-003": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Blocked rubric -> explanation; unreachable -> explicit error not empty; procurement no-canton -> simap explainer (server.py:964,1101,1559)"
+      ],
+      "gaps": []
+    },
+    "ARCH-004": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "Tools take Pydantic input models only; no request/websocket/stdin access in handlers"
+      ],
+      "gaps": []
+    },
+    "ARCH-005": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "critical",
+      "evidence": [
+        "MCP_API_KEY read from env (server.py:1584); no hardcoded secrets (grep clean)"
+      ],
+      "gaps": []
+    },
+    "ARCH-006": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "5 tools, well under the 8-tool heuristic"
+      ],
+      "gaps": []
+    },
+    "ARCH-007": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "get_publication aggregates fetch+parse+gate; external calls stay atomic"
+      ],
+      "gaps": []
+    },
+    "ARCH-008": {
+      "status": "partial",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Only the Tools primitive is exposed"
+      ],
+      "gaps": [
+        "No Resources or Prompts; read-only list_rubrics/source_status could be Resources; no documented rationale for tools-only"
+      ]
+    },
+    "ARCH-009": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "All 5 tools set readOnlyHint/destructiveHint/idempotentHint/openWorldHint (server.py:985,1130,1254,1368,1507)"
+      ],
+      "gaps": []
+    },
+    "ARCH-011": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "README.md, README.de.md, CHANGELOG.md, LICENSE, pyproject.toml present; src/ tests/ .github/workflows/ present; ci.yml + publish.yml"
+      ],
+      "gaps": []
+    },
+    "ARCH-012": {
+      "status": "partial",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "CHANGELOG present; Dependabot configured (.github/dependabot.yml)"
+      ],
+      "gaps": [
+        "No protocolVersion pin anywhere (FastMCP default used); grep for protocolVersion returns nothing"
+      ]
+    },
+    "CH-004": {
+      "status": "pass",
+      "category": "CH",
+      "severity": "medium",
+      "evidence": [
+        "ATTRIBUTION footer on every response (server.py:56,672,681); source credited in README"
+      ],
+      "gaps": []
+    },
+    "OBS-001": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "high",
+      "evidence": [
+        "Tools return explanatory strings; _handle_error translates exceptions; tools never raise protocol errors (server.py:685)"
+      ],
+      "gaps": []
+    },
+    "OBS-002": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "high",
+      "evidence": [
+        "_handle_error returns clean messages; no stacktraces/SQL leaked to the model"
+      ],
+      "gaps": []
+    },
+    "OBS-003": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "medium",
+      "evidence": [
+        "Custom _JsonFormatter structured JSON logging with levels + event fields (_log.py:17)"
+      ],
+      "gaps": []
+    },
+    "OBS-004": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "critical",
+      "evidence": [
+        "logging.StreamHandler(sys.stderr) -> stdout reserved for stdio protocol (_log.py:37)"
+      ],
+      "gaps": []
+    },
+    "OBS-006": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "medium",
+      "evidence": [
+        "Optional OpenTelemetry via [otel] extra + OTEL_EXPORTER_OTLP_ENDPOINT (_otel.py:18)"
+      ],
+      "gaps": []
+    },
+    "OPS-001": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "high",
+      "evidence": [
+        "73 unit tests (respx-mocked) + @pytest.mark.live tests; live marker registered in pyproject"
+      ],
+      "gaps": []
+    },
+    "OPS-002": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "medium",
+      "evidence": [
+        "README.md + README.de.md, ASCII architecture diagram, Known Limitations section"
+      ],
+      "gaps": []
+    },
+    "OPS-003": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "high",
+      "evidence": [
+        "All tools readOnlyHint=True; read-only-first scope documented; no write tools"
+      ],
+      "gaps": []
+    },
+    "SCALE-001": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "SSE transport for cloud via MCP_TRANSPORT=sse; documented in README"
+      ],
+      "gaps": []
+    },
+    "SCALE-002": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "In-memory rate limit documented as single-instance; gateway recommended for multi-instance (SECURITY.md)"
+      ],
+      "gaps": []
+    },
+    "SCALE-003": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "Multi-instance/session routing documented as a gateway concern (SECURITY.md)"
+      ],
+      "gaps": []
+    },
+    "SCALE-004": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "medium",
+      "evidence": [
+        "Multi-stage Dockerfile (builder + runtime), non-root USER mcp (Dockerfile:3,19,33)"
+      ],
+      "gaps": []
+    },
+    "SCALE-006": {
+      "status": "partial",
+      "category": "SCALE",
+      "severity": "medium",
+      "evidence": [
+        "compose.yaml sets read_only, cap_drop ALL, no-new-privileges"
+      ],
+      "gaps": [
+        "No explicit memory/CPU/pids resource limits in compose.yaml"
+      ]
+    },
+    "SDK-001": {
+      "status": "fail",
+      "category": "SDK",
+      "severity": "high",
+      "evidence": [
+        "No FastMCP lifespan; a fresh httpx.AsyncClient is created per request via _make_client() in _get_json/_get_text/_probe_endpoint (server.py:247,262,278,1478)"
+      ],
+      "gaps": [
+        "No connection pooling reuse across calls; new TLS handshake each request; no @asynccontextmanager lifespan"
+      ]
+    },
+    "SDK-002": {
+      "status": "partial",
+      "category": "SDK",
+      "severity": "medium",
+      "evidence": [
+        "Pydantic v2 input models; response_format=json provides structured output"
+      ],
+      "gaps": [
+        "Tool return type is `str` (rendered Markdown/JSON), not a Pydantic/TypedDict model"
+      ]
+    },
+    "SDK-003": {
+      "status": "partial",
+      "category": "SDK",
+      "severity": "medium",
+      "evidence": [
+        "Custom structured logging via logged_tool decorator emits per-call latency/status"
+      ],
+      "gaps": [
+        "Tools do not take ctx: Context; no ctx.info/progress reporting"
+      ]
+    },
+    "SDK-004": {
+      "status": "pass",
+      "category": "SDK",
+      "severity": "high",
+      "evidence": [
+        "Stateless SSE (mcp.sse_app()); no CORS middleware => no cross-origin Mcp-Session-Id exposure"
+      ],
+      "gaps": []
+    },
+    "SEC-002": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "Upstream read API is unauthenticated; no client token is forwarded to the upstream (no token passthrough)"
+      ],
+      "gaps": []
+    },
+    "SEC-003": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "Read-only server, single bearer key, no OAuth scopes to minimise"
+      ],
+      "gaps": []
+    },
+    "SEC-004": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "Egress allow-list (host-based) + HTTPS base URL; no user-controlled host reaches the client; paths built from validated IDs (server.py:93,226)"
+      ],
+      "gaps": []
+    },
+    "SEC-005": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "Egress hook re-checks request.url.host on every hop incl. redirects (server.py:226,255)"
+      ],
+      "gaps": []
+    },
+    "SEC-006": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "stdio default for local; SSE only when explicitly configured; documented in README"
+      ],
+      "gaps": []
+    },
+    "SEC-007": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "Dockerfile non-root; compose read_only + cap_drop ALL + no-new-privileges"
+      ],
+      "gaps": []
+    },
+    "SEC-008": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "PyPI publish via Trusted Publishing (OIDC), no stored token (publish.yml)"
+      ],
+      "gaps": []
+    },
+    "SEC-009": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "Stateless server; no app-managed session IDs; bearer token is the auth boundary"
+      ],
+      "gaps": []
+    },
+    "SEC-013": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "MCP_API_KEY via env (Stufe 1), documented with rotation + no-bake-into-image hardening (SECURITY.md)"
+      ],
+      "gaps": []
+    },
+    "SEC-014": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "5 read-only tools; gateway allow-listing documented as a deployment concern"
+      ],
+      "gaps": []
+    },
+    "SEC-015": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "Static tool descriptions; no dynamic/remote tool definitions to poison"
+      ],
+      "gaps": []
+    },
+    "SEC-018": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "Pydantic v2 ConfigDict(extra='forbid'), field validators, regex patterns, min/max bounds on every input model (server.py:757)"
+      ],
+      "gaps": []
+    },
+    "SEC-019": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "Read-only by design; no write/send tools => no lethal trifecta; scope documented"
+      ],
+      "gaps": []
+    },
+    "SEC-020": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "No os.system/subprocess/shell=True/eval/exec anywhere (grep clean)"
+      ],
+      "gaps": []
+    },
+    "SEC-021": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "ALLOWED_HOSTS frozenset code-layer allow-list enforced on every request + redirect; network-layer restriction documented (server.py:93; SECURITY.md)"
+      ],
+      "gaps": []
+    },
+    "SEC-022": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "FastMCP auto-namespace ('amtsblatt_mcp' server); tools namespaced under the server"
+      ],
+      "gaps": []
+    },
+    "SEC-016": {
+      "status": "partial",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "SSE binds mcp.settings.host = '0.0.0.0' hardcoded (server.py:748)",
+        "Mitigated: SSE fails loud without MCP_API_KEY; every request requires a constant-time-compared bearer token + sliding-window rate limit"
+      ],
+      "gaps": [
+        "No default 127.0.0.1 bind and no MCP_HOST override; NeighborJack surface reduced but not eliminated by binding hygiene"
+      ]
+    }
+  }
+}

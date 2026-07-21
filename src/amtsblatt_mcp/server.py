@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import xml.etree.ElementTree as ET
+from contextlib import asynccontextmanager
 from datetime import UTC, date, datetime, timezone
 from enum import StrEnum
 from time import monotonic
@@ -44,7 +45,7 @@ from .rubrics import (
 
 configure_logging()
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # ---------------------------------------------------------------------------
 # Source constants
@@ -257,36 +258,65 @@ def _make_client() -> httpx.AsyncClient:
     )
 
 
+# A single AsyncClient is shared across all requests so TCP connections and TLS
+# sessions are pooled instead of re-established per call. Created lazily on
+# first use (so direct tool invocation in tests works without the server
+# lifespan) and closed on shutdown by the FastMCP lifespan below.
+_client: httpx.AsyncClient | None = None
+
+
+def _get_client() -> httpx.AsyncClient:
+    """Return the shared AsyncClient, (re)creating it on first use or if closed."""
+    global _client
+    if _client is None or _client.is_closed:
+        _client = _make_client()
+    return _client
+
+
+async def _close_client() -> None:
+    """Close the shared client if open. Called on server shutdown."""
+    global _client
+    if _client is not None and not _client.is_closed:
+        await _client.aclose()
+    _client = None
+
+
+def _reset_client() -> None:
+    """Test helper: drop the shared client between tests."""
+    global _client
+    _client = None
+
+
 async def _get_json(path: str, params: dict | None = None) -> Any:
     """GET a JSON endpoint with retry on transient 5xx (502/503/504)."""
-    async with _make_client() as client:
-        for attempt in range(1, GAZETTE_MAX_RETRIES + 1):
-            r = await client.get(f"{GAZETTE_BASE}{path}", params=params)
-            if r.status_code in _TRANSIENT_STATUS and attempt < GAZETTE_MAX_RETRIES:
-                log_event(
-                    logging.WARNING, "gazette_retry",
-                    path=path, status=r.status_code, attempt=attempt,
-                )
-                await asyncio.sleep(GAZETTE_RETRY_BACKOFF * attempt)
-                continue
-            r.raise_for_status()
-            return r.json()
+    client = _get_client()
+    for attempt in range(1, GAZETTE_MAX_RETRIES + 1):
+        r = await client.get(f"{GAZETTE_BASE}{path}", params=params)
+        if r.status_code in _TRANSIENT_STATUS and attempt < GAZETTE_MAX_RETRIES:
+            log_event(
+                logging.WARNING, "gazette_retry",
+                path=path, status=r.status_code, attempt=attempt,
+            )
+            await asyncio.sleep(GAZETTE_RETRY_BACKOFF * attempt)
+            continue
+        r.raise_for_status()
+        return r.json()
 
 
 async def _get_text(path: str, params: dict | None = None) -> str:
     """GET an endpoint returning raw text (XML), with the same retry policy."""
-    async with _make_client() as client:
-        for attempt in range(1, GAZETTE_MAX_RETRIES + 1):
-            r = await client.get(f"{GAZETTE_BASE}{path}", params=params)
-            if r.status_code in _TRANSIENT_STATUS and attempt < GAZETTE_MAX_RETRIES:
-                log_event(
-                    logging.WARNING, "gazette_retry",
-                    path=path, status=r.status_code, attempt=attempt,
-                )
-                await asyncio.sleep(GAZETTE_RETRY_BACKOFF * attempt)
-                continue
-            r.raise_for_status()
-            return r.text
+    client = _get_client()
+    for attempt in range(1, GAZETTE_MAX_RETRIES + 1):
+        r = await client.get(f"{GAZETTE_BASE}{path}", params=params)
+        if r.status_code in _TRANSIENT_STATUS and attempt < GAZETTE_MAX_RETRIES:
+            log_event(
+                logging.WARNING, "gazette_retry",
+                path=path, status=r.status_code, attempt=attempt,
+            )
+            await asyncio.sleep(GAZETTE_RETRY_BACKOFF * attempt)
+            continue
+        r.raise_for_status()
+        return r.text
 
 
 def _build_params(raw: dict[str, Any]) -> dict[str, Any]:
@@ -722,8 +752,23 @@ def _handle_error(e: Exception) -> str:
 # Server
 # ---------------------------------------------------------------------------
 
+@asynccontextmanager
+async def _lifespan(_server: FastMCP):
+    """Server lifespan: guarantee the shared HTTP client is closed on shutdown.
+
+    The client itself is created lazily on first request (see `_get_client`),
+    so nothing needs to be opened here — this exists to release pooled
+    connections cleanly when the server stops.
+    """
+    try:
+        yield {}
+    finally:
+        await _close_client()
+
+
 mcp = FastMCP(
     "amtsblatt_mcp",
+    lifespan=_lifespan,
     instructions=(
         "Read-only access to amtsblattportal.ch — the Swiss official gazette portal "
         "(SHAB plus 27 cantonal gazettes). Covers public procurement (Submissionen), "
@@ -745,7 +790,11 @@ mcp = FastMCP(
 
 transport = os.environ.get("MCP_TRANSPORT", "stdio")
 if transport == "sse":
-    mcp.settings.host = "0.0.0.0"
+    # Bind loopback by default; exposing on all interfaces requires an explicit
+    # MCP_HOST=0.0.0.0. This prevents accidental NeighborJack exposure on shared
+    # networks, on top of the mandatory bearer auth + rate limit enforced below.
+    # Containers set MCP_HOST=0.0.0.0 deliberately (see compose.yaml).
+    mcp.settings.host = os.environ.get("MCP_HOST", "127.0.0.1")
     mcp.settings.port = int(os.environ.get("PORT", "8000"))
 
 
@@ -1475,9 +1524,8 @@ async def _probe_endpoint(url: str) -> dict:
     """Lightweight reachability probe: reports reachable/status/latency."""
     start = monotonic()
     try:
-        async with _make_client() as client:
-            r = await client.get(url)
-            r.raise_for_status()
+        r = await _get_client().get(url)
+        r.raise_for_status()
         return {
             "reachable": True,
             "status": r.status_code,

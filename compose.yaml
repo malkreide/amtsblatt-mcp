@@ -5,6 +5,9 @@ services:
     ports: ["8000:8000"]
     environment:
       MCP_TRANSPORT: sse
+      # Bind all interfaces INSIDE the isolated container so the published port
+      # is reachable; the server defaults to 127.0.0.1 otherwise (see server.py).
+      MCP_HOST: "0.0.0.0"
       PORT: "8000"
       MCP_API_KEY: ${MCP_API_KEY:?set MCP_API_KEY in your shell or .env}
       MCP_RATE_LIMIT: "60"
@@ -13,4 +16,8 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    # Resource limits (SCALE-006): honoured by `docker compose up` (v2).
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
     restart: unless-stopped
