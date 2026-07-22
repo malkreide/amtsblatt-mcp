@@ -2,7 +2,7 @@
 
 # 📰 amtsblatt-mcp
 
-![Version](https://img.shields.io/badge/version-0.1.2-blue)
+![Version](https://img.shields.io/badge/version-0.1.3-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -37,8 +37,10 @@ letzten drei Monaten im Kanton Basel-Stadt publiziert?»*
   andere ist standardmässig gesperrt, auch später hinzukommende Rubriken
 - **Erklärende Absagen** — eine gesperrte Rubrik liefert das *Warum*, nie ein
   stilles leeres Ergebnis und nie einen Umgehungshinweis
-- **Beschaffungs-Logik** — kennt die Tatsache, dass nur AR, BS, TI, ZG hier
-  ausschreiben und ZH über simap.ch läuft, und erklärt das statt nichts zu liefern
+- **Beschaffungs-Logik** — kennt die Tatsache, dass nur noch AR, BS und TI hier
+  ausschreiben, dass BL und VS historische Archive sind, dass `OB-ZG` nach dem
+  simap-Wechsel nie befüllt wurde und dass ZH vollständig über simap.ch läuft —
+  und erklärt das, statt nichts zu liefern
 - **Fristberechnung** in Europe/Zurich, der rechtlich relevanten Zeitzone
 - **Sprach-Deduplikation** — eine de/fr/it-Publikation zählt einmal
 - **Defensives XML-Parsing** — das Schema ist pro Subrubrik verschieden; kein
@@ -219,6 +221,19 @@ Authentifizierung, daher wird kein Bulk-Dump gepflegt.
 - **Beschaffungsgrenze.** Die meisten Kantone, auch **Zürich**, publizieren
   Ausschreibungen über simap.ch ausserhalb dieses Portals. Es gibt kein
   `OB-ZH`, und CPV-Klassifikation existiert hier nicht.
+- **Beschaffungsabdeckung, gemessen** (`publicationStates=PUBLISHED`, 2026-07-22):
+
+  | Rubrik | Publikationen | Neueste | Status |
+  |---|---|---|---|
+  | `OB-TI` | 2 924 | 2026-07-22 | aktiv, tagesaktuell |
+  | `OB-BS` | 3 056 | 2026-05-20 | aktiv |
+  | `OB-AR` | 386 | 2026-05-22 | aktiv |
+  | `OB-VS` | 1 053 | 2024-01-05 | Archiv — simap-Import bis Ende 2023 |
+  | `OB-BL` | 74 | 2023-03-30 | Archiv — Rubrik als «I N A K T I V» beschriftet |
+  | `OB-ZG` | 0 | — | Rubrik existiert, wurde nie befüllt |
+
+  Drei Kantone publizieren aktiv. Mit `include_inactive=True` sind die Archive
+  von BL und VS erreichbar. Vor einer Zitation neu messen.
 - **Kein Push.** Nur Polling; kein Abo- oder Webhook-Mechanismus.
 - **Rechtsverbindlich** ist das signierte PDF, nicht diese API.
 

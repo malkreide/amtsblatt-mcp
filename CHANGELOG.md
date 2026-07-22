@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-07-22
+
+### Fixed
+
+- **`OB-ZG` was misclassified as an active procurement rubric.** A live probe
+  (`publicationStates=PUBLISHED`, 2026-07-22) confirmed it holds 0 publications
+  and was never filled after the simap switch. `PROCUREMENT_RUBRICS["ZG"]` is
+  now `active=False`, so a canton-less `search_procurement` no longer sweeps the
+  empty rubric and `search_procurement(canton="ZG")` returns the same
+  explanation-instead-of-empty response as the other inactive cantons.
+- README claimed ZG publishes tenders and omitted the BL and VS historical
+  archives (1 127 records reachable via `include_inactive=True`). The green
+  allow-list in `rubrics.py` was already correct and is unchanged.
+
+### Changed
+
+- Tool and field descriptions now state the accurate active set (AR, BS, TI)
+  and describe BL/VS as archives and ZG as an empty rubric. The inactive-canton
+  list in the no-scope warning is derived from `PROCUREMENT_RUBRICS` instead of
+  hard-coded.
+
 ## [0.1.2] — 2026-07-21
 
 Metadata-fix release so the MCP Registry publish succeeds (0.1.1 published to

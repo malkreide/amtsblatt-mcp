@@ -5,4 +5,4 @@ carrying systematic natural-person data are excluded by design; see
 :mod:`amtsblatt_mcp.rubrics`.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.3"
