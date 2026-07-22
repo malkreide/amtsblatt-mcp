@@ -245,13 +245,28 @@ def test_procurement_scope_for_an_active_canton():
 
 def test_procurement_scope_without_canton_covers_active_rubrics_only():
     rubrics, _, _ = _procurement_scope(None, False)
-    assert set(rubrics) == {"OB-AR", "OB-BS", "OB-TI", "OB-ZG"}
+    assert set(rubrics) == {"OB-AR", "OB-BS", "OB-TI"}
     assert "OB-BL" not in rubrics
+    # OB-ZG exists in the taxonomy but was never filled after the simap
+    # switch — it is not an active procurement rubric.
+    assert "OB-ZG" not in rubrics
 
 
 def test_procurement_scope_include_inactive_adds_historical_rubrics():
     rubrics, _, _ = _procurement_scope(None, True)
     assert {"OB-BL", "OB-VS"} <= set(rubrics)
+
+
+def test_procurement_scope_zg_is_inactive_not_active():
+    """OB-ZG exists in the taxonomy but was never filled after the simap
+    switch (0 publications). It must be treated as inactive, not active."""
+    # Not part of the default (active-only) sweep.
+    active, _, _ = _procurement_scope(None, False)
+    assert "OB-ZG" not in active
+    # A direct query without include_inactive explains instead of searching.
+    rubrics, _, warnings = _procurement_scope("ZG", False)
+    assert rubrics == []
+    assert any("inaktiv" in w or "leer" in w for w in warnings)
 
 
 @pytest.mark.asyncio
@@ -293,7 +308,7 @@ async def test_procurement_multi_rubric_search_sends_all_active_codes():
         await search_procurement(ProcurementInput(keyword="Informatik"))
 
     sent = set(route.calls[0].request.url.params.get_list("rubrics"))
-    assert sent == {"OB-AR", "OB-BS", "OB-TI", "OB-ZG"}
+    assert sent == {"OB-AR", "OB-BS", "OB-TI"}
 
 
 @pytest.mark.asyncio

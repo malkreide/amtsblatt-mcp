@@ -2,7 +2,7 @@
 
 # 📰 amtsblatt-mcp
 
-![Version](https://img.shields.io/badge/version-0.1.2-blue)
+![Version](https://img.shields.io/badge/version-0.1.3-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -37,8 +37,10 @@ Basel-Stadt in the last three months?"*
   else is blocked by default, including rubrics the upstream adds later
 - **Explanatory refusals** — a blocked rubric returns *why*, never a silent
   empty result and never a workaround hint
-- **Procurement-aware** — knows that only AR, BS, TI, ZG publish tenders here
-  and that ZH routes them through simap.ch, so it explains instead of returning nothing
+- **Procurement-aware** — knows that only AR, BS and TI still publish tenders
+  here, that BL and VS are historical archives, that `OB-ZG` was never filled
+  after the simap switch, and that ZH routes everything through simap.ch — so it
+  explains instead of returning nothing
 - **Deadline arithmetic** in Europe/Zurich, the legally relevant timezone
 - **Language deduplication** — a notice published in de/fr/it counts once
 - **Defensive XML parsing** — the schema is per-sub-rubric; no rubric-specific
@@ -215,6 +217,19 @@ authentication, so no bulk dump is maintained.
 - **Procurement boundary.** Most cantons, including **Zürich**, route tenders
   through simap.ch, outside this portal. There is no `OB-ZH`, and no CPV
   classification exists here.
+- **Procurement coverage, measured** (`publicationStates=PUBLISHED`, 2026-07-22):
+
+  | Rubric | Publications | Latest | Status |
+  |---|---|---|---|
+  | `OB-TI` | 2 924 | 2026-07-22 | active, current |
+  | `OB-BS` | 3 056 | 2026-05-20 | active |
+  | `OB-AR` | 386 | 2026-05-22 | active |
+  | `OB-VS` | 1 053 | 2024-01-05 | archive — simap import until end of 2023 |
+  | `OB-BL` | 74 | 2023-03-30 | archive — rubric labelled «I N A K T I V» |
+  | `OB-ZG` | 0 | — | rubric exists but was never filled |
+
+  Three cantons publish actively. Use `include_inactive=True` to reach the BL
+  and VS archives. Re-measure before citing these figures.
 - **No push.** Polling only; no subscription or webhook mechanism.
 - **Legally binding text** is the signed PDF, not this API.
 

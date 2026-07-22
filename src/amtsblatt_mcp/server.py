@@ -173,11 +173,18 @@ PROCUREMENT_RUBRICS: dict[str, dict[str, Any]] = {
     "AR": {"rubric": "OB-AR", "active": True, "note": ""},
     "BS": {"rubric": "OB-BS", "active": True, "note": ""},
     "TI": {"rubric": "OB-TI", "active": True, "note": ""},
-    "ZG": {"rubric": "OB-ZG", "active": True, "note": "simap.ch-Import bis Ende Februar 2024"},
     "BL": {"rubric": "OB-BL", "active": False, "note": "inaktiv — nur historische Daten"},
     "VS": {"rubric": "OB-VS", "active": False, "note": "inaktiv seit Ende 2023 (simap.ch)"},
+    "ZG": {
+        "rubric": "OB-ZG",
+        "active": False,
+        "note": "leer — Rubrik nie befüllt, Wechsel zu simap.ch Ende Februar 2024",
+    },
 }
 PROCUREMENT_ACTIVE_CANTONS = [c for c, v in PROCUREMENT_RUBRICS.items() if v["active"]]
+PROCUREMENT_INACTIVE_CANTONS = [
+    c for c, v in PROCUREMENT_RUBRICS.items() if not v["active"]
+]
 
 # Non-simap procurement that lives in a sub-rubric of an otherwise blocked
 # parent. Kept separate because these must be sent as `subRubrics`, never as
@@ -897,9 +904,10 @@ class ProcurementInput(BaseModel):
         default=None,
         description=(
             "Kantonskürzel, z.B. 'BS'. Beschaffungsrubriken gibt es nur für "
-            "AR, BS, TI, ZG (aktiv) sowie BL, VS (inaktiv). Andere Kantone — "
-            "inklusive ZH — publizieren über simap.ch, nicht hier. Ohne Kanton "
-            "wird über alle aktiven Beschaffungsrubriken gesucht."
+            "AR, BS, TI (aktiv) sowie BL, VS, ZG (inaktiv; ZG leer, BL/VS nur "
+            "Archiv). Andere Kantone — inklusive ZH — publizieren über "
+            "simap.ch, nicht hier. Ohne Kanton wird über alle aktiven "
+            "Beschaffungsrubriken gesucht."
         ),
         min_length=2,
         max_length=2,
@@ -1152,7 +1160,8 @@ def _procurement_scope(
                 f"Öffentliche Ausschreibungen des Kantons {canton} laufen in der Regel "
                 "über simap.ch — eine separate Plattform ausserhalb dieser Quelle. "
                 f"Beschaffungsrubriken existieren nur für: "
-                f"{', '.join(PROCUREMENT_ACTIVE_CANTONS)} (aktiv) sowie BL, VS (inaktiv)."
+                f"{', '.join(PROCUREMENT_ACTIVE_CANTONS)} (aktiv) sowie "
+                f"{', '.join(PROCUREMENT_INACTIVE_CANTONS)} (inaktiv)."
             )
             return [], [], warnings
         if not _to_bool(entry["active"]) and not include_inactive:
@@ -1189,8 +1198,9 @@ async def search_procurement(params: ProcurementInput) -> str:
     """Sucht öffentliche Ausschreibungen (Beschaffungswesen/Submissionen).
 
     Beschaffung ist ausschliesslich eine KANTONALE Rubrik (`OB-<Kanton>`), nicht
-    föderal. Nur wenige Kantone publizieren sie hier: AR, BS, TI, ZG (aktiv)
-    sowie BL, VS (inaktiv). Die meisten Kantone — inklusive **Zürich** —
+    föderal. Nur wenige Kantone publizieren sie hier: AR, BS, TI (aktiv) sowie
+    BL, VS, ZG (inaktiv — BL/VS nur Archiv, ZG leer). Die meisten Kantone —
+    inklusive **Zürich** —
     publizieren Ausschreibungen über simap.ch, das NICHT Teil dieser Quelle ist;
     eine Abfrage für einen solchen Kanton liefert eine Erklärung statt eines
     leeren Ergebnisses. Die Quelle kennt keine CPV-Codes.
