@@ -4,6 +4,100 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-07-27
+
+Closes the six findings the 2026-07-27 re-audit downgraded, plus a version-drift
+bug found along the way. No tool, argument or return shape changed.
+
+### Context
+
+The re-audit re-verified 36 checks that the prior run had carried forward on a
+single line of evidence. Six did not hold up. Three of them — ARCH-005, SEC-019,
+SEC-021 — had been closed in the companion `swiss-procurement-mcp`; here they
+had been passing since the first run without the work ever being done.
+
+### ARCH-005 — secret handling
+
+- **gitleaks CI** (`.github/workflows/security.yml`) on push and PR, with
+  `fetch-depth: 0` so a secret introduced in any past commit is caught, not just
+  at the tip. Unlike the companion server this repo *does* take a credential
+  (`MCP_API_KEY` for SSE), so the scan guards a real risk.
+- **`.env.example`** with placeholders; `.gitignore` extended to `.env.*` with an
+  explicit `!.env.example`.
+- **`SecretStr`** for the API key. It is unwrapped at exactly one line — the one
+  that builds the constant-time comparison target — so an accidental f-string or
+  `repr()` renders `**********`. `BearerAuthMiddleware` now rejects a bare `str`
+  with a `TypeError`, so the old shape cannot come back silently.
+
+### SEC-019 — lethal-trifecta assessment
+
+Written down in `SECURITY.md` and `SECURITY.de.md`, assessed leg by leg rather
+than declared safe. At most one leg is present and it is the weakest: the
+personal-data rubrics are unreachable by construction, egress is allow-listed to
+one host, and there is no write, filesystem or sampling surface. The section
+also states what would flip each leg on — which is the part that makes it useful
+later.
+
+### SEC-021 — egress documentation
+
+`docs/network-egress.md`. Every behavioural claim in it was verified rather than
+asserted: that `MCP_ALLOWED_HOSTS` *replaces* rather than extends the default
+(an override omitting the gazette host disables the server, deliberately), that
+the OTel exporter is inert without an endpoint, and that the documented pytest
+selector matches real tests.
+
+### SEC-007 — container hardening
+
+- `useradd --system` picked a UID from the 100–999 range. That range is reserved
+  for host system accounts, so under a bind mount the container user can inherit
+  a real host user's ownership — and the exact number depends on package install
+  order, so it moved between rebuilds. Now an explicit `10001`, with a numeric
+  `USER 10001:10001` and a matching `user:` in compose.
+- **seccomp:** Docker already applies its built-in profile, the equivalent of
+  Kubernetes' `RuntimeDefault`, and Compose has no syntax that names it. The
+  obvious-looking `security_opt: [seccomp:unconfined]` would *disable* it. So the
+  posture is stated in a comment and in `docs/container-hardening.md` rather than
+  "fixed" with a line that makes things worse.
+- CI asserts both instead of trusting the Dockerfile: uid ≥ 10000 (not merely
+  non-zero) and `Seccomp: 2` in `/proc/self/status`. The probe runs through
+  `python` rather than `grep -oP`, because PCRE support in the base image is an
+  assumption and the interpreter is not.
+- The pre-existing non-root smoke test is kept and re-scoped: with a numeric
+  `USER` it now asserts the `/etc/passwd` entry still resolves, which a numeric
+  `USER` can silently lose.
+
+### OBS-003 — structured logging
+
+Moved to [structlog](https://www.structlog.org/). This server already emitted
+INFO, WARNING and ERROR; the gaps were a logging library in `dependencies`,
+`DEBUG` never being emitted, and nothing correlating the events of one call.
+
+The dependency earns itself on the third: `structlog.contextvars` binds context
+to the async task, so the retry and egress-denial events emitted deep in the
+HTTP path carry the surrounding call's `correlation_id` without being threaded
+through every signature.
+
+`DEBUG` now marks tool entry, which tells an operator whether a hung call was
+ever entered. `log_event` keeps its int-based signature, so none of the ~15 call
+sites changed.
+
+### Fixed — version drift
+
+Found while writing the egress doc: `__init__.py` reported `0.1.3`, `_otel.py`
+reported `0.1.2`, and the package was `0.4.0`. **Every OpenTelemetry span had
+been carrying a `service.version` three releases stale.** All of them now read
+`importlib.metadata`, so `pyproject.toml` is the single source, and
+`tests/test_version.py` fails if a fourth literal appears.
+
+### Added
+
+- `tests/test_secrets.py` — 6 tests, including one that fails if `.env.example`
+  ever accumulates a real-looking value
+- `tests/test_logging.py` — 11 tests; this repo previously had none, which is
+  part of why OBS-003 could be carried forward unnoticed
+- `tests/test_version.py` — 3 tests, incl. a scan for new hardcoded literals
+- `docs/network-egress.md`, `docs/container-hardening.md`
+
 ## [0.4.0] — 2026-07-27
 
 Unifies the tool-naming scheme. **Breaking: four of the five tools are renamed.**
