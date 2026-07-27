@@ -2,7 +2,7 @@
 
 # 📰 amtsblatt-mcp
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -116,7 +116,7 @@ amtsblatt-mcp
 | Tool | Signatur | Hinweise |
 |---|---|---|
 | `search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de', only_language=False)` | Nur freigegebene Rubriken. Ohne `rubric` werden alle grünen Rubriken injiziert — eine reine Stichwortsuche erreicht nie eine gesperrte. |
-| `search_gazette_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | Nur `OB-*`. Ein Kanton ohne *aktive* `OB-*`-Rubrik erhält die simap.ch-Erklärung und **keinen HTTP-Call**. Kein CPV — die Quelle kennt keines. |
+| `search_gazette_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*`-Rubriken plus die eigenständigen Subrubriken `AR-VS40`, `AR-OW40`, `BA-SH40`. Ein Kanton ohne beides erhält die simap.ch-Erklärung und **keinen HTTP-Call**. Kein CPV — die Quelle kennt keines. |
 | `get_publication` | `(id, response_format='markdown')` | Amtlicher Volltext aus dem XML. Prüft die Rubrik nach dem Abruf erneut; Inhalt einer gesperrten Rubrik wird verworfen. |
 | `list_rubrics` | `(language='de', rubric_class='green', response_format='markdown')` | `rubric_class='all'` zeigt die vollständige Taxonomie mit Ampelklassen und Begründung — aufgeführt heisst nicht durchsuchbar. |
 | `gazette_source_status` | `(response_format='markdown')` | Erreichbarkeit, Latenz, Cache-Alter, Scope-Kennzahlen. |
@@ -128,6 +128,7 @@ Alle Tools sind `readOnlyHint=True`.
 | Frage | Tool-Kette |
 |---|---|
 | Ausschreibungen im Tessin dieses Quartal | `search_gazette_procurement(canton="TI", only_language=True, language="it")` |
+| Beschaffung, die simap.ch **nicht** hat | `search_gazette_procurement(canton="VS")` — 150 Walliser Zuschläge, keiner auf simap |
 | Ausschreibungen in jedem anderen Kanton | → [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp) |
 | Was ist hier überhaupt abfragbar? | `list_rubrics()` |
 | Warum kann ich keine Konkurse suchen? | `list_rubrics(rubric_class="all")` |
@@ -194,11 +195,20 @@ Handelsregister, Raumplanung, Erlasse, kantonale und kommunale Mitteilungen.
 Dafür gibt es diesen Server; Beschaffung sind 6 seiner 49 freigegebenen Rubriken.
 
 Beschaffung ist hier weitgehend eine **Zweitpublikation** derselben
-Ausschreibungen. Drei der sechs `OB-*`-Rubriken sagen das in ihrem eigenen
-Label: `OB-BL` — «über Simap importiert (I N A K T I V)», `OB-VS` — «bis Ende
-2023 über simap.ch importiert», `OB-ZG` — «bis Ende Februar 2024 via simap.ch
-importiert». Aktiv publizieren nur noch TI und AR, und auch deren Bekanntmachungen
-sind Wiederveröffentlichungen von simap-Ausschreibungen.
+Ausschreibungen — und das ist inzwischen gemessen, nicht vermutet. Das XML einer
+Publikation trägt `<simapPublicationNumber>`, wenn sie von simap.ch stammt; damit
+joinen die beiden Korpora exakt. Über den vollständigen `OB-TI`-Jahrgang 2026
+tragen **503 von 546 Datensätzen (92,1 %)** eine solche Nummer; drei der sechs
+`OB-*`-Rubriken sagen es schon im eigenen Label (`OB-BL` — «über Simap importiert
+(I N A K T I V)»).
+
+Die Ausnahme ist klein und scharf begrenzt: `AR-VS40` (Wallis, 150 Zuschläge),
+`AR-OW40` (Obwalden, 7), `BA-SH40` (Schaffhausen, 2) und die Ticiner Subrubrik
+`OB-TI65` («Avvisi di gara **non CIAP**») tragen **keine** simap-Referenz. Das
+ist der einzige Teil der hiesigen Beschaffungsabdeckung, den
+`swiss-procurement-mcp` nicht erreicht — `search_gazette_procurement` liefert ihn
+für VS, OW und SH, obwohl diese Kantone keine aktive `OB-*`-Rubrik haben. Zahlen
+und Methode in [`docs/simap-overlap.md`](docs/simap-overlap.md).
 
 Die beiden Server bleiben bewusst getrennt: unterschiedliche Quellen,
 unterschiedliche Nutzungsbedingungen — und ein fail-closed Rubrik-Gate, das nur
@@ -253,7 +263,10 @@ Authentifizierung, daher wird kein Bulk-Dump gepflegt.
   Durchreichen, keine Persistenz.
 - **Beschaffungsgrenze.** Die meisten Kantone, auch **Zürich**, publizieren
   Ausschreibungen über simap.ch ausserhalb dieses Portals. Es gibt kein
-  `OB-ZH`, und CPV-Klassifikation existiert hier nicht.
+  `OB-ZH`, und CPV-Klassifikation existiert hier nicht. Was dieses Portal hat
+  und simap nicht, steht in [`docs/simap-overlap.md`](docs/simap-overlap.md);
+  `get_publication` weist `simap_publication_number` aus, sodass Spiegel und
+  Original unterscheidbar sind.
 - **Beschaffungsabdeckung, gemessen** (`publicationStates=PUBLISHED`, 2026-07-27,
   Datensätze pro Kalenderjahr — reproduzierbar mit
   `python scripts/measure_procurement_coverage.py`):
@@ -308,7 +321,8 @@ amtsblatt-mcp/
 │   └── fixtures.py          # Anonymisierte echte Antworten
 ├── docs/
 │   ├── rubric-classification.md   # Warum jede der 152 Rubriken offen/zu ist
-│   └── procurement-coverage.md    # Gemessene OB-*-Volumina; warum `active` gemessen wird
+│   ├── procurement-coverage.md    # Gemessene OB-*-Volumina; warum `active` gemessen wird
+│   └── simap-overlap.md           # Spiegel vs. Original, Join über simapPublicationNumber
 ├── scripts/
 │   └── measure_procurement_coverage.py
 ├── Dockerfile · compose.yaml      # Gehärteter Container, non-root, read-only

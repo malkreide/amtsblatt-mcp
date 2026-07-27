@@ -31,6 +31,9 @@ from amtsblatt_mcp.server import (
 from .fixtures import (
     MOCK_XML_HR03,
     MOCK_XML_MALFORMED,
+    MOCK_XML_MIRRORED_PROCUREMENT,
+    MOCK_XML_NATIVE_PROCUREMENT,
+    MOCK_XML_PLACEHOLDER_SIMAP_REF,
     MOCK_XML_PROCUREMENT,
     MOCK_XML_UNKNOWN,
 )
@@ -281,3 +284,54 @@ def test_reset_client_drops_the_shared_instance():
         assert _get_client() is not first
     finally:
         _reset_client()
+
+
+# ---------------------------------------------------------------------------
+# simap reference — mirror vs. gazette-native
+# ---------------------------------------------------------------------------
+
+
+def test_simap_reference_is_promoted_and_stripped():
+    """`#41510-01` is simap's own publicationNumber; the marker must go."""
+    parsed = _parse_publication_xml(MOCK_XML_MIRRORED_PROCUREMENT)
+    assert parsed["simap_publication_number"] == "41510-01"
+    # Promoted out of the catch-all so callers do not have to know the tag name.
+    assert "simapPublicationNumber" not in parsed["additional_fields"]
+
+
+def test_gazette_native_publication_has_no_simap_reference():
+    parsed = _parse_publication_xml(MOCK_XML_NATIVE_PROCUREMENT)
+    assert parsed["simap_publication_number"] is None
+
+
+def test_placeholder_simap_reference_reads_as_absent():
+    """A publisher-typed "--" is not an id and must not be reported as one."""
+    parsed = _parse_publication_xml(MOCK_XML_PLACEHOLDER_SIMAP_REF)
+    assert parsed["simap_publication_number"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_publication_flags_a_second_publication():
+    with respx.mock:
+        respx.get(url__regex=rf"{GAZETTE_BASE}/publications/.*/xml").mock(
+            return_value=httpx.Response(200, text=MOCK_XML_MIRRORED_PROCUREMENT)
+        )
+        result = await get_publication(
+            PublicationInput(id="dddd2222-0000-0000-0000-000000000010")
+        )
+    assert "41510-01" in result
+    assert "Zweitpublikation" in result
+    assert "swiss-procurement-mcp" in result
+
+
+@pytest.mark.asyncio
+async def test_get_publication_flags_a_gazette_only_record():
+    with respx.mock:
+        respx.get(url__regex=rf"{GAZETTE_BASE}/publications/.*/xml").mock(
+            return_value=httpx.Response(200, text=MOCK_XML_NATIVE_PROCUREMENT)
+        )
+        result = await get_publication(
+            PublicationInput(id="cccc1111-0000-0000-0000-000000000009")
+        )
+    assert "keine simap-Nummer" in result
+    assert "nicht auffindbar" in result

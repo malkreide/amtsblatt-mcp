@@ -2,7 +2,7 @@
 
 # 📰 amtsblatt-mcp
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -115,7 +115,7 @@ amtsblatt-mcp
 | Tool | Signature | Notes |
 |---|---|---|
 | `search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de', only_language=False)` | Green rubrics enforced. Without `rubric`, all green rubrics are injected — a keyword-only query can never reach a blocked one. |
-| `search_gazette_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*` only. A canton with no *active* `OB-*` rubric gets a simap.ch explainer and **no HTTP call**. No CPV — the source has none. |
+| `search_gazette_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*` rubrics plus the gazette-native sub-rubrics `AR-VS40`, `AR-OW40`, `BA-SH40`. A canton with neither gets a simap.ch explainer and **no HTTP call**. No CPV — the source has none. |
 | `get_publication` | `(id, response_format='markdown')` | Full official text from XML. Re-checks the rubric after fetching; content from a blocked rubric is discarded. |
 | `list_rubrics` | `(language='de', rubric_class='green', response_format='markdown')` | `rubric_class='all'` shows the full taxonomy with traffic-light classes and reasons — listed ≠ queryable. |
 | `gazette_source_status` | `(response_format='markdown')` | Reachability, latency, cache age, scope metrics. |
@@ -127,6 +127,7 @@ All tools are `readOnlyHint=True`.
 | Question | Tool chain |
 |---|---|
 | Tenders in Ticino this quarter | `search_gazette_procurement(canton="TI", only_language=True, language="it")` |
+| Procurement simap.ch does **not** have | `search_gazette_procurement(canton="VS")` — 150 Valais awards, none on simap |
 | Tenders in any other canton | → use [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp) |
 | What is even queryable here? | `list_rubrics()` |
 | Why can't I search bankruptcies? | `list_rubrics(rubric_class="all")` |
@@ -187,11 +188,20 @@ for procurement questions.
 register, spatial planning, enactments, cantonal and communal announcements.
 That is what this server is for; procurement is 6 of its 49 released rubrics.
 
-Procurement here is largely a **second publication** of the same tenders. Three
-of the six `OB-*` rubrics say so in their own labels: `OB-BL` — "über Simap
-importiert (I N A K T I V)", `OB-VS` — "bis Ende 2023 über simap.ch importiert",
-`OB-ZG` — "bis Ende Februar 2024 via simap.ch importiert". Only TI and AR still
-publish actively, and their notices are republications of simap tenders.
+Procurement here is largely a **second publication** of the same tenders, and
+that is now measured rather than assumed. A publication's XML carries
+`<simapPublicationNumber>` when it originates on simap.ch, which joins the two
+corpora exactly. Over the full 2026 `OB-TI` corpus, **503 of 546 records (92.1%)
+carry one**; three of the six `OB-*` rubrics say as much in their own labels
+(`OB-BL` — "über Simap importiert (I N A K T I V)").
+
+The exception is small and sharply bounded: `AR-VS40` (Valais, 150 awards),
+`AR-OW40` (Obwalden, 7), `BA-SH40` (Schaffhausen, 2) and the Ticino sub-rubric
+`OB-TI65` ("Avvisi di gara **non CIAP**") carry **no** simap reference at all.
+That is the one part of this portal's procurement coverage `swiss-procurement-mcp`
+cannot reach, and `search_gazette_procurement` serves it for cantons VS, OW and
+SH even though they have no active `OB-*` rubric. Numbers and method in
+[`docs/simap-overlap.md`](docs/simap-overlap.md).
 
 The two servers stay separate on purpose: different sources, different reuse
 terms, and a fail-closed rubric gate that only means something while it covers
@@ -246,7 +256,9 @@ authentication, so no bulk dump is maintained.
   pass-through only.
 - **Procurement boundary.** Most cantons, including **Zürich**, route tenders
   through simap.ch, outside this portal. There is no `OB-ZH`, and no CPV
-  classification exists here.
+  classification exists here. What this portal has and simap does not is listed
+  in [`docs/simap-overlap.md`](docs/simap-overlap.md); `get_publication` reports
+  `simap_publication_number` so a mirror is distinguishable from an original.
 - **Procurement coverage, measured** (`publicationStates=PUBLISHED`, 2026-07-27,
   records per calendar year — reproduce with
   `python scripts/measure_procurement_coverage.py`):
@@ -301,7 +313,8 @@ amtsblatt-mcp/
 │   └── fixtures.py          # Anonymised real responses
 ├── docs/
 │   ├── rubric-classification.md   # Why each of the 152 rubrics is open/closed
-│   └── procurement-coverage.md    # Measured OB-* volume; why `active` is measured
+│   ├── procurement-coverage.md    # Measured OB-* volume; why `active` is measured
+│   └── simap-overlap.md           # Mirror vs. original, joined on simapPublicationNumber
 ├── scripts/
 │   └── measure_procurement_coverage.py
 ├── Dockerfile · compose.yaml      # Hardened, non-root, read-only container
