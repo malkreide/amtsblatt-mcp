@@ -1,0 +1,444 @@
+{
+  "audit_meta": {
+    "server_name": "amtsblatt-mcp",
+    "run_id": "2026-07-27T150925-Z-amtsblatt-mcp"
+  },
+  "policy": "fail-or-partial",
+  "results": {
+    "ARCH-001": {
+      "status": "partial",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "All 5 tools snake_case, no special characters",
+        "Descriptions carry use case and scope"
+      ],
+      "gaps": [
+        "Namespace prefixing is now mixed: search_gazette_procurement and gazette_source_status carry a gazette_ prefix, while search_publications, get_publication and list_rubrics do not. Introduced by the v0.2.0 rename, which prefixed only the two names that collided with swiss-procurement-mcp. Either prefix all five or none"
+      ]
+    },
+    "ARCH-002": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Multi-paragraph German docstrings plus a FastMCP instructions block",
+        "search_gazette_procurement now states the mirror relationship and names the simap-free exception"
+      ],
+      "gaps": []
+    },
+    "ARCH-003": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Blocked rubric returns an explanation with zero HTTP calls",
+        "A canton with no active rubric gets the simap explainer; VS/OW/SH now return their native sub-rubric instead"
+      ],
+      "gaps": []
+    },
+    "ARCH-004": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-005": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-006": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-007": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-008": {
+      "status": "partial",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Tools only; list_rubrics and gazette_source_status are Resource candidates"
+      ],
+      "gaps": [
+        "No Resources, no Prompts, no documented tools-only rationale (unchanged since the last run)"
+      ]
+    },
+    "ARCH-009": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-011": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-012": {
+      "status": "partial",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "CHANGELOG.md in Keep-a-Changelog format, three releases documented since the last audit",
+        "Dependabot active"
+      ],
+      "gaps": [
+        "protocolVersion still not pinned anywhere; FastMCP default in use (unchanged since the last run)"
+      ]
+    },
+    "CH-004": {
+      "status": "pass",
+      "category": "CH",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-001": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-002": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-003": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-004": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-006": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OPS-001": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "high",
+      "evidence": [
+        "92 offline tests (respx-mocked) across three files plus live-marked tests",
+        "test_allowlist.py runs as its own CI job, guarding the data-protection invariants",
+        "v0.3.0 added over-collapse guards and the never-send-the-blocked-parent assertion"
+      ],
+      "gaps": []
+    },
+    "OPS-002": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OPS-003": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-001": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-002": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-003": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-004": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-006": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SDK-001": {
+      "status": "pass",
+      "category": "SDK",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SDK-002": {
+      "status": "partial",
+      "category": "SDK",
+      "severity": "medium",
+      "evidence": [
+        "Pydantic v2 input models with ConfigDict(extra='forbid') on every tool",
+        "JSON output carries a consistent envelope with source, provenance, count, results and now language_mix"
+      ],
+      "gaps": [
+        "Tool return type is str (rendered Markdown or JSON), not a Pydantic model (unchanged since the last run)"
+      ]
+    },
+    "SDK-003": {
+      "status": "partial",
+      "category": "SDK",
+      "severity": "medium",
+      "evidence": [
+        "Structured per-tool-call logging via the logged_tool decorator"
+      ],
+      "gaps": [
+        "Tools take no ctx: Context, so no progress reporting or ctx.warning (unchanged since the last run)"
+      ]
+    },
+    "SDK-004": {
+      "status": "pass",
+      "category": "SDK",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-002": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-003": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-004": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-005": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-006": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-007": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-008": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-009": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-013": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-014": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-015": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-016": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-018": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "Pydantic v2 ConfigDict(extra='forbid'), field validators, regex patterns and min/max bounds on every input model",
+        "New only_language flag validated through the same models"
+      ],
+      "gaps": []
+    },
+    "SEC-019": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-020": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-021": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-022": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "FastMCP server namespace amtsblatt_mcp; tools are namespaced under the server identity",
+        "CHANGELOG names the tool-definition changes explicitly for both renamed tools"
+      ],
+      "gaps": [
+        "Per-tool prefixing is only partial — see ARCH-001"
+      ]
+    }
+  }
+}
