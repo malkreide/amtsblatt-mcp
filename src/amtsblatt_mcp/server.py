@@ -45,7 +45,7 @@ from .rubrics import (
 
 configure_logging()
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # ---------------------------------------------------------------------------
 # Source constants
@@ -536,7 +536,7 @@ async def _validate_rubric_code(code: str, kind: str) -> None:
         return
     green_valid = sorted(c for c in valid if is_green(c))
     suggestions = difflib.get_close_matches(code, green_valid, n=5, cutoff=0.0)
-    hint = ", ".join(suggestions) if suggestions else "— (Taxonomie via list_rubrics)"
+    hint = ", ".join(suggestions) if suggestions else "— (Taxonomie via gazette_list_rubrics)"
     raise GazetteInvalidCode(
         f"Ungültiger {kind}-Code «{code}». Nächstliegende erschlossene Codes: {hint}."
     )
@@ -958,8 +958,8 @@ mcp = FastMCP(
         "to reach those rubrics by other means. For publications about a specific "
         "COMPANY (a legal person, including its bankruptcy) use the UID join in the "
         "companion server `register-mcp`.\n\n"
-        "Start with `list_rubrics` to see what is queryable, then "
-        "`search_publications` or `search_gazette_procurement`, then `get_publication(id=…)` "
+        "Start with `gazette_list_rubrics` to see what is queryable, then "
+        "`gazette_search_publications` or `gazette_search_procurement`, then `gazette_get_publication(id=…)` "
         "for the official full text — the list endpoint returns metadata only."
     ),
 )
@@ -998,7 +998,7 @@ class SearchInput(BaseModel):
         description=(
             "Rubrik-Code, z.B. 'HR' (Handelsregister), 'OB-BS' (Beschaffung "
             "Basel-Stadt), 'RP-ZH' (Raumplanung Zürich). Nur freigegebene Rubriken "
-            "sind zulässig — `list_rubrics` zeigt sie. Ohne Angabe wird über alle "
+            "sind zulässig — `gazette_list_rubrics` zeigt sie. Ohne Angabe wird über alle "
             "freigegebenen Rubriken gesucht."
         ),
         max_length=12,
@@ -1154,8 +1154,8 @@ class PublicationInput(BaseModel):
     id: str = Field(
         ...,
         description=(
-            "Publikations-ID (UUID) aus `search_publications` oder "
-            "`search_gazette_procurement`. Beispiel: 'fbf0ff9e-3e28-4e09-8a1e-32a7aa4cea8f'."
+            "Publikations-ID (UUID) aus `gazette_search_publications` oder "
+            "`gazette_search_procurement`. Beispiel: 'fbf0ff9e-3e28-4e09-8a1e-32a7aa4cea8f'."
         ),
         min_length=8,
         max_length=64,
@@ -1198,7 +1198,7 @@ class StatusInput(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Tool: search_publications
+# Tool: gazette_search_publications
 # ---------------------------------------------------------------------------
 
 
@@ -1244,7 +1244,7 @@ def _render_results(summaries: list[dict], heading: str, meta_line: str) -> list
 
 
 @mcp.tool(
-    name="search_publications",
+    name="gazette_search_publications",
     annotations={
         "title": "Amtsblatt-Publikationen suchen (freigegebene Rubriken)",
         "readOnlyHint": True,
@@ -1253,8 +1253,8 @@ def _render_results(summaries: list[dict], heading: str, meta_line: str) -> list
         "openWorldHint": True,
     },
 )
-@logged_tool("search_publications")
-async def search_publications(params: SearchInput) -> str:
+@logged_tool("gazette_search_publications")
+async def gazette_search_publications(params: SearchInput) -> str:
     """Sucht amtliche Publikationen im Amtsblattportal (SHAB + kantonale Amtsblätter).
 
     Durchsucht ausschliesslich die freigegebenen («grünen») Rubriken: Handels-
@@ -1351,12 +1351,12 @@ async def search_publications(params: SearchInput) -> str:
         lines = lines[:2] + ["", f"> ⚠️ {lang_note}"] + lines[2:]
     if isinstance(total, int) and total > len(summaries):
         lines += ["", f"_Weitere Treffer vorhanden — `page={params.page + 1}` abrufen._"]
-    lines += ["", "_Volltext einer Publikation via `get_publication(id=…)`._"]
+    lines += ["", "_Volltext einer Publikation via `gazette_get_publication(id=…)`._"]
     return _md(lines, "live_api")
 
 
 # ---------------------------------------------------------------------------
-# Tool: search_gazette_procurement
+# Tool: gazette_search_procurement
 # ---------------------------------------------------------------------------
 
 
@@ -1423,7 +1423,7 @@ def _procurement_scope(
 
 
 @mcp.tool(
-    name="search_gazette_procurement",
+    name="gazette_search_procurement",
     annotations={
         "title": "Öffentliche Ausschreibungen / Submissionen suchen",
         "readOnlyHint": True,
@@ -1432,8 +1432,8 @@ def _procurement_scope(
         "openWorldHint": True,
     },
 )
-@logged_tool("search_gazette_procurement")
-async def search_gazette_procurement(params: ProcurementInput) -> str:
+@logged_tool("gazette_search_procurement")
+async def gazette_search_procurement(params: ProcurementInput) -> str:
     """Sucht öffentliche Ausschreibungen (Beschaffungswesen/Submissionen).
 
     Beschaffung ist ausschliesslich eine KANTONALE Rubrik (`OB-<Kanton>`), nicht
@@ -1569,18 +1569,18 @@ async def search_gazette_procurement(params: ProcurementInput) -> str:
         lines += ["", f"_Weitere Treffer vorhanden — `page={params.page + 1}` abrufen._"]
     lines += [
         "",
-        "_Detail inkl. Eingabefrist via `get_publication(id=…)`._",
+        "_Detail inkl. Eingabefrist via `gazette_get_publication(id=…)`._",
     ]
     return _md(lines, "live_api")
 
 
 # ---------------------------------------------------------------------------
-# Tool: get_publication
+# Tool: gazette_get_publication
 # ---------------------------------------------------------------------------
 
 
 @mcp.tool(
-    name="get_publication",
+    name="gazette_get_publication",
     annotations={
         "title": "Einzelpublikation inkl. amtlichem Volltext",
         "readOnlyHint": True,
@@ -1589,8 +1589,8 @@ async def search_gazette_procurement(params: ProcurementInput) -> str:
         "openWorldHint": True,
     },
 )
-@logged_tool("get_publication")
-async def get_publication(params: PublicationInput) -> str:
+@logged_tool("gazette_get_publication")
+async def gazette_get_publication(params: PublicationInput) -> str:
     """Einzelne Publikation inkl. amtlichem Volltext (aus dem XML, defensiv geparst).
 
     Die Listen-API liefert nur Metadaten — der eigentliche Inhalt steht
@@ -1705,14 +1705,14 @@ async def get_publication(params: PublicationInput) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Tool: list_rubrics
+# Tool: gazette_list_rubrics
 # ---------------------------------------------------------------------------
 
 _CLASS_ICON = {"green": "🟢", "yellow": "🟡", "red": "🔴", "unclassified": "⚪"}
 
 
 @mcp.tool(
-    name="list_rubrics",
+    name="gazette_list_rubrics",
     annotations={
         "title": "Rubriken auflisten (mit Ampel-Klassierung)",
         "readOnlyHint": True,
@@ -1721,8 +1721,8 @@ _CLASS_ICON = {"green": "🟢", "yellow": "🟡", "red": "🔴", "unclassified":
         "openWorldHint": False,
     },
 )
-@logged_tool("list_rubrics")
-async def list_rubrics(params: RubricsInput) -> str:
+@logged_tool("gazette_list_rubrics")
+async def gazette_list_rubrics(params: RubricsInput) -> str:
     """Rubrik-Taxonomie des Amtsblattportals mit Ampel-Klassierung.
 
     Voraussetzung für gültige Filter: Rubrik-Codes werden in den Such-Tools

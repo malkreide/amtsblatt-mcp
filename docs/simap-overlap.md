@@ -18,7 +18,7 @@ unnötig — was gut ist, denn beides wäre hier unbrauchbar: die Titel sind
 teilweise übersetzt, und simaps Volltextsuche ist ein lockerer OR-Match mit
 20 Treffern Deckel.
 
-`get_publication` weist das Feld als `simap_publication_number` aus.
+`gazette_get_publication` weist das Feld als `simap_publication_number` aus.
 
 ## Messung vom 2026-07-27
 
@@ -74,9 +74,9 @@ und Publikationsverlauf — statt drei Kantonen ohne Klassifikation.
 Zuschläge), `AR-OW40` (Obwalden) und `BA-SH40` (Schaffhausen) tragen keine
 einzige simap-Referenz. Sie sind der einzige Teil der hiesigen
 Beschaffungsabdeckung, den simap.ch nicht hat — und liegen in Kantonen **ohne**
-aktive `OB-*`-Rubrik. `search_gazette_procurement(canton="VS"|"OW"|"SH")`
+aktive `OB-*`-Rubrik. `gazette_search_procurement(canton="VS"|"OW"|"SH")`
 liefert sie seit v0.3.0; vorher waren sie nur über
-`search_publications(sub_rubric=…)` erreichbar.
+`gazette_search_publications(sub_rubric=…)` erreichbar.
 
 Sie werden ausschliesslich als `subRubrics` gesendet, nie als `rubrics`: Die
 Elternrubriken `AR-VS`, `AR-OW` und `BA-SH` sind Sammelrubriken mit

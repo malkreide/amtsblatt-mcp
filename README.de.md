@@ -29,11 +29,11 @@ Datenschutz-Entscheid, erläutert unter [Datenschutz & Scope](#datenschutz--scop
 
 **Anker-Demoabfrage:** *«Welche öffentlichen Ausschreibungen hat der Kanton
 Tessin diesen Monat publiziert?»*
-→ `search_gazette_procurement(canton="TI", only_language=True, language="it")` → `get_publication(id=…)`
+→ `gazette_search_procurement(canton="TI", only_language=True, language="it")` → `gazette_get_publication(id=…)`
 
 ### Demo
 
-![Demo: Claude nutzt search_gazette_procurement und get_publication](docs/assets/demo.svg)
+![Demo: Claude nutzt gazette_search_procurement und gazette_get_publication](docs/assets/demo.svg)
 
 Für Beschaffung in jedem anderen Kanton — auch Zürich, Bern und Basel-Stadt —
 ist [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp)
@@ -119,10 +119,10 @@ amtsblatt-mcp
 
 | Tool | Signatur | Hinweise |
 |---|---|---|
-| `search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de', only_language=False)` | Nur freigegebene Rubriken. Ohne `rubric` werden alle grünen Rubriken injiziert — eine reine Stichwortsuche erreicht nie eine gesperrte. |
-| `search_gazette_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*`-Rubriken plus die eigenständigen Subrubriken `AR-VS40`, `AR-OW40`, `BA-SH40`. Ein Kanton ohne beides erhält die simap.ch-Erklärung und **keinen HTTP-Call**. Kein CPV — die Quelle kennt keines. |
-| `get_publication` | `(id, response_format='markdown')` | Amtlicher Volltext aus dem XML. Prüft die Rubrik nach dem Abruf erneut; Inhalt einer gesperrten Rubrik wird verworfen. |
-| `list_rubrics` | `(language='de', rubric_class='green', response_format='markdown')` | `rubric_class='all'` zeigt die vollständige Taxonomie mit Ampelklassen und Begründung — aufgeführt heisst nicht durchsuchbar. |
+| `gazette_search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de', only_language=False)` | Nur freigegebene Rubriken. Ohne `rubric` werden alle grünen Rubriken injiziert — eine reine Stichwortsuche erreicht nie eine gesperrte. |
+| `gazette_search_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*`-Rubriken plus die eigenständigen Subrubriken `AR-VS40`, `AR-OW40`, `BA-SH40`. Ein Kanton ohne beides erhält die simap.ch-Erklärung und **keinen HTTP-Call**. Kein CPV — die Quelle kennt keines. |
+| `gazette_get_publication` | `(id, response_format='markdown')` | Amtlicher Volltext aus dem XML. Prüft die Rubrik nach dem Abruf erneut; Inhalt einer gesperrten Rubrik wird verworfen. |
+| `gazette_list_rubrics` | `(language='de', rubric_class='green', response_format='markdown')` | `rubric_class='all'` zeigt die vollständige Taxonomie mit Ampelklassen und Begründung — aufgeführt heisst nicht durchsuchbar. |
 | `gazette_source_status` | `(response_format='markdown')` | Erreichbarkeit, Latenz, Cache-Alter, Scope-Kennzahlen. |
 
 Alle Tools sind `readOnlyHint=True`.
@@ -131,13 +131,13 @@ Alle Tools sind `readOnlyHint=True`.
 
 | Frage | Tool-Kette |
 |---|---|
-| Ausschreibungen im Tessin dieses Quartal | `search_gazette_procurement(canton="TI", only_language=True, language="it")` |
-| Beschaffung, die simap.ch **nicht** hat | `search_gazette_procurement(canton="VS")` — 150 Walliser Zuschläge, keiner auf simap |
+| Ausschreibungen im Tessin dieses Quartal | `gazette_search_procurement(canton="TI", only_language=True, language="it")` |
+| Beschaffung, die simap.ch **nicht** hat | `gazette_search_procurement(canton="VS")` — 150 Walliser Zuschläge, keiner auf simap |
 | Ausschreibungen in jedem anderen Kanton | → [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp) |
-| Was ist hier überhaupt abfragbar? | `list_rubrics()` |
-| Warum kann ich keine Konkurse suchen? | `list_rubrics(rubric_class="all")` |
-| Zonenplanänderungen in Zürich | `search_publications(rubric="RP-ZH")` |
-| Volltext einer Bekanntmachung | `get_publication(id="fbf0ff9e-…")` |
+| Was ist hier überhaupt abfragbar? | `gazette_list_rubrics()` |
+| Warum kann ich keine Konkurse suchen? | `gazette_list_rubrics(rubric_class="all")` |
+| Zonenplanänderungen in Zürich | `gazette_search_publications(rubric="RP-ZH")` |
+| Volltext einer Bekanntmachung | `gazette_get_publication(id="fbf0ff9e-…")` |
 | Alles zu einer bestimmten Firma | → [`register-mcp`](https://github.com/malkreide/register-mcp) |
 
 ## Datenschutz & Scope
@@ -210,7 +210,7 @@ Die Ausnahme ist klein und scharf begrenzt: `AR-VS40` (Wallis, 150 Zuschläge),
 `AR-OW40` (Obwalden, 7), `BA-SH40` (Schaffhausen, 2) und die Ticiner Subrubrik
 `OB-TI65` («Avvisi di gara **non CIAP**») tragen **keine** simap-Referenz. Das
 ist der einzige Teil der hiesigen Beschaffungsabdeckung, den
-`swiss-procurement-mcp` nicht erreicht — `search_gazette_procurement` liefert ihn
+`swiss-procurement-mcp` nicht erreicht — `gazette_search_procurement` liefert ihn
 für VS, OW und SH, obwohl diese Kantone keine aktive `OB-*`-Rubrik haben. Zahlen
 und Methode in [`docs/simap-overlap.md`](docs/simap-overlap.md).
 
@@ -269,7 +269,7 @@ Authentifizierung, daher wird kein Bulk-Dump gepflegt.
   Ausschreibungen über simap.ch ausserhalb dieses Portals. Es gibt kein
   `OB-ZH`, und CPV-Klassifikation existiert hier nicht. Was dieses Portal hat
   und simap nicht, steht in [`docs/simap-overlap.md`](docs/simap-overlap.md);
-  `get_publication` weist `simap_publication_number` aus, sodass Spiegel und
+  `gazette_get_publication` weist `simap_publication_number` aus, sodass Spiegel und
   Original unterscheidbar sind.
 - **Beschaffungsabdeckung, gemessen** (`publicationStates=PUBLISHED`, 2026-07-27,
   Datensätze pro Kalenderjahr — reproduzierbar mit

@@ -24,8 +24,8 @@ from amtsblatt_mcp.server import (
     _parse_publication_xml,
     _pick_language,
     _reset_client,
+    gazette_get_publication,
     gazette_source_status,
-    get_publication,
 )
 
 from .fixtures import (
@@ -94,7 +94,7 @@ async def test_get_publication_reports_malformed_xml_without_a_traceback():
         respx.get(f"{GAZETTE_BASE}/publications/{pub_id}/xml").mock(
             return_value=httpx.Response(200, text=MOCK_XML_MALFORMED)
         )
-        result = await get_publication(PublicationInput(id=pub_id))
+        result = await gazette_get_publication(PublicationInput(id=pub_id))
     assert "konnte nicht geparst werden" in result
     assert "Traceback" not in result
 
@@ -160,7 +160,7 @@ async def test_get_publication_renders_the_deadline_with_remaining_time():
         respx.get(f"{GAZETTE_BASE}/publications/fbf0ff9e/xml").mock(
             return_value=httpx.Response(200, text=MOCK_XML_PROCUREMENT)
         )
-        result = await get_publication(PublicationInput(id="fbf0ff9e"))
+        result = await gazette_get_publication(PublicationInput(id="fbf0ff9e"))
     assert "2026-08-15" in result
     assert "Frist" in result
     assert "Trambeschaffung" in result
@@ -172,7 +172,7 @@ async def test_get_publication_json_includes_days_remaining():
         respx.get(f"{GAZETTE_BASE}/publications/fbf0ff9e/xml").mock(
             return_value=httpx.Response(200, text=MOCK_XML_PROCUREMENT)
         )
-        result = await get_publication(
+        result = await gazette_get_publication(
             PublicationInput(id="fbf0ff9e", response_format="json")
         )
     data = json.loads(result)
@@ -316,7 +316,7 @@ async def test_get_publication_flags_a_second_publication():
         respx.get(url__regex=rf"{GAZETTE_BASE}/publications/.*/xml").mock(
             return_value=httpx.Response(200, text=MOCK_XML_MIRRORED_PROCUREMENT)
         )
-        result = await get_publication(
+        result = await gazette_get_publication(
             PublicationInput(id="dddd2222-0000-0000-0000-000000000010")
         )
     assert "41510-01" in result
@@ -330,7 +330,7 @@ async def test_get_publication_flags_a_gazette_only_record():
         respx.get(url__regex=rf"{GAZETTE_BASE}/publications/.*/xml").mock(
             return_value=httpx.Response(200, text=MOCK_XML_NATIVE_PROCUREMENT)
         )
-        result = await get_publication(
+        result = await gazette_get_publication(
             PublicationInput(id="cccc1111-0000-0000-0000-000000000009")
         )
     assert "keine simap-Nummer" in result

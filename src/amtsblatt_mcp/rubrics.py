@@ -272,7 +272,7 @@ def explain_blocked(code: str, kind: str = "rubric") -> str:
         "nach revidiertem DSG ein Profiling-Instrument. Die Freigabe-Liste ist "
         "fail-closed: Was nicht ausdrücklich freigegeben ist, bleibt geschlossen.\n\n"
         "Was stattdessen möglich ist:\n"
-        "- `list_rubrics(rubric_class='green')` zeigt alle erschlossenen Rubriken.\n"
+        "- `gazette_list_rubrics(rubric_class='green')` zeigt alle erschlossenen Rubriken.\n"
         "- Für Publikationen zu einer **Firma** (juristische Person, inkl. Konkurs "
         "und Schuldbetreibung) gibt es den UID-Join in `register-mcp` — dort ist "
         "der Einstieg die Firmen-UID, nicht ein Personenname.\n"

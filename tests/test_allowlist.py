@@ -34,9 +34,9 @@ from amtsblatt_mcp.server import (
     _assert_green_params,
     _reset_rubrics_cache,
     _search,
-    get_publication,
-    list_rubrics,
-    search_publications,
+    gazette_get_publication,
+    gazette_list_rubrics,
+    gazette_search_publications,
 )
 
 from .fixtures import MOCK_RUBRICS, MOCK_SEARCH, MOCK_XML_BLOCKED_RUBRIC
@@ -200,7 +200,7 @@ async def test_blocked_rubric_returns_explanation_and_makes_no_call(blocked):
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_publications(
+        result = await gazette_search_publications(
             SearchInput(rubric=blocked, keyword="Muster")
         )
 
@@ -220,7 +220,7 @@ async def test_blocked_sub_rubric_is_also_refused():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_publications(SearchInput(sub_rubric="KK01"))
+        result = await gazette_search_publications(SearchInput(sub_rubric="KK01"))
     assert route.call_count == 0
     assert "KK01" in result
     assert "Freigabe-Liste" in result or "nicht erschlossen" in result
@@ -234,7 +234,7 @@ async def test_keyword_only_search_injects_green_rubrics_and_cannot_reach_red():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        await search_publications(SearchInput(keyword="Informatik"))
+        await gazette_search_publications(SearchInput(keyword="Informatik"))
 
     sent = route.calls[0].request.url.params.get_list("rubrics")
     assert sent, "no rubric filter was sent — the query would hit the whole corpus"
@@ -251,7 +251,7 @@ async def test_green_sub_rubric_search_does_not_inject_its_blocked_parent():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        await search_publications(SearchInput(sub_rubric="AR-NW40"))
+        await gazette_search_publications(SearchInput(sub_rubric="AR-NW40"))
 
     params = route.calls[0].request.url.params
     assert params.get("subRubrics") == "AR-NW40"
@@ -266,7 +266,7 @@ async def test_get_publication_refuses_content_from_a_blocked_rubric():
         respx.get(f"{GAZETTE_BASE}/publications/{pub_id}/xml").mock(
             return_value=httpx.Response(200, text=MOCK_XML_BLOCKED_RUBRIC)
         )
-        result = await get_publication(PublicationInput(id=pub_id))
+        result = await gazette_get_publication(PublicationInput(id=pub_id))
 
     # The body text was fetched but must NOT be rendered.
     assert "Konkurseröffnung über" not in result
@@ -286,7 +286,7 @@ async def test_list_rubrics_green_default_hides_blocked_rubrics():
         respx.get(f"{GAZETTE_BASE}/rubrics").mock(
             return_value=httpx.Response(200, json=MOCK_RUBRICS)
         )
-        result = await list_rubrics(RubricsInput())
+        result = await gazette_list_rubrics(RubricsInput())
     assert "HR" in result
     assert "OB-BS" in result
     assert "🔴" not in result
@@ -299,7 +299,7 @@ async def test_list_rubrics_all_shows_blocked_with_reason_but_marks_them_closed(
         respx.get(f"{GAZETTE_BASE}/rubrics").mock(
             return_value=httpx.Response(200, json=MOCK_RUBRICS)
         )
-        result = await list_rubrics(RubricsInput(rubric_class="all"))
+        result = await gazette_list_rubrics(RubricsInput(rubric_class="all"))
     assert "🔴" in result
     assert "KK" in result
     assert "Nicht durchsuchbar" in result
@@ -315,7 +315,7 @@ async def test_invalid_code_suggestions_never_name_a_blocked_rubric():
         )
         # `HRX` is green-ish looking but invalid — it passes the green gate only
         # if listed, so use a green-but-nonexistent code to reach validation.
-        server_result = await search_publications(SearchInput(rubric="HR"))
+        server_result = await gazette_search_publications(SearchInput(rubric="HR"))
     assert "Fehler" not in server_result  # sanity: HR is valid and green
 
     from amtsblatt_mcp.server import GazetteInvalidCode, _validate_rubric_code

@@ -4,6 +4,49 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-07-27
+
+Unifies the tool-naming scheme. **Breaking: four of the five tools are renamed.**
+
+### The problem this closes
+
+v0.2.0 introduced the `gazette_` prefix to resolve two real collisions with the
+companion `swiss-procurement-mcp` — and prefixed only those two tools, leaving
+`search_publications`, `get_publication` and `list_rubrics` bare. The 2026-07-27
+re-audit graded ARCH-001 down from `pass` to `partial` for exactly that: a mixed
+scheme neither disambiguates reliably nor stays predictable for a model reading
+the tool list.
+
+Two rules were available. Dropping the prefix everywhere is not viable — the
+sister server also exposes `source_status`, so the collision returns the moment
+both servers are mounted in one client. So: **all five carry the prefix**, and
+the prefix leads rather than sits in the middle.
+
+### Changed — breaking
+
+| Before | After |
+|---|---|
+| `search_publications` | `gazette_search_publications` |
+| `search_gazette_procurement` | `gazette_search_procurement` |
+| `get_publication` | `gazette_get_publication` |
+| `list_rubrics` | `gazette_list_rubrics` |
+| `gazette_source_status` | unchanged |
+
+Note that `search_gazette_procurement` moves the prefix from the middle to the
+front. The old infix form was the least predictable name of the five: knowing
+the prefix did not let you guess where it went.
+
+No behaviour, arguments, return shapes or rubric scope changed. Callers that
+pin tool names — client configs, prompt templates, saved conversations — need
+the new names; nothing else is affected.
+
+### Added
+
+- `tests/test_tool_naming.py` — asserts every registered tool carries the
+  prefix, that the surface is exactly the expected five, and that the prefix
+  leads rather than repeats. A tool added without the prefix now fails in CI
+  instead of surfacing in a client's tool list.
+
 ## [0.3.0] — 2026-07-27
 
 Opens the part of this portal's procurement coverage that simap.ch does not

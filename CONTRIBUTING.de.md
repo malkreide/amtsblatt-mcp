@@ -60,7 +60,7 @@ Standard zu belassen.
 ## Test-Konventionen
 
 - `respx` mockt httpx; Fixtures liegen in `tests/fixtures.py` als Python-Literale.
-- Tools werden direkt aufgerufen (`await search_publications(SearchInput(...))`),
+- Tools werden direkt aufgerufen (`await gazette_search_publications(SearchInput(...))`),
   nicht über einen MCP-Client.
 - Auf die ausgehende Query mit `route.calls[0].request.url.params` prüfen.
 - Für alles Gesperrte `route.call_count == 0` prüfen — der Punkt ist, dass kein

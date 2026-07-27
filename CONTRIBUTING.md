@@ -55,7 +55,7 @@ implicit default.
 ## Testing conventions
 
 - `respx` mocks httpx; fixtures live in `tests/fixtures.py` as Python literals.
-- Tools are invoked directly (`await search_publications(SearchInput(...))`),
+- Tools are invoked directly (`await gazette_search_publications(SearchInput(...))`),
   not through an MCP client.
 - Assert on the outgoing query with `route.calls[0].request.url.params`.
 - For anything blocked, assert `route.call_count == 0` — the point is that no
