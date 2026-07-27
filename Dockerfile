@@ -24,13 +24,17 @@ ENV PYTHONUNBUFFERED=1 \
     MCP_TRANSPORT=sse \
     PORT=8000
 
-RUN groupadd --system mcp \
-    && useradd --system --gid mcp --home-dir /app --shell /usr/sbin/nologin mcp
+# SEC-007: an explicit UID above 10000, not the 100-999 system range that
+# `useradd --system` would pick. A high, fixed UID cannot collide with a host
+# user if the container is ever run with a bind mount, and it stays stable
+# across rebuilds instead of depending on package install order.
+RUN groupadd --gid 10001 mcp \
+    && useradd --uid 10001 --gid 10001 --home-dir /app --shell /usr/sbin/nologin mcp
 
 WORKDIR /app
-COPY --from=builder --chown=mcp:mcp /app/.venv /app/.venv
+COPY --from=builder --chown=10001:10001 /app/.venv /app/.venv
 
-USER mcp
+USER 10001:10001
 EXPOSE 8000
 
 # MCP_API_KEY must be provided at runtime — the server fails loud if missing.

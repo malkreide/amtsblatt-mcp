@@ -72,6 +72,30 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
           sbom: false
+      # SEC-007: a Dockerfile that builds but runs as root would still fail the
+      # check, so assert the hardening rather than trusting the instructions.
+      # The bar is a UID >= 10000, not merely non-zero — the 100-999 system
+      # range collides with host accounts under a bind mount.
+      - name: Image runs as a non-root user with a high UID
+        run: |
+          uid=$(docker run --rm amtsblatt-mcp:ci id -u)
+          test "$uid" -ge 10000 || { echo "uid $uid is below the required 10000"; exit 1; }
+          echo "runs as uid $uid"
+
+      - name: Default seccomp profile is active
+        run: |
+          mode=$(docker run --rm amtsblatt-mcp:ci python -c \
+            "print(next(l.split()[1] for l in open('/proc/self/status') if l.startswith('Seccomp:')))")
+          test "$mode" = "2" || { echo "seccomp not filtering (mode $mode)"; exit 1; }
+          echo "seccomp mode $mode (filtering)"
+
+      - name: Server imports under a read-only root filesystem
+        run: |
+          docker run --rm --read-only --cap-drop ALL \
+            --security-opt no-new-privileges:true \
+            amtsblatt-mcp:ci \
+            python -c "import amtsblatt_mcp.server; print('ok')"
+
       - name: Smoke test — image refuses to start without MCP_API_KEY
         run: |
           set +e
@@ -86,8 +110,12 @@ jobs:
             echo "::error::Expected MCP_API_KEY guidance in stderr"
             exit 1
           }
-      - name: Smoke test — non-root user
+      # Distinct from the UID check above: USER is now numeric (10001:10001),
+      # so this asserts the /etc/passwd entry still resolves. A numeric USER
+      # with no passwd entry runs fine but breaks anything doing a name lookup
+      # — including some libraries' home-directory resolution.
+      - name: Smoke test — UID resolves to a named user
         run: |
           user=$(docker run --rm --entrypoint id amtsblatt-mcp:ci -un)
           echo "User: $user"
-          test "$user" = "mcp" || { echo "::error::Container is not running as user 'mcp'"; exit 1; }
+          test "$user" = "mcp" || { echo "::error::uid 10001 does not resolve to 'mcp'"; exit 1; }
