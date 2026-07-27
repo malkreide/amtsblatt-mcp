@@ -28,6 +28,10 @@ birth date or address. That is a deliberate data-protection decision, explained
 in [Data Protection & Scope](#data-protection--scope).
 
 **Anchor demo query:** *"Which public tenders did canton Ticino publish this month?"*
+
+### Demo
+
+![Demo: Claude using search_gazette_procurement and get_publication](docs/assets/demo.svg)
 → `search_gazette_procurement(canton="TI", only_language=True, language="it")` → `get_publication(id=…)`
 
 For procurement in any other canton — including Zürich, Bern and Basel-Stadt —

@@ -31,6 +31,10 @@ Datenschutz-Entscheid, erläutert unter [Datenschutz & Scope](#datenschutz--scop
 Tessin diesen Monat publiziert?»*
 → `search_gazette_procurement(canton="TI", only_language=True, language="it")` → `get_publication(id=…)`
 
+### Demo
+
+![Demo: Claude nutzt search_gazette_procurement und get_publication](docs/assets/demo.svg)
+
 Für Beschaffung in jedem anderen Kanton — auch Zürich, Bern und Basel-Stadt —
 ist [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp)
 zuständig; siehe [Die Grenze zu `swiss-procurement-mcp`](#die-grenze-zu-swiss-procurement-mcp).
