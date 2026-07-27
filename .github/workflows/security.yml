@@ -1,0 +1,26 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history so a secret introduced in any past commit is caught,
+          # not only the tip. This server takes an MCP_API_KEY for the SSE
+          # transport, so unlike the companion server there IS a credential
+          # that could plausibly be committed by accident (ARCH-005).
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

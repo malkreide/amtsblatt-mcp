@@ -62,3 +62,42 @@ Please use the private advisory channel for it. Concretely, report any of:
 5. **Do not persist responses.** Publications carry statutory deletion periods;
    the server deliberately keeps no content cache, and downstream storage would
    undo that.
+
+---
+
+## Lethal-trifecta assessment (SEC-019)
+
+The "lethal trifecta" is the dangerous combination of (1) access to private
+data, (2) exposure to untrusted content, and (3) the ability to exfiltrate. A
+server holding all three can be steered by injected content into reading
+something sensitive and sending it somewhere. This server is assessed leg by
+leg rather than declared safe.
+
+| Leg | Present? | Why |
+|---|---|---|
+| Access to private / sensitive data | **No, by construction** | The gazette *corpus* contains personal data — bankruptcies, debt enforcement, inheritance, civil status, court summonses, building applications. None of it is reachable: those rubrics are not indexed, and a request for one returns an explanation instead of data. The green allow-list is enforced before the request and re-checked after the fetch. |
+| Exposure to untrusted content | **Partial** | Tool results contain upstream publication text, which the model ingests. It is official gazette text published by Swiss authorities, not attacker-chosen private content — but it is not authored by us, so it is treated as untrusted input. |
+| Ability to exfiltrate | **No** | Egress is restricted to `amtsblattportal.ch` by a `frozenset` allow-list checked before every request (`EgressDenied`). No write endpoints are wrapped, no filesystem tool exists, and no user-controlled value reaches the host component of a URL. |
+
+**At most one leg is present, and it is the weakest one.** Injected text in a
+publication could at worst influence the model's summary of that publication;
+it has nowhere to send anything and nothing sensitive to read.
+
+### What would change this assessment
+
+Each of these would need a fresh assessment before shipping:
+
+- Indexing any red rubric, or relaxing the post-fetch green gate — that turns
+  leg 1 on.
+- Adding a second upstream host, or letting any user input reach a URL host —
+  that turns leg 3 on.
+- Adding a write, filesystem or email tool — leg 3 outright.
+- Adding sampling (`ctx.sample`), which would let upstream text steer a
+  model call rather than only be summarised by one.
+
+### Relationship to the companion server
+
+`swiss-procurement-mcp` carries the same assessment with one difference: it has
+no personal-data rubrics to exclude in the first place, so its leg 1 is absent
+by nature rather than by an enforced allow-list. Here the allow-list *is* the
+control, which is why `tests/test_allowlist.py` runs as its own CI job.

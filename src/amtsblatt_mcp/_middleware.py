@@ -10,6 +10,8 @@ from collections import defaultdict
 from time import monotonic
 from typing import Any
 
+from pydantic import SecretStr
+
 from ._log import log_event
 
 _ASGIApp = Any
@@ -37,11 +39,19 @@ class BearerAuthMiddleware:
     Non-HTTP scopes (lifespan, websocket) pass through unchanged.
     """
 
-    def __init__(self, app: _ASGIApp, expected_key: str) -> None:
-        if not expected_key:
+    def __init__(self, app: _ASGIApp, expected_key: SecretStr) -> None:
+        # ARCH-005: the key arrives wrapped and is unwrapped exactly here, to
+        # build the comparison target. Nothing else in this class ever holds
+        # the plaintext, and the instance itself carries no readable secret.
+        if isinstance(expected_key, str):
+            raise TypeError(
+                "expected_key must be a SecretStr, not a bare str — see ARCH-005."
+            )
+        plaintext = expected_key.get_secret_value()
+        if not plaintext:
             raise ValueError("BearerAuthMiddleware requires a non-empty expected_key")
         self.app = app
-        self._expected = f"Bearer {expected_key}".encode()
+        self._expected = f"Bearer {plaintext}".encode()
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":

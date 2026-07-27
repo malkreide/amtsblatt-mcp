@@ -64,3 +64,44 @@ der folgenden melden:
 5. **Keine Antworten persistieren.** Publikationen tragen gesetzliche
    Löschfristen; der Server hält bewusst keinen Content-Cache, und nachgelagerte
    Speicherung würde das untergraben.
+
+---
+
+## Lethal-Trifecta-Bewertung (SEC-019)
+
+Die «Lethal Trifecta» ist die gefährliche Kombination aus (1) Zugriff auf
+private Daten, (2) Kontakt mit nicht vertrauenswürdigen Inhalten und (3) der
+Fähigkeit zur Exfiltration. Ein Server mit allen dreien lässt sich durch
+eingeschleusten Text dazu bringen, etwas Sensibles zu lesen und irgendwohin zu
+senden. Dieser Server wird Leg für Leg bewertet, nicht pauschal freigesprochen.
+
+| Leg | Vorhanden? | Begründung |
+|---|---|---|
+| Zugriff auf private/sensible Daten | **Nein, konstruktionsbedingt** | Der Amtsblatt-*Korpus* enthält Personendaten — Konkurse, Schuldbetreibungen, Erbschaft, Zivilstand, gerichtliche Vorladungen, Baugesuche. Nichts davon ist erreichbar: diese Rubriken sind nicht erschlossen, und eine Anfrage darauf liefert eine Erklärung statt Daten. Die grüne Freigabeliste wird vor der Anfrage durchgesetzt und nach dem Abruf erneut geprüft. |
+| Kontakt mit nicht vertrauenswürdigen Inhalten | **Teilweise** | Tool-Ergebnisse enthalten Publikationstext, den das Modell aufnimmt. Es ist amtlicher, von Schweizer Behörden publizierter Text, nicht angreiferseitig gewählter privater Inhalt — aber nicht von uns verfasst und daher als nicht vertrauenswürdige Eingabe behandelt. |
+| Fähigkeit zur Exfiltration | **Nein** | Egress ist per `frozenset`-Allow-List auf `amtsblattportal.ch` beschränkt und wird vor jeder Anfrage geprüft (`EgressDenied`). Keine Write-Endpoints, kein Dateisystem-Tool, und kein nutzergesteuerter Wert erreicht die Host-Komponente einer URL. |
+
+**Höchstens ein Leg ist vorhanden, und zwar das schwächste.** Eingeschleuster
+Text in einer Publikation könnte bestenfalls die Zusammenfassung genau dieser
+Publikation beeinflussen; er hat nichts, wohin er senden könnte, und nichts
+Sensibles zu lesen.
+
+### Was diese Bewertung ändern würde
+
+Jeder dieser Punkte erfordert vor dem Ausliefern eine neue Bewertung:
+
+- Eine rote Rubrik erschliessen oder das Post-Fetch-Green-Gate lockern — das
+  schaltet Leg 1 ein.
+- Einen zweiten Upstream-Host aufnehmen oder Nutzereingaben in den URL-Host
+  gelangen lassen — das schaltet Leg 3 ein.
+- Ein Write-, Dateisystem- oder E-Mail-Tool ergänzen — Leg 3 unmittelbar.
+- Sampling (`ctx.sample`) ergänzen, wodurch Upstream-Text einen Modellaufruf
+  steuern könnte, statt nur von einem zusammengefasst zu werden.
+
+### Verhältnis zum Schwesterserver
+
+`swiss-procurement-mcp` trägt dieselbe Bewertung mit einem Unterschied: dort
+gibt es gar keine Personendaten-Rubriken auszuschliessen, Leg 1 fehlt also von
+Natur aus statt durch eine durchgesetzte Allow-List. Hier **ist** die
+Allow-List die Kontrolle — deshalb läuft `tests/test_allowlist.py` als eigener
+CI-Job.
