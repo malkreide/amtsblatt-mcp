@@ -8,9 +8,9 @@ Realitätsnahe Anfragen nach Zielgruppe. Der Server erschliesst **amtsblattporta
 
 **«Welche öffentlichen IT-Ausschreibungen gab es zuletzt in einem Kanton?»**
 - **API-Key nötig:** Nein
-- → `search_procurement(canton="BS", keyword="Informatik")`
+- → `search_gazette_procurement(canton="TI", only_language=True, language="it")`
 - → `get_publication(id="<id aus dem Treffer>")`
-- Warum nützlich: Zeigt an einem konkreten Beispiel, wie öffentliche Beschaffung funktioniert — geeignet für Unterricht zu Verwaltung, Wirtschaft und Staatskunde. Aktive Beschaffungs-Rubriken bestehen nur in AR, BS und TI.
+- Warum nützlich: Zeigt an einem konkreten Beispiel, wie öffentliche Beschaffung funktioniert — geeignet für Unterricht zu Verwaltung, Wirtschaft und Staatskunde. Aktive Beschaffungs-Rubriken bestehen nur noch in TI und AR; für alle anderen Kantone ist [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp) zuständig. `only_language=True` unterdrückt die Sprachdubletten, die das Tessin durch die Publikation je Sprache erzeugt.
 
 **«Was ist auf diesem Portal überhaupt abfragbar — und was nicht?»**
 - **API-Key nötig:** Nein
@@ -27,7 +27,7 @@ Realitätsnahe Anfragen nach Zielgruppe. Der Server erschliesst **amtsblattporta
 
 **«Ist die Amtsblatt-Quelle gerade erreichbar und aktuell?»**
 - **API-Key nötig:** Nein
-- → `source_status()`
+- → `gazette_source_status()`
 - Warum nützlich: Liefert Erreichbarkeit, Latenz, Cache-Alter und Umfangs-Kennzahlen — so weiss man, ob eine leere Trefferliste «nichts gefunden» oder «Quelle gestört» bedeutet.
 
 ## 🗳️ Bevölkerung & öffentliches Interesse
@@ -39,8 +39,8 @@ Realitätsnahe Anfragen nach Zielgruppe. Der Server erschliesst **amtsblattporta
 
 **«Ich möchte auch ältere/archivierte Beschaffungen sehen.»**
 - **API-Key nötig:** Nein
-- → `search_procurement(canton="VS", include_inactive=True)`
-- Warum nützlich: Mit `include_inactive=True` werden die Archive (z. B. BL und VS) erreichbar; ein Kanton ohne aktive `OB-*`-Rubrik erhält einen simap.ch-Hinweis statt eines leeren Ergebnisses — ganz ohne HTTP-Aufruf.
+- → `search_gazette_procurement(canton="VS", include_inactive=True)`
+- Warum nützlich: Mit `include_inactive=True` werden die Archive (BS, BL und VS) erreichbar; ein Kanton ohne aktive `OB-*`-Rubrik erhält einen simap.ch-Hinweis statt eines leeren Ergebnisses — ganz ohne HTTP-Aufruf.
 
 ## 🤖 KI-Interessierte & Entwickler:innen
 
@@ -59,7 +59,7 @@ Realitätsnahe Anfragen nach Zielgruppe. Der Server erschliesst **amtsblattporta
 | Ich möchte… | Tool(s) | Auth nötig? |
 |---|---|---|
 | Amtliche Bekanntmachungen in freigegebenen (grünen) Rubriken suchen | `search_publications` | Nein |
-| Öffentliche Beschaffungen/Ausschreibungen (`OB-*`) suchen | `search_procurement` | Nein |
+| Öffentliche Beschaffungen/Ausschreibungen (`OB-*`) suchen | `search_gazette_procurement` | Nein |
 | Den vollständigen amtlichen Text einer Publikation abrufen | `get_publication` | Nein |
 | Die abfragbaren Rubriken (bzw. die volle Taxonomie mit Ampel) auflisten | `list_rubrics` | Nein |
-| Erreichbarkeit, Latenz und Cache-Zustand der Quelle prüfen | `source_status` | Nein |
+| Erreichbarkeit, Latenz und Cache-Zustand der Quelle prüfen | `gazette_source_status` | Nein |

@@ -2,7 +2,7 @@
 
 # 📰 amtsblatt-mcp
 
-![Version](https://img.shields.io/badge/version-0.1.3-blue)
+![Version](https://img.shields.io/badge/version-0.2.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -27,9 +27,12 @@ natural-person data are **not queryable**, and no tool accepts a person's name,
 birth date or address. That is a deliberate data-protection decision, explained
 in [Data Protection & Scope](#data-protection--scope).
 
-**Anchor demo query:** *"Which public IT tenders were published in canton
-Basel-Stadt in the last three months?"*
-→ `search_procurement(canton="BS", keyword="Informatik")` → `get_publication(id=…)`
+**Anchor demo query:** *"Which public tenders did canton Ticino publish this month?"*
+→ `search_gazette_procurement(canton="TI", only_language=True, language="it")` → `get_publication(id=…)`
+
+For procurement in any other canton — including Zürich, Bern and Basel-Stadt —
+use [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp);
+see [Boundary with `swiss-procurement-mcp`](#boundary-with-swiss-procurement-mcp).
 
 ## Features
 
@@ -37,12 +40,16 @@ Basel-Stadt in the last three months?"*
   else is blocked by default, including rubrics the upstream adds later
 - **Explanatory refusals** — a blocked rubric returns *why*, never a silent
   empty result and never a workaround hint
-- **Procurement-aware** — knows that only AR, BS and TI still publish tenders
-  here, that BL and VS are historical archives, that `OB-ZG` was never filled
-  after the simap switch, and that ZH routes everything through simap.ch — so it
-  explains instead of returning nothing
+- **Procurement-aware** — knows that only AR and TI still publish tenders here,
+  that BS wound down during 2024 and BL/VS are historical archives, that `OB-ZG`
+  was never filled after the simap switch, and that ZH routes everything through
+  simap.ch — so it explains instead of returning nothing. Activity is
+  [measured, not read off the rubric label](docs/procurement-coverage.md)
 - **Deadline arithmetic** in Europe/Zurich, the legally relevant timezone
-- **Language deduplication** — a notice published in de/fr/it counts once
+- **Honest multilingual counts** — the portal publishes one record per language
+  with a *different* publication number each; identical editions are collapsed,
+  translated ones are reported via `language_mix` rather than guessed at, and
+  `only_language=True` gives a single-language view
 - **Defensive XML parsing** — the schema is per-sub-rubric; no rubric-specific
   path is hard-coded, and entity-escaped HTML bodies are unescaped and stripped
 - **Egress allow-list**, retry with backoff, structured JSON logging
@@ -107,11 +114,11 @@ amtsblatt-mcp
 
 | Tool | Signature | Notes |
 |---|---|---|
-| `search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de')` | Green rubrics enforced. Without `rubric`, all green rubrics are injected — a keyword-only query can never reach a blocked one. |
-| `search_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0)` | `OB-*` only. A canton without an `OB-*` rubric gets a simap.ch explainer and **no HTTP call**. No CPV — the source has none. |
+| `search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de', only_language=False)` | Green rubrics enforced. Without `rubric`, all green rubrics are injected — a keyword-only query can never reach a blocked one. |
+| `search_gazette_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*` only. A canton with no *active* `OB-*` rubric gets a simap.ch explainer and **no HTTP call**. No CPV — the source has none. |
 | `get_publication` | `(id, response_format='markdown')` | Full official text from XML. Re-checks the rubric after fetching; content from a blocked rubric is discarded. |
 | `list_rubrics` | `(language='de', rubric_class='green', response_format='markdown')` | `rubric_class='all'` shows the full taxonomy with traffic-light classes and reasons — listed ≠ queryable. |
-| `source_status` | `(response_format='markdown')` | Reachability, latency, cache age, scope metrics. |
+| `gazette_source_status` | `(response_format='markdown')` | Reachability, latency, cache age, scope metrics. |
 
 All tools are `readOnlyHint=True`.
 
@@ -119,7 +126,8 @@ All tools are `readOnlyHint=True`.
 
 | Question | Tool chain |
 |---|---|
-| IT tenders in Basel-Stadt this quarter | `search_procurement(canton="BS", keyword="Informatik")` |
+| Tenders in Ticino this quarter | `search_gazette_procurement(canton="TI", only_language=True, language="it")` |
+| Tenders in any other canton | → use [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp) |
 | What is even queryable here? | `list_rubrics()` |
 | Why can't I search bankruptcies? | `list_rubrics(rubric_class="all")` |
 | Zoning changes in Zurich | `search_publications(rubric="RP-ZH")` |
@@ -167,6 +175,28 @@ profiling, and UID scoping makes name-based enumeration impossible.
 
 `amtsblatt-mcp` has the opposite shape: broad search, narrow rubrics. It does
 not expose the upstream `uids` parameter at all.
+
+### Boundary with `swiss-procurement-mcp`
+
+**simap.ch is the primary source for Swiss public procurement** — all 26 cantons
+plus the Confederation, with CPV and BKP codes, awards and publication history.
+Use [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp)
+for procurement questions.
+
+**amtsblattportal.ch is the primary source for official notices** — commercial
+register, spatial planning, enactments, cantonal and communal announcements.
+That is what this server is for; procurement is 6 of its 49 released rubrics.
+
+Procurement here is largely a **second publication** of the same tenders. Three
+of the six `OB-*` rubrics say so in their own labels: `OB-BL` — "über Simap
+importiert (I N A K T I V)", `OB-VS` — "bis Ende 2023 über simap.ch importiert",
+`OB-ZG` — "bis Ende Februar 2024 via simap.ch importiert". Only TI and AR still
+publish actively, and their notices are republications of simap tenders.
+
+The two servers stay separate on purpose: different sources, different reuse
+terms, and a fail-closed rubric gate that only means something while it covers
+*every* tool in the server. See
+[`docs/procurement-coverage.md`](docs/procurement-coverage.md) for the numbers.
 
 ## Architecture
 
@@ -217,19 +247,24 @@ authentication, so no bulk dump is maintained.
 - **Procurement boundary.** Most cantons, including **Zürich**, route tenders
   through simap.ch, outside this portal. There is no `OB-ZH`, and no CPV
   classification exists here.
-- **Procurement coverage, measured** (`publicationStates=PUBLISHED`, 2026-07-22):
+- **Procurement coverage, measured** (`publicationStates=PUBLISHED`, 2026-07-27,
+  records per calendar year — reproduce with
+  `python scripts/measure_procurement_coverage.py`):
 
-  | Rubric | Publications | Latest | Status |
-  |---|---|---|---|
-  | `OB-TI` | 2 924 | 2026-07-22 | active, current |
-  | `OB-BS` | 3 056 | 2026-05-20 | active |
-  | `OB-AR` | 386 | 2026-05-22 | active |
-  | `OB-VS` | 1 053 | 2024-01-05 | archive — simap import until end of 2023 |
-  | `OB-BL` | 74 | 2023-03-30 | archive — rubric labelled «I N A K T I V» |
-  | `OB-ZG` | 0 | — | rubric exists but was never filled |
+  | Rubric | 2022 | 2023 | 2024 | 2025 | 2026 | Latest | Status |
+  |---|---|---|---|---|---|---|---|
+  | `OB-TI` | 517 | 491 | 625 | 607 | 546 | 2026-07-27 | active |
+  | `OB-AR` | 95 | 85 | 79 | 56 | 40 | 2026-05-22 | active |
+  | `OB-BS` | 1 149 | 1 058 | 319 | 15 | **2** | 2026-05-20 | wound down during 2024 |
+  | `OB-VS` | 0 | 1 052 | 1 | 0 | 0 | 2024-01-05 | archive — simap import until end of 2023 |
+  | `OB-BL` | 0 | 74 | 0 | 0 | 0 | 2023-03-30 | archive — labelled «I N A K T I V» |
+  | `OB-ZG` | 0 | 0 | 0 | 0 | 0 | — | never filled |
 
-  Three cantons publish actively. Use `include_inactive=True` to reach the BL
-  and VS archives. Re-measure before citing these figures.
+  **Only TI and AR still publish actively.** `OB-BS` is the instructive case:
+  its label is a plain "Öffentliches Beschaffungswesen" with no inactive marker,
+  so only the volume reveals the migration — which is why `active` is measured,
+  never read. Use `include_inactive=True` to reach the BS, BL and VS archives.
+  Details in [`docs/procurement-coverage.md`](docs/procurement-coverage.md).
 - **No push.** Polling only; no subscription or webhook mechanism.
 - **Legally binding text** is the signed PDF, not this API.
 
@@ -265,7 +300,10 @@ amtsblatt-mcp/
 │   ├── test_publication.py  # XML parsing, deadlines, egress allow-list
 │   └── fixtures.py          # Anonymised real responses
 ├── docs/
-│   └── rubric-classification.md   # Why each of the 152 rubrics is open/closed
+│   ├── rubric-classification.md   # Why each of the 152 rubrics is open/closed
+│   └── procurement-coverage.md    # Measured OB-* volume; why `active` is measured
+├── scripts/
+│   └── measure_procurement_coverage.py
 ├── Dockerfile · compose.yaml      # Hardened, non-root, read-only container
 └── server.json                    # MCP registry manifest
 ```

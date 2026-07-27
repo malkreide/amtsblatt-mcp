@@ -17,7 +17,7 @@ from amtsblatt_mcp.server import (
     _procurement_scope,
     _reset_rubrics_cache,
     _to_bool,
-    search_procurement,
+    search_gazette_procurement,
     search_publications,
 )
 
@@ -114,40 +114,91 @@ async def test_empty_result_is_not_an_error():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_no_language_duplicates_in_result():
-    """The same notice in de+it must be reported once, not twice."""
+async def _multilang_search(**kwargs) -> dict:
     _seed_rubrics()
     with respx.mock:
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH_MULTILANG)
         )
         result = await search_publications(
-            SearchInput(rubric="OB-TI", response_format="json")
+            SearchInput(rubric="OB-TI", response_format="json", **kwargs)
         )
-    data = json.loads(result)
-    assert data["count"] == 2, "the de/it pair should collapse to one entry"
-    numbers = [r["publicationNumber"] for r in data["results"]]
-    assert len(numbers) == len(set(numbers))
-    # The requested language wins.
-    assert data["results"][0]["language"] == "de"
-    assert "Concorso" not in json.dumps(data["results"][0])
+    return json.loads(result)
 
 
 @pytest.mark.asyncio
-async def test_dedup_prefers_the_requested_language():
-    _seed_rubrics()
-    with respx.mock:
-        respx.get(f"{GAZETTE_BASE}/publications").mock(
-            return_value=httpx.Response(200, json=MOCK_SEARCH_MULTILANG)
-        )
-        result = await search_publications(
-            SearchInput(rubric="OB-TI", language="it", response_format="json")
-        )
-    data = json.loads(result)
-    first = data["results"][0]
-    assert first["language"] == "it"
-    assert first["title"] == "Concorso servizi di pulizia"
+async def test_identical_body_language_pair_collapses():
+    """it/fr of the same tender differ only in the form prefix -> one entry.
+
+    Regression guard: the two records carry DIFFERENT publicationNumbers
+    (…2892 / …2893), so the old publicationNumber key never collapsed them.
+    """
+    data = await _multilang_search()
+    titles = [r["title"] for r in data["results"]]
+    assert sum("NUOVO CENTRO SPORTIVO" in t for t in titles) == 2, (
+        "expected exactly the tender and its correction, not the fr duplicate"
+    )
+    assert not any(t.startswith("Appel d’offres - NUOVO") for t in titles)
+    ids = [r["id"] for r in data["results"]]
+    assert len(ids) == len(set(ids))
+
+
+@pytest.mark.asyncio
+async def test_correction_never_collapses_into_its_tender():
+    """"Bando - X" and "Rettifica Bando - X" are different publications.
+
+    Same rubric, same sub-rubric, same day, same body — only the form prefix
+    separates them. Collapsing them would silently drop a correction.
+    """
+    data = await _multilang_search()
+    titles = [r["title"] for r in data["results"]]
+    assert any(t.startswith("Bando - NUOVO") for t in titles)
+    assert any(t.startswith("Rettifica Bando - NUOVO") for t in titles)
+
+
+@pytest.mark.asyncio
+async def test_translated_bodies_survive_and_are_flagged():
+    """AR publishes de/fr with translated titles — not collapsible, so reported."""
+    data = await _multilang_search()
+    titles = [r["title"] for r in data["results"]]
+    assert any("Muldenmiete" in t for t in titles)
+    assert any("Location et transport" in t for t in titles)
+    assert data["language_mix"] == {"it": 2, "de": 1, "fr": 1}
+    assert data["warnings"], "a multilingual result set must carry the caveat"
+    assert "only_language" in data["warnings"][0]
+
+
+@pytest.mark.asyncio
+async def test_collapse_prefers_the_requested_language():
+    data = await _multilang_search(language="fr")
+    titles = [r["title"] for r in data["results"]]
+    assert any(t.startswith("Appel d’offres - NUOVO") for t in titles)
+    assert not any(t.startswith("Bando - NUOVO") for t in titles)
+
+
+@pytest.mark.asyncio
+async def test_only_language_returns_a_single_language_view():
+    data = await _multilang_search(language="it", only_language=True)
+    assert {r["language"] for r in data["results"]} == {"it"}
+    assert data["language_mix"] == {"it": 2}
+    # Single-language sets carry no multilingual caveat.
+    assert not data["warnings"]
+
+
+@pytest.mark.asyncio
+async def test_unknown_form_prefix_is_never_collapsed():
+    """Fail-closed: a prefix outside the literal map must not merge records."""
+    from amtsblatt_mcp.server import _collapse_language_variants
+
+    rows = [
+        {"id": "1", "rubric": "OB-TI", "subRubric": "OB-TI10",
+         "publicationDate": "2026-07-24", "language": "it",
+         "title": "Comunicazione straordinaria - Progetto X"},
+        {"id": "2", "rubric": "OB-TI", "subRubric": "OB-TI10",
+         "publicationDate": "2026-07-24", "language": "fr",
+         "title": "Communication extraordinaire - Progetto X"},
+    ]
+    assert len(_collapse_language_variants(rows, "de")) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -238,23 +289,33 @@ def test_to_bool_uses_the_default_for_null_and_junk():
 
 
 def test_procurement_scope_for_an_active_canton():
-    rubrics, subs, warnings = _procurement_scope("BS", False)
-    assert rubrics == ["OB-BS"]
+    rubrics, subs, warnings = _procurement_scope("TI", False)
+    assert rubrics == ["OB-TI"]
     assert warnings == []
 
 
 def test_procurement_scope_without_canton_covers_active_rubrics_only():
     rubrics, _, _ = _procurement_scope(None, False)
-    assert set(rubrics) == {"OB-AR", "OB-BS", "OB-TI"}
+    assert set(rubrics) == {"OB-AR", "OB-TI"}
     assert "OB-BL" not in rubrics
     # OB-ZG exists in the taxonomy but was never filled after the simap
     # switch — it is not an active procurement rubric.
     assert "OB-ZG" not in rubrics
+    # OB-BS was phased out during 2024 (2 publications in 2026 YTD). Its rubric
+    # label carries no inactive marker, unlike BL/VS/ZG — only the measured
+    # volume reveals it, which is why `active` must never be read off the label.
+    assert "OB-BS" not in rubrics
+
+
+def test_procurement_scope_explains_a_phased_out_canton():
+    rubrics, _, warnings = _procurement_scope("BS", False)
+    assert rubrics == []
+    assert warnings and "2024" in warnings[0]
 
 
 def test_procurement_scope_include_inactive_adds_historical_rubrics():
     rubrics, _, _ = _procurement_scope(None, True)
-    assert {"OB-BL", "OB-VS"} <= set(rubrics)
+    assert {"OB-BS", "OB-BL", "OB-VS"} <= set(rubrics)
 
 
 def test_procurement_scope_zg_is_inactive_not_active():
@@ -277,7 +338,7 @@ async def test_procurement_for_zurich_explains_simap_and_makes_no_call():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_procurement(ProcurementInput(canton="ZH"))
+        result = await search_gazette_procurement(ProcurementInput(canton="ZH"))
 
     assert route.call_count == 0
     assert "simap.ch" in result
@@ -292,7 +353,7 @@ async def test_procurement_inactive_canton_warns_before_searching():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_procurement(ProcurementInput(canton="BL"))
+        result = await search_gazette_procurement(ProcurementInput(canton="BL"))
     assert route.call_count == 0
     assert "inaktiv" in result
     assert "include_inactive" in result
@@ -305,10 +366,10 @@ async def test_procurement_multi_rubric_search_sends_all_active_codes():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        await search_procurement(ProcurementInput(keyword="Informatik"))
+        await search_gazette_procurement(ProcurementInput(keyword="Informatik"))
 
     sent = set(route.calls[0].request.url.params.get_list("rubrics"))
-    assert sent == {"OB-AR", "OB-BS", "OB-TI"}
+    assert sent == {"OB-AR", "OB-TI"}
 
 
 @pytest.mark.asyncio
@@ -318,7 +379,7 @@ async def test_procurement_warns_when_keyword_looks_like_a_cpv_code():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_procurement(ProcurementInput(keyword="72000000"))
+        result = await search_gazette_procurement(ProcurementInput(keyword="72000000"))
     assert "CPV" in result
 
 
@@ -404,7 +465,7 @@ async def test_silently_ignored_filter_is_detected_by_the_plausibility_guard():
 @pytest.mark.asyncio
 async def test_live_procurement_basel_stadt():
     _reset_rubrics_cache()
-    result = await search_procurement(ProcurementInput(canton="BS", limit=5))
+    result = await search_gazette_procurement(ProcurementInput(canton="BS", limit=5))
     assert "amtsblattportal.ch" in result
     assert "Fehler" not in result
 

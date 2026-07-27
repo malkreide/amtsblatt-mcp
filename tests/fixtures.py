@@ -177,27 +177,57 @@ MOCK_SEARCH_EMPTY: dict = {
     "pageRequest": {"sortOrders": [], "page": 0, "size": 20},
 }
 
-# The same notice published once per language: identical publicationNumber,
-# different id. Without dedup this inflates every count.
+# Multilingual publication, in the shape the upstream really uses (verified
+# 2026-07-27 against OB-TI/2026-07-24 and OB-AR/2026-05-22).
+#
+# A notice republished in another language is a SEPARATE record with its own id
+# AND its own publicationNumber — the numbers are consecutive but never equal,
+# which is why keying deduplication on publicationNumber collapsed nothing.
+# Three shapes have to be told apart:
+#
+#   1. it/fr pair, byte-identical body, only the form prefix translated
+#      -> collapsible by exact match
+#   2. a correction of that same tender: same body, DIFFERENT form prefix
+#      -> must NOT collapse into the tender, even on the same day
+#   3. de/fr pair with a genuinely TRANSLATED body (the AR/Herisau shape)
+#      -> not collapsible without fuzzy matching; reported, never guessed
 MOCK_SEARCH_MULTILANG: dict = {
     "content": [
+        # (1) collapsible pair
         pub_item(
-            "de-0001-0000-0000-000000000001", "OB-TI", "OB-TI10", "2026-06-02",
-            "Ausschreibung Reinigungsdienstleistungen",
-            canton="TI", language="de", publication_number="OB-TI10-0000000042",
+            "aa000001-0000-0000-0000-000000000001", "OB-TI", "OB-TI10", "2026-07-24",
+            "Bando - NUOVO CENTRO SPORTIVO, STABIO - OPERE PER IMPIANTI SPORTIVI",
+            canton="TI", language="it", publication_number="OB-TI10-0000002892",
+            office="Repubblica e Cantone del Ticino",
         ),
         pub_item(
-            "it-0001-0000-0000-000000000002", "OB-TI", "OB-TI10", "2026-06-02",
-            "Concorso servizi di pulizia",
-            canton="TI", language="it", publication_number="OB-TI10-0000000042",
+            "aa000002-0000-0000-0000-000000000002", "OB-TI", "OB-TI10", "2026-07-24",
+            "Appel d’offres - NUOVO CENTRO SPORTIVO, STABIO - OPERE PER IMPIANTI SPORTIVI",
+            canton="TI", language="fr", publication_number="OB-TI10-0000002893",
+            office="Repubblica e Cantone del Ticino",
+        ),
+        # (2) correction of the very same tender, same day, same body
+        pub_item(
+            "aa000003-0000-0000-0000-000000000003", "OB-TI", "OB-TI10", "2026-07-24",
+            "Rettifica Bando - NUOVO CENTRO SPORTIVO, STABIO - OPERE PER IMPIANTI SPORTIVI",
+            canton="TI", language="it", publication_number="OB-TI10-0000002896",
+            office="Repubblica e Cantone del Ticino",
+        ),
+        # (3) translated pair — one notice, two records, two bodies
+        pub_item(
+            "bb000001-0000-0000-0000-000000000004", "OB-AR", "OB-AR10", "2026-05-22",
+            "Ausschreibung - Muldenmiete, Muldentransport und Verwertung Chammerholz",
+            canton="AR", language="de", publication_number="OB-AR10-0000000336",
+            office="Kanton Appenzell Ausserrhoden",
         ),
         pub_item(
-            "de-0002-0000-0000-000000000003", "OB-TI", "OB-TI10", "2026-06-01",
-            "Ausschreibung Schulmobiliar",
-            canton="TI", language="de", publication_number="OB-TI10-0000000043",
+            "bb000002-0000-0000-0000-000000000005", "OB-AR", "OB-AR10", "2026-05-22",
+            "Appel d’offres - Location et transport de bennes, valorisation",
+            canton="AR", language="fr", publication_number="OB-AR10-0000000337",
+            office="Kanton Appenzell Ausserrhoden",
         ),
     ],
-    "total": 3,
+    "total": 5,
     "pageRequest": {"sortOrders": [], "page": 0, "size": 20},
 }
 
