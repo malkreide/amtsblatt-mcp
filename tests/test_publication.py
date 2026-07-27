@@ -24,8 +24,8 @@ from amtsblatt_mcp.server import (
     _parse_publication_xml,
     _pick_language,
     _reset_client,
+    gazette_source_status,
     get_publication,
-    source_status,
 )
 
 from .fixtures import (
@@ -237,7 +237,7 @@ async def test_source_status_reports_scope_and_reachability():
         respx.get(f"{GAZETTE_BASE}/rubrics").mock(
             return_value=httpx.Response(200, json=[])
         )
-        result = await source_status(StatusInput())
+        result = await gazette_source_status(StatusInput())
     assert "✅" in result
     assert "fail-closed" in result
     assert "Freigegebene Rubriken" in result
@@ -249,7 +249,7 @@ async def test_source_status_flags_an_unreachable_source():
         respx.get(f"{GAZETTE_BASE}/rubrics").mock(
             side_effect=httpx.ConnectError("down")
         )
-        result = await source_status(StatusInput())
+        result = await gazette_source_status(StatusInput())
     assert "❌" in result
     assert "kein** leeres Ergebnis" in result or "leeres Ergebnis" in result
 
@@ -257,7 +257,7 @@ async def test_source_status_flags_an_unreachable_source():
 @pytest.mark.live
 @pytest.mark.asyncio
 async def test_live_source_status():
-    result = await source_status(StatusInput())
+    result = await gazette_source_status(StatusInput())
     assert "✅" in result
 
 

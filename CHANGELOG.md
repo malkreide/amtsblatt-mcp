@@ -4,6 +4,78 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-07-27
+
+Correctness release. Two defects were found by measuring the live corpus rather
+than reading the documentation, and both had been silently wrong since 0.1.0.
+Tool names change — see *Breaking* below.
+
+### Breaking
+
+- **`search_procurement` → `search_gazette_procurement`** and
+  **`source_status` → `gazette_source_status`.** The old names collide with the
+  companion server [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp),
+  whose tools are `search_procurements` (one letter apart) and `source_status`
+  (identical). Both servers are meant to be loaded side by side, so the names
+  had to disambiguate for the model, not just for the client's namespacing.
+  Bundled into this release deliberately: the deduplication fix below already
+  changes result counts, and breaking twice would be worse than breaking once.
+
+### Fixed
+
+- **Language deduplication never deduplicated anything.** `_dedupe_languages`
+  keyed on `publicationNumber` in the belief that language variants share it.
+  They do not: verified live on `OB-TI`/2026-07-24, four tenders appear as eight
+  records with consecutive but *different* numbers (…2888/2889, …2890/2891,
+  …2892/2893, …2894/2895), different ids and `language` `it` vs `fr`. Every
+  bilingual result set was therefore inflated — exactly the failure the
+  function's own docstring promised to prevent.
+
+  There is no structural pairing key in the list metadata (`dossierReference`
+  and `repeatedPublications` are null, `onBehalfOf` is itself translated), so
+  the replacement collapses only what is provable: records agreeing on rubric,
+  sub-rubric, date and publication *form* whose title bodies are identical once
+  the language-carrying form prefix ("Bando -" / "Appel d'offres -") is removed.
+  The form class comes from an explicit literal map, so an unknown prefix never
+  collapses — fail-closed, as for rubric codes. `Bando - X` and
+  `Rettifica Bando - X` stay separate even on the same day.
+
+  Cantons that translate the *body* as well (AR, parts of TI) are not
+  collapsible without fuzzy matching, which this server does nowhere. Those are
+  now reported instead of guessed at: every response carries `language_mix`, and
+  a multilingual result set carries a caveat that the count exceeds the number
+  of distinct notices.
+
+- **`OB-BS` was still flagged as an active procurement rubric.** Measured
+  2026-07-27: 504 (2021) → 1 149 → 1 058 → 319 (2024) → 15 (2025) → **2** (2026
+  YTD). Basel-Stadt moved to simap.ch during 2024. Unlike `OB-BL`, `OB-VS` and
+  `OB-ZG`, its rubric label carries no inactive marker — only the volume reveals
+  it, which is why `active` must never be derived from the label. Same failure
+  mode as the `OB-ZG` fix in 0.1.3, one release later and without the textual
+  hint. `search_gazette_procurement(canton="BS")` now returns the simap.ch
+  explanation; `include_inactive=True` still reaches the archive.
+
+### Added
+
+- **`only_language`** on both search tools: return a single language edition
+  instead of one record per language. On `OB-TI`/2026-07-24 this turns eight
+  upstream records into the four tenders that actually exist.
+- **`language_mix`** in every search response, and the publication language on
+  every rendered result line.
+- **`scripts/measure_procurement_coverage.py`** — reproduces the per-year volume
+  per `OB-*` rubric and flags candidates for `active=False`. Deliberately a
+  hint, not an automatic switch.
+- **[`docs/procurement-coverage.md`](docs/procurement-coverage.md)** — the
+  measurement, why the rubric label is not sufficient evidence, and the language
+  breakdown per rubric.
+
+### Changed
+
+- Test fixtures now mirror the real multilingual shape (distinct
+  `publicationNumber` per language) instead of the assumed shared one. The old
+  fixture encoded the very assumption that made the bug invisible.
+- `Development Status` classifier `3 - Alpha` → `4 - Beta`.
+
 ## [0.1.3] — 2026-07-22
 
 ### Fixed
