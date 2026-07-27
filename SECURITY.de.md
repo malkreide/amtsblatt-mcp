@@ -43,7 +43,7 @@ der folgenden melden:
 
 - Eine Rubrik ausserhalb von `GREEN_RUBRICS`, die den Query-String der Quelle
   erreicht.
-- `get_publication`, das Inhalt aus einer nicht grünen Rubrik rendert.
+- `gazette_get_publication`, das Inhalt aus einer nicht grünen Rubrik rendert.
 - Eine Tool-Signatur, die einen personenidentifizierenden Parameter akzeptiert.
 - Eine Absage-Meldung, die eine Umgehung offenlegt.
 

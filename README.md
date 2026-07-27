@@ -31,8 +31,8 @@ in [Data Protection & Scope](#data-protection--scope).
 
 ### Demo
 
-![Demo: Claude using search_gazette_procurement and get_publication](docs/assets/demo.svg)
-→ `search_gazette_procurement(canton="TI", only_language=True, language="it")` → `get_publication(id=…)`
+![Demo: Claude using gazette_search_procurement and gazette_get_publication](docs/assets/demo.svg)
+→ `gazette_search_procurement(canton="TI", only_language=True, language="it")` → `gazette_get_publication(id=…)`
 
 For procurement in any other canton — including Zürich, Bern and Basel-Stadt —
 use [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp);
@@ -118,10 +118,10 @@ amtsblatt-mcp
 
 | Tool | Signature | Notes |
 |---|---|---|
-| `search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de', only_language=False)` | Green rubrics enforced. Without `rubric`, all green rubrics are injected — a keyword-only query can never reach a blocked one. |
-| `search_gazette_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*` rubrics plus the gazette-native sub-rubrics `AR-VS40`, `AR-OW40`, `BA-SH40`. A canton with neither gets a simap.ch explainer and **no HTTP call**. No CPV — the source has none. |
-| `get_publication` | `(id, response_format='markdown')` | Full official text from XML. Re-checks the rubric after fetching; content from a blocked rubric is discarded. |
-| `list_rubrics` | `(language='de', rubric_class='green', response_format='markdown')` | `rubric_class='all'` shows the full taxonomy with traffic-light classes and reasons — listed ≠ queryable. |
+| `gazette_search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de', only_language=False)` | Green rubrics enforced. Without `rubric`, all green rubrics are injected — a keyword-only query can never reach a blocked one. |
+| `gazette_search_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*` rubrics plus the gazette-native sub-rubrics `AR-VS40`, `AR-OW40`, `BA-SH40`. A canton with neither gets a simap.ch explainer and **no HTTP call**. No CPV — the source has none. |
+| `gazette_get_publication` | `(id, response_format='markdown')` | Full official text from XML. Re-checks the rubric after fetching; content from a blocked rubric is discarded. |
+| `gazette_list_rubrics` | `(language='de', rubric_class='green', response_format='markdown')` | `rubric_class='all'` shows the full taxonomy with traffic-light classes and reasons — listed ≠ queryable. |
 | `gazette_source_status` | `(response_format='markdown')` | Reachability, latency, cache age, scope metrics. |
 
 All tools are `readOnlyHint=True`.
@@ -130,13 +130,13 @@ All tools are `readOnlyHint=True`.
 
 | Question | Tool chain |
 |---|---|
-| Tenders in Ticino this quarter | `search_gazette_procurement(canton="TI", only_language=True, language="it")` |
-| Procurement simap.ch does **not** have | `search_gazette_procurement(canton="VS")` — 150 Valais awards, none on simap |
+| Tenders in Ticino this quarter | `gazette_search_procurement(canton="TI", only_language=True, language="it")` |
+| Procurement simap.ch does **not** have | `gazette_search_procurement(canton="VS")` — 150 Valais awards, none on simap |
 | Tenders in any other canton | → use [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp) |
-| What is even queryable here? | `list_rubrics()` |
-| Why can't I search bankruptcies? | `list_rubrics(rubric_class="all")` |
-| Zoning changes in Zurich | `search_publications(rubric="RP-ZH")` |
-| Full text of a notice | `get_publication(id="fbf0ff9e-…")` |
+| What is even queryable here? | `gazette_list_rubrics()` |
+| Why can't I search bankruptcies? | `gazette_list_rubrics(rubric_class="all")` |
+| Zoning changes in Zurich | `gazette_search_publications(rubric="RP-ZH")` |
+| Full text of a notice | `gazette_get_publication(id="fbf0ff9e-…")` |
 | Everything published about one company | → use [`register-mcp`](https://github.com/malkreide/register-mcp) |
 
 ## Data Protection & Scope
@@ -203,7 +203,7 @@ The exception is small and sharply bounded: `AR-VS40` (Valais, 150 awards),
 `AR-OW40` (Obwalden, 7), `BA-SH40` (Schaffhausen, 2) and the Ticino sub-rubric
 `OB-TI65` ("Avvisi di gara **non CIAP**") carry **no** simap reference at all.
 That is the one part of this portal's procurement coverage `swiss-procurement-mcp`
-cannot reach, and `search_gazette_procurement` serves it for cantons VS, OW and
+cannot reach, and `gazette_search_procurement` serves it for cantons VS, OW and
 SH even though they have no active `OB-*` rubric. Numbers and method in
 [`docs/simap-overlap.md`](docs/simap-overlap.md).
 
@@ -261,7 +261,7 @@ authentication, so no bulk dump is maintained.
 - **Procurement boundary.** Most cantons, including **Zürich**, route tenders
   through simap.ch, outside this portal. There is no `OB-ZH`, and no CPV
   classification exists here. What this portal has and simap does not is listed
-  in [`docs/simap-overlap.md`](docs/simap-overlap.md); `get_publication` reports
+  in [`docs/simap-overlap.md`](docs/simap-overlap.md); `gazette_get_publication` reports
   `simap_publication_number` so a mirror is distinguishable from an original.
 - **Procurement coverage, measured** (`publicationStates=PUBLISHED`, 2026-07-27,
   records per calendar year — reproduce with

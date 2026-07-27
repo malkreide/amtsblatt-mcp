@@ -15,8 +15,8 @@
   <rect x="0" y="101" width="3" height="104" fill="#e3b341"/>
   <rect x="3" y="101" width="637" height="104" fill="#161b22"/>
   <text x="16" y="121" font-family="monospace" font-size="13" fill="#e3b341" font-weight="bold">&#x1F527; Tool Calls</text>
-  <text x="16" y="145" font-family="monospace" font-size="13" fill="#e3b341">search_gazette_procurement(canton=&quot;TI&quot;, language=&quot;it&quot;)</text>
-  <text x="16" y="163" font-family="monospace" font-size="13" fill="#e3b341">get_publication(id=&#x2026;, response_format=&quot;markdown&quot;)</text>
+  <text x="16" y="145" font-family="monospace" font-size="13" fill="#e3b341">gazette_search_procurement(canton=&quot;TI&quot;, language=&quot;it&quot;)</text>
+  <text x="16" y="163" font-family="monospace" font-size="13" fill="#e3b341">gazette_get_publication(id=&#x2026;, response_format=&quot;markdown&quot;)</text>
 
   <!-- Panel 3: Claude response (y=206, h=104) -->
   <rect x="0" y="206" width="3" height="104" fill="#3fb950"/>

@@ -41,7 +41,7 @@ blocked rubric into a response — is a **vulnerability**, not a bug report.
 Please use the private advisory channel for it. Concretely, report any of:
 
 - A rubric outside `GREEN_RUBRICS` reaching the upstream query string.
-- `get_publication` rendering content from a rubric that is not green.
+- `gazette_get_publication` rendering content from a rubric that is not green.
 - A tool signature accepting a person-identifying parameter.
 - A refusal message that discloses a circumvention.
 

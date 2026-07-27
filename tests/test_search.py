@@ -18,8 +18,8 @@ from amtsblatt_mcp.server import (
     _procurement_scope,
     _reset_rubrics_cache,
     _to_bool,
-    search_gazette_procurement,
-    search_publications,
+    gazette_search_procurement,
+    gazette_search_publications,
 )
 
 from .fixtures import (
@@ -55,7 +55,7 @@ async def test_green_rubric_search_returns_hits_with_source_url():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_publications(SearchInput(rubric="OB-BS"))
+        result = await gazette_search_publications(SearchInput(rubric="OB-BS"))
 
     assert route.calls[0].request.url.params.get("rubrics") == "OB-BS"
     assert "Trambeschaffung" in result
@@ -72,7 +72,7 @@ async def test_canton_filter_is_sent():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        await search_publications(SearchInput(rubric="RP-ZH", canton="ZH"))
+        await gazette_search_publications(SearchInput(rubric="RP-ZH", canton="ZH"))
 
     params = route.calls[0].request.url.params
     assert params.get("cantons") == "ZH"
@@ -88,7 +88,7 @@ async def test_json_format_returns_structured_payload():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_publications(
+        result = await gazette_search_publications(
             SearchInput(rubric="OB-BS", response_format="json")
         )
     data = json.loads(result)
@@ -105,7 +105,7 @@ async def test_empty_result_is_not_an_error():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH_EMPTY)
         )
-        result = await search_publications(SearchInput(rubric="OB-BS"))
+        result = await gazette_search_publications(SearchInput(rubric="OB-BS"))
     assert "Keine Treffer" in result
     assert "Fehler" not in result
 
@@ -121,7 +121,7 @@ async def _multilang_search(**kwargs) -> dict:
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH_MULTILANG)
         )
-        result = await search_publications(
+        result = await gazette_search_publications(
             SearchInput(rubric="OB-TI", response_format="json", **kwargs)
         )
     return json.loads(result)
@@ -214,7 +214,7 @@ async def test_pagination_sends_page_and_size():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH_PAGE_2)
         )
-        await search_publications(SearchInput(rubric="OB-BS", limit=2, page=1))
+        await gazette_search_publications(SearchInput(rubric="OB-BS", limit=2, page=1))
 
     params = route.calls[0].request.url.params
     assert params.get("pageRequest.size") == "2"
@@ -231,7 +231,7 @@ async def test_pagination_across_a_page_boundary():
                 200, json={**MOCK_SEARCH, "total": 3}
             )
         )
-        page0 = await search_publications(SearchInput(rubric="OB-BS", limit=2, page=0))
+        page0 = await gazette_search_publications(SearchInput(rubric="OB-BS", limit=2, page=0))
     assert "page=1" in page0, "must tell the caller how to fetch the rest"
 
     _seed_rubrics()
@@ -239,7 +239,7 @@ async def test_pagination_across_a_page_boundary():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH_PAGE_2)
         )
-        page1 = await search_publications(SearchInput(rubric="OB-BS", limit=2, page=1))
+        page1 = await gazette_search_publications(SearchInput(rubric="OB-BS", limit=2, page=1))
     assert "Schulmobiliar Basel" in page1
     # No overlap between the pages.
     assert "Trambeschaffung" not in page1
@@ -253,7 +253,7 @@ async def test_limit_is_capped_client_side():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        await search_publications(SearchInput(rubric="OB-BS", limit=100))
+        await gazette_search_publications(SearchInput(rubric="OB-BS", limit=100))
     assert route.calls[0].request.url.params.get("pageRequest.size") == "100"
 
     with pytest.raises(ValueError):
@@ -367,7 +367,7 @@ async def test_sub_rubric_search_never_sends_the_blocked_parent():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        await search_gazette_procurement(ProcurementInput(canton="VS"))
+        await gazette_search_procurement(ProcurementInput(canton="VS"))
 
     params = route.calls[0].request.url.params
     assert set(params.get_list("subRubrics")) == {"AR-VS40"}
@@ -382,7 +382,7 @@ async def test_cantonless_search_sends_rubrics_and_sub_rubrics_together():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        await search_gazette_procurement(ProcurementInput(keyword="Informatik"))
+        await gazette_search_procurement(ProcurementInput(keyword="Informatik"))
 
     params = route.calls[0].request.url.params
     assert set(params.get_list("rubrics")) == {"OB-AR", "OB-TI"}
@@ -409,7 +409,7 @@ async def test_procurement_for_zurich_explains_simap_and_makes_no_call():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_gazette_procurement(ProcurementInput(canton="ZH"))
+        result = await gazette_search_procurement(ProcurementInput(canton="ZH"))
 
     assert route.call_count == 0
     assert "simap.ch" in result
@@ -424,7 +424,7 @@ async def test_procurement_inactive_canton_warns_before_searching():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_gazette_procurement(ProcurementInput(canton="BL"))
+        result = await gazette_search_procurement(ProcurementInput(canton="BL"))
     assert route.call_count == 0
     assert "inaktiv" in result
     assert "include_inactive" in result
@@ -437,7 +437,7 @@ async def test_procurement_multi_rubric_search_sends_all_active_codes():
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        await search_gazette_procurement(ProcurementInput(keyword="Informatik"))
+        await gazette_search_procurement(ProcurementInput(keyword="Informatik"))
 
     sent = set(route.calls[0].request.url.params.get_list("rubrics"))
     assert sent == {"OB-AR", "OB-TI"}
@@ -450,7 +450,7 @@ async def test_procurement_warns_when_keyword_looks_like_a_cpv_code():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await search_gazette_procurement(ProcurementInput(keyword="72000000"))
+        result = await gazette_search_procurement(ProcurementInput(keyword="72000000"))
     assert "CPV" in result
 
 
@@ -466,7 +466,7 @@ async def test_api_unreachable_returns_explanation_not_empty_result():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             side_effect=httpx.ConnectError("connection refused")
         )
-        result = await search_publications(SearchInput(rubric="OB-BS"))
+        result = await gazette_search_publications(SearchInput(rubric="OB-BS"))
 
     assert "nicht erreichbar" in result
     assert "KEIN leeres Ergebnis" in result
@@ -481,7 +481,7 @@ async def test_timeout_is_reported_as_a_timeout():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             side_effect=httpx.TimeoutException("timed out")
         )
-        result = await search_publications(SearchInput(rubric="OB-BS"))
+        result = await gazette_search_publications(SearchInput(rubric="OB-BS"))
     assert "Timeout" in result
 
 
@@ -496,7 +496,7 @@ async def test_transient_5xx_is_retried_then_succeeds():
                 httpx.Response(200, json=MOCK_SEARCH),
             ]
         )
-        result = await search_publications(SearchInput(rubric="OB-BS"))
+        result = await gazette_search_publications(SearchInput(rubric="OB-BS"))
     assert route.call_count == 2
     assert "Trambeschaffung" in result
 
@@ -509,7 +509,7 @@ async def test_missing_publication_states_401_is_explained_as_a_param_problem():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(401, json={"error": "AccessDenied"})
         )
-        result = await search_publications(SearchInput(rubric="OB-BS"))
+        result = await gazette_search_publications(SearchInput(rubric="OB-BS"))
     assert "publicationStates" in result
     assert "unauthentifiziert" in result
 
@@ -522,7 +522,7 @@ async def test_silently_ignored_filter_is_detected_by_the_plausibility_guard():
         respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH_CORPUS)
         )
-        result = await search_publications(SearchInput(rubric="OB-BS"))
+        result = await gazette_search_publications(SearchInput(rubric="OB-BS"))
     assert "ignoriert" in result
     assert "nicht vertrauenswürdig" in result
 
@@ -536,7 +536,7 @@ async def test_silently_ignored_filter_is_detected_by_the_plausibility_guard():
 @pytest.mark.asyncio
 async def test_live_procurement_basel_stadt():
     _reset_rubrics_cache()
-    result = await search_gazette_procurement(ProcurementInput(canton="BS", limit=5))
+    result = await gazette_search_procurement(ProcurementInput(canton="BS", limit=5))
     assert "amtsblattportal.ch" in result
     assert "Fehler" not in result
 
@@ -545,5 +545,5 @@ async def test_live_procurement_basel_stadt():
 @pytest.mark.asyncio
 async def test_live_blocked_rubric_still_refuses():
     _reset_rubrics_cache()
-    result = await search_publications(SearchInput(rubric="KK", keyword="Muster"))
+    result = await gazette_search_publications(SearchInput(rubric="KK", keyword="Muster"))
     assert "fail-closed" in result

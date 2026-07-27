@@ -44,7 +44,7 @@ Damit ist der Grundsatz belegt, den v0.1.3 schon für `OB-ZG` gezogen hatte, abe
 noch nicht verallgemeinert hatte: **Aktivität ist eine Messgrösse, keine
 Textangabe.** Ein Server, der `active` aus dem Label ableitet, hätte den
 Basler Fall nicht bemerkt und würde eine tote Rubrik weiter mitdurchsuchen —
-womit `search_gazette_procurement(canton="BS")` zwei Alt-Treffer statt der
+womit `gazette_search_procurement(canton="BS")` zwei Alt-Treffer statt der
 Erklärung liefert, dass Basel-Stadt heute über simap.ch publiziert.
 
 ## Was die drei Import-Labels nebenbei belegen
@@ -63,8 +63,8 @@ Eine Lücke der `OB-*`-Rubriken ist dabei messbar: `OB-TI` enthält 2026 **keine
 einzigen Zuschlag** (alle 546 Datensätze sind Ausschreibungen, Berichtigungen,
 Abbrüche oder Widerrufe), während die Subrubrik `AR-VS40` (Wallis, 150
 Datensätze) ausschliesslich aus Zuschlägen besteht. `AR-VS40` ist heute nur über
-`search_publications(sub_rubric="AR-VS40")` erreichbar, nicht über
-`search_gazette_procurement` — siehe `PROCUREMENT_SUB_RUBRICS` in `server.py`.
+`gazette_search_publications(sub_rubric="AR-VS40")` erreichbar, nicht über
+`gazette_search_procurement` — siehe `PROCUREMENT_SUB_RUBRICS` in `server.py`.
 
 ## Sprachvarianten
 
@@ -78,7 +78,7 @@ Publikationsnummer:
 | `OB-AR` | 40 | de 32 · fr 6 · en 2 |
 | `OB-BS` | 2 | de 2 |
 
-`search_publications` und `search_gazette_procurement` fassen identische
+`gazette_search_publications` und `gazette_search_procurement` fassen identische
 Sprachfassungen zusammen und weisen den Rest über `language_mix` plus eine
 Warnung aus; `only_language=True` erzwingt eine einzelne Sprachfassung. Siehe
 den `_FORM_CLASSES`-Block in `server.py` für die Details.
