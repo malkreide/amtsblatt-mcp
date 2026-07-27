@@ -112,7 +112,33 @@ amtsblatt-mcp
 | `MCP_RATE_LIMIT` / `MCP_RATE_WINDOW` | `60` / `60` | Sliding-window rate limit |
 | `MCP_ALLOWED_HOSTS` | `amtsblattportal.ch,www.amtsblattportal.ch` | Egress allow-list. An override replaces the default entirely. |
 | `RUBRICS_TTL` | `86400` | Taxonomy cache TTL (seconds) |
-| `LOG_LEVEL` | `INFO` | Structured JSON logs to stderr |
+| `LOG_LEVEL` | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR`. Structured JSON, one object per line, always on **stderr** — stdout carries the MCP protocol on a stdio transport. |
+
+### Logging
+
+Built on [structlog](https://www.structlog.org/). Every event emitted during a
+tool call carries that call's `correlation_id`, bound via `contextvars` — so a
+retry or an egress denial logged deep in the HTTP path can be joined to the
+request that caused it, without threading context through every signature.
+
+| Level | Emitted when |
+|---|---|
+| `DEBUG` | a tool call was entered (`tool_call_started`) — tells you whether a hung call ever started |
+| `INFO` | a tool call finished cleanly, with latency |
+| `WARNING` | upstream retry, egress denied, auth failure, rate limit |
+| `ERROR` | a tool call raised |
+
+Records carry the exception *type* only — never its message and never an
+upstream response body.
+
+```json
+{"event":"tool_call_started","tool":"gazette_search_procurement","correlation_id":"23221af26ae640c7","level":"debug","timestamp":"2026-07-27T22:20:07.494276Z"}
+{"status":"ok","latency_ms":312,"event":"tool_call","tool":"gazette_search_procurement","correlation_id":"23221af26ae640c7","level":"info","timestamp":"2026-07-27T22:20:07.806Z"}
+```
+
+Ship these to your SIEM and alert on `auth_failed`, `rate_limited`,
+`egress_denied`, `green_gate_violation` and `blocked_publication_requested` —
+the last two mean something tried to reach a rubric this server does not serve.
 
 ## Available Tools
 
