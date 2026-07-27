@@ -4,6 +4,66 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-07-27
+
+Opens the part of this portal's procurement coverage that simap.ch does not
+have, and makes the mirror/original distinction visible per publication. Both
+follow from an exact corpus join, not an estimate.
+
+### The measurement
+
+A publication's XML carries `<simapPublicationNumber>` (e.g. `#41510-01`) when
+it originates on simap.ch — that is simap's own `publicationNumber`, so the two
+corpora join exactly, with no title or fuzzy matching.
+
+Resolving every one of the 546 `OB-TI` records of 2026 against a simap TI
+universe of 974 projects:
+
+| | Records | Share |
+|---|---|---|
+| simap reference present and resolvable | 503 | 92.1% |
+| placeholder `--` in the field | 3 | 0.5% |
+| **no simap reference** | **40** | **7.3%** |
+
+The split follows exactly one sub-rubric — `OB-TI65`, whose own name is
+"Avvisi di gara **non CIAP**": 0 of its 39 records carry a reference, while
+`OB-TI10`/`20`/`70` carry one in 506 of 507 cases.
+
+Across all procurement rubrics (newest-records sample): `OB-AR` 25/25,
+`OB-BS` 24/25, `OB-BL` 25/25, `OB-VS` 25/25 carry a reference — while
+`AR-VS40` 0/25, `AR-OW40` 0/7 and `BA-SH40` 0/2 carry none.
+
+Full write-up in [`docs/simap-overlap.md`](docs/simap-overlap.md).
+
+### Added
+
+- **`search_gazette_procurement` now searches the gazette-native sub-rubrics.**
+  `AR-VS40` (Valais, 150 awards), `AR-OW40` (Obwalden, 7) and `BA-SH40`
+  (Schaffhausen, 2) were declared in `PROCUREMENT_SUB_RUBRICS` since 0.1.0 but
+  never used by any code path. They are the only procurement records here that
+  simap.ch does not also carry.
+
+  They are sent as `subRubrics` and never folded into `rubrics`: their parents
+  `AR-VS`, `AR-OW` and `BA-SH` are collector rubrics holding Arbeitsvergaben and
+  Baugesuche and stay blocked. A test asserts the parent is never transmitted.
+
+- **`simap_publication_number` on `get_publication`.** Promoted out of
+  `additional_fields`, with the `#` stripped and publisher placeholders (`--`)
+  read as absent. A mirrored record now points at `swiss-procurement-mcp` for
+  the original; a gazette-native one says it exists nowhere else.
+
+### Changed
+
+- **Valais, Obwalden and Schaffhausen return results instead of a redirect.**
+  Previously every canton without an *active* `OB-*` rubric got the "use
+  simap.ch" explainer — correct for most, wrong for these three, whose native
+  sub-rubrics simap does not have. Valais is the sharp case: `OB-VS` is a dead
+  simap import while `AR-VS40` is live, so an inactive rubric no longer
+  suppresses a live sub-rubric.
+- `AR-NW40` dropped from the searched scope: 0 publications. It stays on the
+  green allow-list — emptiness is a coverage fact, not a data-protection one.
+- Tool description states the mirror relationship and names the exception.
+
 ## [0.2.0] — 2026-07-27
 
 Correctness release. Two defects were found by measuring the live corpus rather

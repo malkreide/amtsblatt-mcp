@@ -112,6 +112,34 @@ MOCK_RUBRICS: list[dict] = [
             {"code": "AR-NW10", "name": {"de": "Arbeitsvergaben"}},
         ],
     },
+    # Blocked collector rubrics whose procurement sub-rubric is released. These
+    # carry the gazette-native procurement — the publications that do NOT also
+    # exist on simap.ch — so the search has to be able to reach the sub-rubric
+    # without ever injecting its parent.
+    {
+        "code": "AR-VS",
+        "name": {"de": "Wirtschaft, Arbeit und Bildung"},
+        "active": True,
+        "subRubrics": [
+            {"code": "AR-VS40", "name": {"de": "Öffentliche Beschaffung"}},
+            {"code": "AR-VS10", "name": {"de": "Arbeitsvergaben"}},
+        ],
+    },
+    {
+        "code": "AR-OW",
+        "name": {"de": "Wirtschaft, Arbeit und Bildung"},
+        "active": True,
+        "subRubrics": [{"code": "AR-OW40", "name": {"de": "Öffentliche Beschaffung"}}],
+    },
+    {
+        "code": "BA-SH",
+        "name": {"de": "Bau, Raum und Verkehr"},
+        "active": True,
+        "subRubrics": [
+            {"code": "BA-SH40", "name": {"de": "Öffentliche Beschaffung"}},
+            {"code": "BA-SH10", "name": {"de": "Baugesuche"}},
+        ],
+    },
 ]
 
 
@@ -281,6 +309,53 @@ MOCK_XML_PROCUREMENT = """<?xml version='1.0' encoding='UTF-8'?>
   </content>
 </OB-BS70:publication>
 """
+
+# A gazette-native procurement publication: NO <simapPublicationNumber>, which
+# is what distinguishes an original from a second publication of a simap tender.
+MOCK_XML_NATIVE_PROCUREMENT = """<?xml version='1.0' encoding='UTF-8'?>
+<AR-VS40:publication xmlns:AR-VS40="https://shab.ch/kabvs/AR-VS40-export">
+  <meta>
+    <id>cccc1111-0000-0000-0000-000000000009</id>
+    <rubric>AR-VS</rubric>
+    <subRubric>AR-VS40</subRubric>
+    <language>fr</language>
+    <publicationNumber>AR-VS40-0000000786</publicationNumber>
+    <publicationDate>2026-06-26</publicationDate>
+    <title><fr>Adjudication - travaux de genie-civil</fr></title>
+  </meta>
+  <content>
+    <title>Adjudication - travaux de genie-civil</title>
+    <publication>&lt;p>Le marche est adjuge.&lt;/p></publication>
+  </content>
+</AR-VS40:publication>
+"""
+
+# The mirror case: the same shape WITH the simap reference, as the OB-* rubrics
+# carry it. Note the leading "#", which has to be stripped.
+MOCK_XML_MIRRORED_PROCUREMENT = """<?xml version='1.0' encoding='UTF-8'?>
+<OB-TI10:publication xmlns:OB-TI10="https://shab.ch/kabti/OB-TI10-export">
+  <meta>
+    <id>dddd2222-0000-0000-0000-000000000010</id>
+    <rubric>OB-TI</rubric>
+    <subRubric>OB-TI10</subRubric>
+    <language>it</language>
+    <publicationNumber>OB-TI10-0000002896</publicationNumber>
+    <publicationDate>2026-07-27</publicationDate>
+    <title><it>Bando - Percorso Ciclabile</it></title>
+  </meta>
+  <content>
+    <title>Bando - Percorso Ciclabile</title>
+    <publication>&lt;p>Oggetto della commessa.&lt;/p></publication>
+    <simapPublicationNumber>#41510-01</simapPublicationNumber>
+  </content>
+</OB-TI10:publication>
+"""
+
+# Some publishers fill the field with a dash instead of omitting it; that must
+# read as "no reference", not as an unresolvable id.
+MOCK_XML_PLACEHOLDER_SIMAP_REF = MOCK_XML_MIRRORED_PROCUREMENT.replace(
+    "#41510-01", "--"
+)
 
 # Commercial register: the other schema shape — `publicationText` plus a
 # `company` block, under the `shab` tenant namespace.

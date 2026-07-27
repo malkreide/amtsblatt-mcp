@@ -42,6 +42,12 @@ Realitätsnahe Anfragen nach Zielgruppe. Der Server erschliesst **amtsblattporta
 - → `search_gazette_procurement(canton="VS", include_inactive=True)`
 - Warum nützlich: Mit `include_inactive=True` werden die Archive (BS, BL und VS) erreichbar; ein Kanton ohne aktive `OB-*`-Rubrik erhält einen simap.ch-Hinweis statt eines leeren Ergebnisses — ganz ohne HTTP-Aufruf.
 
+**«Welche öffentlichen Beschaffungen gibt es, die auf simap.ch NICHT stehen?»**
+- **API-Key nötig:** Nein
+- → `search_gazette_procurement(canton="VS")` (150 Walliser Zuschläge), `canton="OW"`, `canton="SH"`
+- → `get_publication(id="…")` — das Feld `simap_publication_number` ist bei diesen leer
+- Warum nützlich: Die `OB-*`-Rubriken sind zu rund 92 % Zweitpublikationen von simap.ch. Die Subrubriken `AR-VS40`, `AR-OW40` und `BA-SH40` tragen dagegen keine einzige simap-Referenz — sie sind der einzige Teil dieser Quelle, den [`swiss-procurement-mcp`](https://github.com/malkreide/swiss-procurement-mcp) nicht erreicht. Belege in [`docs/simap-overlap.md`](docs/simap-overlap.md).
+
 ## 🤖 KI-Interessierte & Entwickler:innen
 
 **«Wie hole ich den vollständigen amtlichen Text einer Bekanntmachung als JSON?»**
@@ -59,7 +65,7 @@ Realitätsnahe Anfragen nach Zielgruppe. Der Server erschliesst **amtsblattporta
 | Ich möchte… | Tool(s) | Auth nötig? |
 |---|---|---|
 | Amtliche Bekanntmachungen in freigegebenen (grünen) Rubriken suchen | `search_publications` | Nein |
-| Öffentliche Beschaffungen/Ausschreibungen (`OB-*`) suchen | `search_gazette_procurement` | Nein |
+| Öffentliche Beschaffungen/Ausschreibungen suchen (`OB-*` plus die simap-freien Subrubriken) | `search_gazette_procurement` | Nein |
 | Den vollständigen amtlichen Text einer Publikation abrufen | `get_publication` | Nein |
 | Die abfragbaren Rubriken (bzw. die volle Taxonomie mit Ampel) auflisten | `list_rubrics` | Nein |
 | Erreichbarkeit, Latenz und Cache-Zustand der Quelle prüfen | `gazette_source_status` | Nein |

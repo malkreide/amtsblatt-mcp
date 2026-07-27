@@ -45,7 +45,7 @@ from .rubrics import (
 
 configure_logging()
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # ---------------------------------------------------------------------------
 # Source constants
@@ -256,12 +256,32 @@ PROCUREMENT_INACTIVE_CANTONS = [
 # Non-simap procurement that lives in a sub-rubric of an otherwise blocked
 # parent. Kept separate because these must be sent as `subRubrics`, never as
 # `rubrics` — sending the parent would open a blocked rubric.
+# These are the only procurement publications in this portal that are NOT a
+# second publication of a simap tender — which makes them the one part of the
+# gazette's procurement coverage that `swiss-procurement-mcp` cannot reach.
+#
+# Established by resolving every publication's XML `<simapPublicationNumber>`
+# (measured 2026-07-27, see docs/simap-overlap.md):
+#
+#   OB-AR   sample 25/25 carry a simap reference     -> mirror
+#   OB-BS   sample 24/25                             -> mirror
+#   OB-BL   sample 25/25                             -> mirror
+#   OB-VS   sample 25/25                             -> mirror
+#   AR-VS40        0/25                              -> gazette-native
+#   AR-OW40        0/7                               -> gazette-native
+#   BA-SH40        0/2                               -> gazette-native
+#
+# `AR-NW40` is deliberately absent: it holds 0 publications, so searching it
+# only costs a filter slot. It stays on the green allow-list — emptiness is a
+# coverage fact, not a data-protection one — it is merely not worth querying.
 PROCUREMENT_SUB_RUBRICS: dict[str, dict[str, Any]] = {
-    "NW": {"sub_rubric": "AR-NW40", "active": True, "note": ""},
-    "OW": {"sub_rubric": "AR-OW40", "active": True, "note": ""},
-    "VS40": {"sub_rubric": "AR-VS40", "active": True, "note": ""},
-    "SH": {"sub_rubric": "BA-SH40", "active": True, "note": ""},
+    "VS": {"sub_rubric": "AR-VS40", "active": True, "note": "Zuschläge (nicht über simap.ch)"},
+    "OW": {"sub_rubric": "AR-OW40", "active": True, "note": "nicht über simap.ch"},
+    "SH": {"sub_rubric": "BA-SH40", "active": True, "note": "nicht über simap.ch"},
 }
+PROCUREMENT_SUB_RUBRIC_CODES = frozenset(
+    v["sub_rubric"] for v in PROCUREMENT_SUB_RUBRICS.values()
+)
 
 
 class GazetteFilterIgnored(RuntimeError):
@@ -816,11 +836,27 @@ def _parse_publication_xml(xml_text: str) -> dict:
             deadline = _el_text(el)
             break
 
+    # Procurement publications that originate on simap.ch carry the simap
+    # publication number, e.g. "#41510-01" (projectNumber-sequence). Its
+    # presence is the only reliable way to tell a second publication from a
+    # gazette-native one — measured over the whole 2026 OB-TI corpus, 92.1% of
+    # records carry it and every record that lacks one sits in a sub-rubric
+    # simap does not cover. Promoted out of `additional_fields` because that
+    # distinction decides whether `swiss-procurement-mcp` has the same record.
+    simap_ref = None
+    simap_el = _first_local(search_root, "simapPublicationNumber")
+    if simap_el is not None:
+        simap_ref = _el_text(simap_el).lstrip("#").strip() or None
+        # Some publishers fill the field with a placeholder rather than leaving
+        # it out; treat that as absent rather than as an unresolvable id.
+        if simap_ref in {"-", "--", "---", "n/a", "N/A"}:
+            simap_ref = None
+
     additional: dict[str, Any] = {}
     if content_el is not None:
         for child in content_el:
             ln = _localname(child.tag)
-            if ln == text_element_name:
+            if ln in (text_element_name, "simapPublicationNumber"):
                 continue
             additional[ln] = _node_to_value(child)
 
@@ -829,6 +865,7 @@ def _parse_publication_xml(xml_text: str) -> dict:
         "publicationText": publication_text,
         "company": company,
         "deadline": deadline,
+        "simap_publication_number": simap_ref,
         "additional_fields": additional,
     }
 
@@ -1326,16 +1363,33 @@ async def search_publications(params: SearchInput) -> str:
 def _procurement_scope(
     canton: str | None, include_inactive: bool
 ) -> tuple[list[str], list[str], list[str]]:
-    """Resolve the OB-* rubric codes for a procurement search.
+    """Resolve the rubric AND sub-rubric codes for a procurement search.
 
     Returns (rubric_codes, sub_rubric_codes, warnings). An empty scope means
     the request cannot be served — the warnings then explain why, and no HTTP
     call is made.
+
+    Sub-rubrics are kept apart from rubrics for two independent reasons. They
+    must be sent as `subRubrics`, because their PARENT rubric is blocked and
+    injecting it would open a rubric full of Baugesuche and Zivilstand entries.
+    And they are the gazette-native procurement — the part that does not also
+    exist on simap.ch — so a canton can have no active rubric and still have
+    something worth returning (Wallis: `OB-VS` is a dead simap import, while
+    `AR-VS40` is live and simap has none of it).
     """
     warnings: list[str] = []
     if canton:
         entry = PROCUREMENT_RUBRICS.get(canton)
+        sub_entry = PROCUREMENT_SUB_RUBRICS.get(canton)
+        subs = [sub_entry["sub_rubric"]] if sub_entry and _to_bool(sub_entry["active"]) else []
+        if sub_entry and subs:
+            warnings.append(f"{sub_entry['sub_rubric']}: {sub_entry['note']}.")
+
         if not entry:
+            if subs:
+                # No OB-* rubric, but a native sub-rubric — serve it rather than
+                # sending the caller to simap for publications simap lacks.
+                return [], subs, warnings
             warnings.append(
                 f"Kanton {canton} führt keine Beschaffungsrubrik im Amtsblattportal. "
                 f"Öffentliche Ausschreibungen des Kantons {canton} laufen in der Regel "
@@ -1345,23 +1399,27 @@ def _procurement_scope(
                 f"{', '.join(PROCUREMENT_INACTIVE_CANTONS)} (inaktiv)."
             )
             return [], [], warnings
+
         if not _to_bool(entry["active"]) and not include_inactive:
             warnings.append(
                 f"Beschaffungsrubrik {entry['rubric']} ({canton}) ist inaktiv "
                 f"({entry['note']}). Nur historische Daten. "
                 "Mit include_inactive=True dennoch durchsuchen."
             )
-            return [], [], warnings
+            # An inactive rubric does not suppress a live sub-rubric.
+            return [], subs, warnings
+
         if entry["note"]:
             warnings.append(f"{entry['rubric']}: {entry['note']}.")
-        return [entry["rubric"]], [], warnings
+        return [entry["rubric"]], subs, warnings
 
     codes = [
         v["rubric"]
         for v in PROCUREMENT_RUBRICS.values()
         if _to_bool(v["active"]) or include_inactive
     ]
-    return codes, [], warnings
+    subs = [v["sub_rubric"] for v in PROCUREMENT_SUB_RUBRICS.values() if _to_bool(v["active"])]
+    return codes, subs, warnings
 
 
 @mcp.tool(
@@ -1380,7 +1438,20 @@ async def search_gazette_procurement(params: ProcurementInput) -> str:
 
     Beschaffung ist ausschliesslich eine KANTONALE Rubrik (`OB-<Kanton>`), nicht
     föderal. Nur wenige Kantone publizieren sie hier: AR und TI (aktiv) sowie
-    BS, BL, VS, ZG (inaktiv — BS/BL/VS nur Archiv, ZG leer). Die meisten Kantone —
+    BS, BL, VS, ZG (inaktiv — BS/BL/VS nur Archiv, ZG leer).
+
+    WICHTIG — Spiegel vs. Original: Die `OB-*`-Rubriken sind praktisch
+    vollständig Zweitpublikationen von simap.ch-Ausschreibungen (gemessen über
+    den OB-TI-Jahrgang 2026: 92,1 % tragen eine simap-Publikationsnummer). Wer
+    Beschaffung sucht, ist mit `swiss-procurement-mcp` an der Primärquelle
+    besser bedient — alle 26 Kantone plus Bund, mit CPV- und BKP-Codes,
+    Zuschlägen und Publikationsverlauf.
+
+    Was es NUR hier gibt, sind die Beschaffungs-Subrubriken `AR-VS40` (Wallis,
+    Zuschläge), `AR-OW40` (Obwalden) und `BA-SH40` (Schaffhausen) sowie die
+    Ticiner Subrubrik `OB-TI65` («Avvisi di gara non CIAP»): keine davon trägt
+    eine simap-Nummer. Kanton VS, OW und SH liefern deshalb Treffer, obwohl sie
+    keine aktive `OB-*`-Rubrik haben. Die meisten Kantone —
     inklusive **Zürich** —
     publizieren Ausschreibungen über simap.ch, das NICHT Teil dieser Quelle ist;
     eine Abfrage für einen solchen Kanton liefert eine Erklärung statt eines
@@ -1433,9 +1504,18 @@ async def search_gazette_procurement(params: ProcurementInput) -> str:
     try:
         for code in rubrics:
             await _validate_rubric_code(code, "rubric")
+        for code in sub_rubrics:
+            await _validate_rubric_code(code, "subRubric")
         data = await _search(
             {
-                "rubrics": rubrics if len(rubrics) > 1 else rubrics[0],
+                # Sent as `subRubrics`, never folded into `rubrics`: their parent
+                # rubrics are blocked and carry Baugesuche / Zivilstand entries.
+                "rubrics": (rubrics if len(rubrics) > 1 else rubrics[0]) if rubrics else None,
+                "subRubrics": (
+                    (sub_rubrics if len(sub_rubrics) > 1 else sub_rubrics[0])
+                    if sub_rubrics
+                    else None
+                ),
                 "keyword": params.keyword,
                 "publicationDate.start": params.date_start,
                 "publicationDate.end": params.date_end,
@@ -1466,6 +1546,7 @@ async def search_gazette_procurement(params: ProcurementInput) -> str:
                 "total": total,
                 "page": params.page,
                 "rubrics": rubrics,
+                "sub_rubrics": sub_rubrics,
                 "canton": params.canton,
                 "keyword": params.keyword,
                 "language_mix": mix,
@@ -1475,7 +1556,7 @@ async def search_gazette_procurement(params: ProcurementInput) -> str:
             "live_api",
         )
 
-    scope = params.canton or f"alle aktiven Rubriken ({', '.join(rubrics)})"
+    scope = params.canton or f"alle aktiven Rubriken ({', '.join(rubrics + sub_rubrics)})"
     meta_line = f"Gefunden: **{len(summaries)}** (total: {total})" + (
         f" | Stichwort: «{params.keyword}»" if params.keyword else ""
     )
@@ -1575,6 +1656,9 @@ async def get_publication(params: PublicationInput) -> str:
         ro = ro.get("displayName")
     if ro:
         lines.append(f"| **Amt** | {ro} |")
+    simap_ref = parsed.get("simap_publication_number")
+    if simap_ref:
+        lines.append(f"| **simap-Publikation** | `{simap_ref}` (Zweitpublikation) |")
     if parsed.get("deadline"):
         lines.append(f"| **Frist** | {_format_deadline(parsed['deadline'])} |")
     lines.append(f"| **Quelle** | {GAZETTE_WEB}/{meta.get('id', params.id)} |")
@@ -1601,6 +1685,21 @@ async def get_publication(params: PublicationInput) -> str:
     extra = parsed.get("additional_fields") or {}
     if extra:
         lines.append(f"_Zusatzfelder: {', '.join(sorted(extra.keys()))}_")
+
+    if simap_ref:
+        lines += [
+            "",
+            f"_Diese Publikation stammt von simap.ch (Nr. {simap_ref}) und ist hier "
+            "eine Zweitpublikation. Der Originaldatensatz — mit CPV- und BKP-Codes, "
+            "Zuschlägen und Publikationsverlauf — liegt in `swiss-procurement-mcp`._",
+        ]
+    elif rubric and (rubric.startswith("OB-") or (sub_rubric or "") in PROCUREMENT_SUB_RUBRIC_CODES):
+        lines += [
+            "",
+            "_Diese Beschaffungspublikation trägt keine simap-Nummer, existiert also "
+            "nur im Amtsblattportal und ist über `swiss-procurement-mcp` nicht "
+            "auffindbar._",
+        ]
 
     return _md(lines, "live_api")
 

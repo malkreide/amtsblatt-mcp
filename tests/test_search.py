@@ -10,6 +10,7 @@ import pytest
 import respx
 
 from amtsblatt_mcp import server
+from amtsblatt_mcp.rubrics import is_green
 from amtsblatt_mcp.server import (
     GAZETTE_BASE,
     ProcurementInput,
@@ -316,6 +317,76 @@ def test_procurement_scope_explains_a_phased_out_canton():
 def test_procurement_scope_include_inactive_adds_historical_rubrics():
     rubrics, _, _ = _procurement_scope(None, True)
     assert {"OB-BS", "OB-BL", "OB-VS"} <= set(rubrics)
+
+
+# ---------------------------------------------------------------------------
+# Gazette-native procurement sub-rubrics
+# ---------------------------------------------------------------------------
+
+
+def test_scope_without_canton_includes_the_native_sub_rubrics():
+    """These are the only procurement records simap.ch does not also carry."""
+    _rubrics, subs, _ = _procurement_scope(None, False)
+    assert set(subs) == {"AR-VS40", "AR-OW40", "BA-SH40"}
+
+
+def test_empty_sub_rubric_is_not_searched():
+    """AR-NW40 holds 0 publications — green, but not worth a filter slot."""
+    _rubrics, subs, _ = _procurement_scope(None, False)
+    assert "AR-NW40" not in subs
+    # Still green: emptiness is a coverage fact, not a data-protection one.
+    assert is_green("AR-NW40")
+
+
+def test_canton_without_an_ob_rubric_still_serves_its_sub_rubric():
+    """Obwalden has no OB-OW, but AR-OW40 is live and simap-free."""
+    rubrics, subs, warnings = _procurement_scope("OW", False)
+    assert rubrics == []
+    assert subs == ["AR-OW40"]
+    assert warnings and "simap" in warnings[0]
+
+
+def test_inactive_rubric_does_not_suppress_a_live_sub_rubric():
+    """Valais: OB-VS is a dead simap import, AR-VS40 is live and native."""
+    rubrics, subs, warnings = _procurement_scope("VS", False)
+    assert rubrics == []
+    assert subs == ["AR-VS40"]
+    assert any("AR-VS40" in w for w in warnings)
+
+
+@pytest.mark.asyncio
+async def test_sub_rubric_search_never_sends_the_blocked_parent():
+    """The invariant that makes releasing these sub-rubrics safe.
+
+    AR-VS40's parent AR-VS is a collector rubric holding Arbeitsvergaben; if it
+    were folded into `rubrics`, a procurement search would open a blocked
+    rubric. They must travel as `subRubrics` only.
+    """
+    _seed_rubrics()
+    with respx.mock:
+        route = respx.get(f"{GAZETTE_BASE}/publications").mock(
+            return_value=httpx.Response(200, json=MOCK_SEARCH)
+        )
+        await search_gazette_procurement(ProcurementInput(canton="VS"))
+
+    params = route.calls[0].request.url.params
+    assert set(params.get_list("subRubrics")) == {"AR-VS40"}
+    assert params.get_list("rubrics") == [], "the blocked parent must never be sent"
+    assert "AR-VS" not in str(route.calls[0].request.url).replace("AR-VS40", "")
+
+
+@pytest.mark.asyncio
+async def test_cantonless_search_sends_rubrics_and_sub_rubrics_together():
+    _seed_rubrics()
+    with respx.mock:
+        route = respx.get(f"{GAZETTE_BASE}/publications").mock(
+            return_value=httpx.Response(200, json=MOCK_SEARCH)
+        )
+        await search_gazette_procurement(ProcurementInput(keyword="Informatik"))
+
+    params = route.calls[0].request.url.params
+    assert set(params.get_list("rubrics")) == {"OB-AR", "OB-TI"}
+    assert set(params.get_list("subRubrics")) == {"AR-VS40", "AR-OW40", "BA-SH40"}
 
 
 def test_procurement_scope_zg_is_inactive_not_active():
