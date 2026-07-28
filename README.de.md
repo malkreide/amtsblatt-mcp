@@ -350,7 +350,7 @@ Siehe [SECURITY.md](SECURITY.md) für Meldewege und Härtungshinweise.
 
 ## Lizenz
 
-MIT — siehe [LICENSE](LICENSE).
+MIT — siehe [LICENSE](LICENSE). Datenquellen-Hinweis: [NOTICE.md](NOTICE.md).
 
 Datenquelle: **amtsblattportal.ch**, betrieben durch das SECO /
 Staatssekretariat für Wirtschaft im Auftrag des Bundes. Frei nutzbar, aber ohne
