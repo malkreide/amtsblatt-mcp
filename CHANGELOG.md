@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] — 2026-07-28
+
+**SEC-009** and **SCALE-002/003**: documented precisely rather than carried as a
+bare "accepted risk". Neither flips to `pass`, and neither is a code change
+waiting to be written.
+
+`docs/load-balancing.md` adds nginx and Kubernetes Ingress configurations keyed
+on `Mcp-Session-Id`, with the buffering and timeout settings the long-lived SSE
+transport needs, and the honest failover statement: **affinity prevents
+misrouting, not loss.**
+
+`SECURITY.md` gains criterion-by-criterion sections for both. Two limits, found
+by reading the SDK rather than assuming:
+
+- **No explicit session TTL is settable** — `session_idle_timeout` exists on
+  `StreamableHTTPSessionManager` but FastMCP exposes it nowhere.
+- **`SEC-009` is unreachable, not unimplemented** — it needs a user id from a
+  validated OAuth `sub` claim, and a shared bearer key carries no identity.
+
+The sister server's `MCP_STATELESS` escape hatch is **not** available here: this
+server serves the legacy SSE transport, which has no stateless mode. Gaining it
+means migrating to streamable-http — a deliberate change to a cloud-deployed
+service, not a remediation step.
+
+Also fixes a self-contradiction in `SECURITY.md`, which listed `OPS-003` as
+closed in 0.10.0 and still open four lines later.
+
 ## [0.14.0] — 2026-07-28
 
 Closes **ARCH-002**: every tool description carries a `<use_case>` tag.

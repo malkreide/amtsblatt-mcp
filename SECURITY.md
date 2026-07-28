@@ -50,17 +50,76 @@ split plus a raised FD limit). `SEC-004` improved but stays `partial`: HTTPS is
 now enforced before egress, while the resolved-IP blocklist and DNS pinning
 remain open.
 
-Two remain worth naming:
+**`OPS-001` — closed in 0.12.0, not yet re-measured.** Every tool now has 6+ unit
+tests and at least one live test, all live tests are consolidated in
+`tests/test_live.py`, and a nightly CI job runs them. The live suite immediately
+surfaced a real bug the mocked suite could not see: the pooled client outlived
+the per-test event loop.
 
-- **`OPS-001` — closed in 0.12.0, not yet re-measured.** Every tool now has 6+
-  unit tests and at least one live test, all live tests are consolidated in
-  `tests/test_live.py`, and a nightly CI job runs them. The live suite
-  immediately surfaced a real bug the mocked suite could not see: the pooled
-  client outlived the per-test event loop.
-- **`OPS-003`** — no phase is declared anywhere in the README, so there is no
-  statement the tool annotations can be checked against.
+**`OBS-006` — closed in 0.13.0** (a root span per tool call) and **`ARCH-002` —
+closed in 0.14.0** (use-case tags on every tool), likewise not re-measured.
+
+Of the blocking set above, only `SCALE-002`, `SCALE-003`, `SEC-003` and `SEC-009`
+remain, and none of them is a code change waiting to be written — see below and
+`ROADMAP.md`.
 
 Full report and per-finding documents: `audits/`.
+
+## Accepted risks, stated precisely
+
+### Session-to-user binding (SEC-009)
+
+**Status:** unreachable as specified. Severity in the catalogue: `critical`.
+
+The check asks that a session id be cryptographically bound to a **user id taken
+from a validated OAuth token's `sub` claim**. This server authenticates with a
+single shared bearer key, which identifies the *deployment*, not a user. There is
+no `sub` claim, so there is nothing to bind a session to. This is not an effort
+question — the input the control needs does not exist.
+
+| Criterion | State |
+|---|---|
+| Session id entropy ≥128 bit | `uuid4().hex` from the SDK — 122 random bits, marginally short, and not ours to set |
+| User id from a validated token | Impossible — a shared key carries no identity |
+| Session bound to user id | Impossible — same reason |
+| 401/403 on mismatch | Not applicable — no user to mismatch |
+| Explicit TTL | Not settable: `session_idle_timeout` exists on `StreamableHTTPSessionManager` but FastMCP passes it through neither `Settings` nor its constructor (verified against `mcp` 1.28.1) |
+| Server-side invalidation | Partial — the legacy SSE transport this server serves has no `DELETE` session-termination endpoint |
+
+**Closing it properly** means an OAuth/OIDC provider, which would also unblock
+`SEC-002` and `SEC-003`. That is a product decision about whether this server
+should have users, not a remediation task. What bounds the exposure meanwhile:
+the server is read-only, serves only public gazette data, and the green
+allow-list means no session can reach person-data rubrics regardless of who
+holds it.
+
+### Stateful load balancing (SCALE-002, SCALE-003)
+
+**Status:** documented, not implemented. Severity in the catalogue: `high`.
+
+The SDK keeps sessions in process memory, so two instances behind a round-robin
+balancer break clients: `initialize` lands on one instance and the next call on
+another that has never heard of the session.
+
+[`docs/load-balancing.md`](docs/load-balancing.md) now carries tested nginx and
+Kubernetes Ingress configurations keyed on the `Mcp-Session-Id` header, with the
+buffering and timeout settings the long-lived SSE transport needs, and an honest
+failover statement: **affinity prevents misrouting, not loss.** If the instance
+holding a session dies, the session dies with it.
+
+Two criteria remain unmet, which is why this is not recorded as passing:
+
+- **No explicit session TTL** — not settable through FastMCP, see above.
+- **No shared-state session manager** — that needs replacing the SDK's in-process
+  manager, which FastMCP does not expose as an extension point, plus a Redis
+  dependency this server does not have.
+
+The sister server offers `MCP_STATELESS=1`, which removes session affinity as a
+question entirely. **That option is not available here:** this server serves the
+legacy SSE transport (`mcp.sse_app()`), which has no stateless mode. Gaining it
+means migrating to streamable-http — a deliberate change to a cloud-deployed
+service, not a remediation step, and one that would need its own testing round
+against real clients.
 
 ## Supported Versions
 
