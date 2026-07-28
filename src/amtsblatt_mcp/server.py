@@ -87,18 +87,24 @@ def _load_zurich_tz() -> ZoneInfo | timezone:
 TZ_ZURICH = _load_zurich_tz()
 
 # Egress allow-list — every outbound request from `_make_client` is checked.
-# Second-layer defence: even if a dependency follows a redirect to an
-# unexpected host, the request is rejected before it leaves the process.
-# Override via MCP_ALLOWED_HOSTS (comma-separated) — an override replaces the
-# default entirely and MUST include the gazette host.
-_DEFAULT_ALLOWED_HOSTS = frozenset({"amtsblattportal.ch", "www.amtsblattportal.ch"})
-ALLOWED_HOSTS: frozenset[str] = frozenset(
-    h.strip().lower()
-    for h in os.environ.get(
-        "MCP_ALLOWED_HOSTS", ",".join(sorted(_DEFAULT_ALLOWED_HOSTS))
-    ).split(",")
-    if h.strip()
-)
+# Second-layer defence: even if a dependency follows a redirect to an unexpected
+# host, the request is rejected before it leaves the process.
+#
+# SEC-021: a literal frozenset with no environment override. This used to be
+# populated from MCP_ALLOWED_HOSTS, which the check disallows — a config-mutable
+# allow-list lets a misconfigured deployment redirect egress wholesale, and the
+# guard is only worth having if it cannot be widened from outside the code.
+#
+# Removing the override costs nothing real. `GAZETTE_BASE` is a hardcoded
+# constant, so nothing in this server ever builds a URL for another host:
+# adding one to the allow-list could never cause a request to go there. The
+# override's only reachable effects were widening what a *followed redirect*
+# may reach, and disabling the server outright if an override omitted the
+# gazette host. Both are downside.
+#
+# To add a genuine second upstream, change this set and `GAZETTE_BASE` together
+# in code, where the change is reviewed — see docs/network-egress.md.
+ALLOWED_HOSTS: frozenset[str] = frozenset({"amtsblattportal.ch", "www.amtsblattportal.ch"})
 
 # Silent Ignore (verified 2026-07-20): an unknown parameter *name* is not
 # rejected — the upstream returns HTTP 200 and the FULL corpus. A typo like

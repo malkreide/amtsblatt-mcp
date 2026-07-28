@@ -4,6 +4,50 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-07-28
+
+Closes **SEC-021**: the egress allow-list is no longer configurable.
+
+### Breaking
+
+`MCP_ALLOWED_HOSTS` is removed. `ALLOWED_HOSTS` is a literal `frozenset` in
+`server.py`, changeable only in code.
+
+### Why
+
+SEC-021 requires the code-layer allow-list to be non-config-mutable, and the
+reasoning holds: a guard that anything able to set an environment variable can
+widen is not a guard. This was a regression against `swiss-procurement-mcp`,
+which passes the same check with a hard `frozenset` — not a gap the two servers
+shared.
+
+Removing the override costs nothing real, which is what makes this a clean fix
+rather than a trade-off. `GAZETTE_BASE` is a hardcoded constant, so nothing in
+this server ever builds a URL for another host: **adding one to the allow-list
+could never have caused a request to go there.** The `mirror.example.ch` example
+that `docs/network-egress.md` used to suggest could not have worked. The
+override's only reachable effects were widening what a *followed redirect* may
+reach, and disabling the server outright if an override omitted the gazette
+host — both downside.
+
+### Test
+
+`test_the_allow_list_is_not_environment_mutable` launches a subprocess with
+`MCP_ALLOWED_HOSTS=evil.example,...` set and asserts the imported set is
+unchanged. A subprocess rather than `importlib.reload`, because reloading swaps
+the module's classes in `sys.modules` and every other test still holding the
+original `EgressDenied` stops matching the newly-raised one — three unrelated
+tests failed that way before the approach was changed. A fresh interpreter also
+tests what actually matters: the value the module takes at real process startup.
+
+Mutation-tested — restoring the env override fails the new test.
+
+### Docs
+
+`docs/network-egress.md` rewritten; the `MCP_ALLOWED_HOSTS` rows are gone from
+both READMEs, and the operator hardening note in `SECURITY.md` / `SECURITY.de.md`
+now says a change is deliberately a code change.
+
 ## [0.8.0] — 2026-07-28
 
 Closes **SDK-004**: CORS with `Mcp-Session-Id`, in front of the bearer gate.

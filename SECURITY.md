@@ -27,14 +27,22 @@ Six checks still block production: `OPS-001`, `OPS-003`, `SCALE-002`,
 risks (see below) but stay recorded as `fail`, because an accepted risk is a
 decision, not a passing check.
 
-Three are worth naming here:
+`SEC-021` was the third at the time of the run and is **closed in 0.9.0, not
+yet re-measured.** `ALLOWED_HOSTS` was overridable at runtime through
+`MCP_ALLOWED_HOSTS`, and an override *replaced* the default set rather than
+extending it. The check requires the code-layer allow-list to be
+non-config-mutable precisely so a misconfigured deployment cannot redirect
+egress wholesale. It is now a literal `frozenset` with no override, matching the
+sister server.
 
-- **`SEC-021` is a regression against the sister server.** `ALLOWED_HOSTS` is
-  overridable at runtime through `MCP_ALLOWED_HOSTS`, and an override *replaces*
-  the default set rather than extending it. The check requires the code-layer
-  allow-list to be non-config-mutable precisely so that a misconfigured
-  deployment cannot redirect egress wholesale. `swiss-procurement-mcp` uses a
-  hard `frozenset` with no override and passes.
+Removing it cost nothing real: `GAZETTE_BASE` is a hardcoded constant, so
+nothing here ever builds a URL for another host — adding one to the allow-list
+could never have caused a request to go there. The override's only reachable
+effects were widening what a followed redirect may reach, and disabling the
+server outright if an override omitted the gazette host.
+
+Two remain worth naming:
+
 - **`OPS-001` was closed in the sister server and never ported here.**
   `gazette_list_rubrics` has 2 unit tests against a floor of 5,
   `gazette_source_status` has 3, and only 3 of 6 tools have any live test at all.
@@ -91,10 +99,10 @@ Please use the private advisory channel for it. Concretely, report any of:
 1. **Put a gateway in front of the SSE transport.** The built-in bearer auth and
    rate limit are single-instance only; the rate-limit buckets are held in
    process memory and are not shared or garbage-collected across instances.
-2. **Restrict egress at the network layer too.** `MCP_ALLOWED_HOSTS` is a
+2. **Restrict egress at the network layer too.** `ALLOWED_HOSTS` is a
    defence-in-depth measure inside the process, not a substitute for an egress
-   firewall. Note that setting it *replaces* the default entirely — it must
-   include `amtsblattportal.ch`.
+   firewall. It is a literal `frozenset` in `server.py` with no environment
+   override (SEC-021) — changing it is a code change, deliberately.
 3. **Rotate `MCP_API_KEY`** and never bake it into an image.
 4. **Ship the JSON logs to your SIEM** and alert on `auth_failed`,
    `rate_limited`, `egress_denied`, `green_gate_violation` and

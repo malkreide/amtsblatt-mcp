@@ -111,7 +111,6 @@ amtsblatt-mcp
 | `MCP_CORS_ORIGINS` | _(unset)_ | Comma-separated origins allowed to call the SSE endpoint from a browser. Unset means no cross-origin browser access at all — stdio and non-browser clients are unaffected. `Mcp-Session-Id` is exposed and accepted for the listed origins, so a browser client can hold a session. `*` is honoured but logs a warning and disables credentials, because browsers reject a wildcard origin together with credentials. |
 | `MCP_API_KEY` | — | Bearer token; **required** for SSE |
 | `MCP_RATE_LIMIT` / `MCP_RATE_WINDOW` | `60` / `60` | Sliding-window rate limit |
-| `MCP_ALLOWED_HOSTS` | `amtsblattportal.ch,www.amtsblattportal.ch` | Egress allow-list. An override replaces the default entirely. |
 | `RUBRICS_TTL` | `86400` | Taxonomy cache TTL (seconds) |
 | `LOG_LEVEL` | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR`. Structured JSON, one object per line, always on **stderr** — stdout carries the MCP protocol on a stdio transport. |
 
