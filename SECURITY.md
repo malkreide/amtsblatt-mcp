@@ -2,6 +2,36 @@
 
 [🇩🇪 Deutsche Version](SECURITY.de.md)
 
+## Audit posture
+
+This server is audited against the internal MCP best-practice catalogue (the
+portfolio `mcp-audit` methodology, 68 checks / 8 categories, catalogue hash
+`091f446b…`). The latest measured run
+(`audits/2026-07-28T062517-Z-amtsblatt-mcp/`) scored **20 pass / 18 partial /
+8 fail** across 46 applicable checks — **not production-ready**.
+
+Seven checks block production: `OPS-001`, `OPS-003`, `SCALE-002`, `SCALE-003`,
+`SDK-004`, `SEC-003` and `SEC-009`. `SCALE-002` and `SEC-009` are accepted
+risks (see below) but are still recorded as `fail`, because an accepted risk is
+a decision, not a passing check.
+
+Three are worth naming here:
+
+- **`SEC-021` regressed relative to the sister server.** `ALLOWED_HOSTS` is
+  overridable at runtime through `MCP_ALLOWED_HOSTS`, and an override *replaces*
+  the default set rather than extending it. The check requires the code-layer
+  allow-list to be non-config-mutable precisely so that a misconfigured
+  deployment cannot redirect egress wholesale. `swiss-procurement-mcp` uses a
+  hard `frozenset` with no override and passes.
+- **`OPS-001` was closed in the sister server and never ported here.**
+  `gazette_list_rubrics` has 2 unit tests against a floor of 5, and only 3 of 6
+  tools have any live test at all.
+- **`SDK-004`** — this server is cloud-deployed over HTTP transport with no CORS
+  middleware, so `Mcp-Session-Id` is never exposed and a browser-based MCP
+  client cannot hold a session.
+
+Full report and per-finding documents: `audits/`.
+
 ## Supported Versions
 
 | Version | Supported |
