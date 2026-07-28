@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### CI — the MCP registry publish is idempotent
+
+The PyPI step carries `skip-existing: true`; the registry step had no
+equivalent, so a second trigger for a version already published turned a
+completed release into a red build.
+
+Not hypothetical: it happened three times (publish runs #1, #3, #7), always the
+same way — a `workflow_dispatch` publishes successfully, then the tag push for
+the same version arrives minutes later and is rejected as a duplicate. This
+workflow declares both triggers and both are legitimate, so the collision is
+designed in rather than a release mistake.
+
+A duplicate means the desired end state already holds, so it is now treated as
+success. **Every other failure still fails the job** — the point of a red
+publish build is that a real failure gets noticed, and it will not be if the
+usual outcome is also red. The historical PyPI-404 case (registry looking for a
+release that never reached PyPI) still fails, which was verified rather than
+assumed: the step's shell was extracted and run against four outcomes — success,
+duplicate, 404, and a non-1 exit code.
+
+No package change; version unchanged.
+
 ## [0.15.0] — 2026-07-28
 
 **SEC-009** and **SCALE-002/003**: documented precisely rather than carried as a
