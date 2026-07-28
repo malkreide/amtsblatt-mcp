@@ -102,4 +102,30 @@ jobs:
         run: ./mcp-publisher login github-oidc
 
       - name: Publish server to MCP Registry
-        run: ./mcp-publisher publish
+        run: |
+          # The PyPI step above carries `skip-existing: true`; this one had no
+          # equivalent, so a second trigger for a version already in the registry
+          # turned a completed release into a red build.
+          #
+          # That is not hypothetical. It has happened three times in this repo
+          # (publish runs #1, #3 and #7), always the same way: a
+          # `workflow_dispatch` publishes successfully, and the tag push for the
+          # same version arrives minutes later and is rejected as a duplicate.
+          # Both triggers are declared by this workflow and both are legitimate,
+          # so the collision is designed in rather than a mistake by whoever
+          # released.
+          #
+          # A duplicate means the desired end state — this version is in the
+          # registry — already holds, so it is success. Every other failure still
+          # fails the job: the point of a red publish build is that a real one
+          # gets noticed, and it will not be if the usual outcome is also red.
+          set -o pipefail
+          if ./mcp-publisher publish 2>&1 | tee publish.log; then
+            exit 0
+          fi
+          if grep -qF "cannot publish duplicate version" publish.log; then
+            echo "::notice title=Already published::This version is already in the MCP registry; treating the duplicate as success."
+            exit 0
+          fi
+          echo "::error title=Registry publish failed::mcp-publisher failed for a reason other than a duplicate version — see the log above."
+          exit 1
