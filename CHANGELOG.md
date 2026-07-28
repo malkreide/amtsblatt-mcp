@@ -4,6 +4,58 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] — 2026-07-28
+
+Closes **SEC-004** and **SEC-005**: resolved-address blocklist and DNS pinning.
+
+### What the host allow-list could not do
+
+The allow-list answers "is this the name we meant?". It cannot answer "is this
+the *machine* we meant?" — a name resolves to an address, and nothing about an
+allow-listed hostname stops that address being `169.254.169.254` or `127.0.0.1`.
+DNS is controlled by whoever runs the zone.
+
+`_net.py` adds both halves, and they only work together:
+
+- **Blocklist** — the resolved address is checked against loopback, private,
+  CGNAT, link-local, unique-local, benchmarking and unspecified ranges, IPv4 and
+  IPv6. A name resolving to a *mix* of public and internal addresses is refused
+  rather than filtered: a zone answering both is not a configuration to paper
+  over by picking the good one.
+- **Pinning** — validating an address and then connecting *by hostname* is a
+  time-of-check/time-of-use bug. The second lookup can answer differently; that
+  is DNS rebinding, and it defeats a blocklist entirely.
+
+### Pinned via a custom resolver, not by rewriting the URL
+
+The first implementation rewrote the request URL to the literal IP and carried
+the hostname in `Host` and `sni_hostname`. It worked against the live API — but
+it changes what every layer above the socket sees, and it broke 66 respx-based
+tests whose routes match on the URL.
+
+Gating that on a test flag would have been the "control that holds in one path
+but not the other" problem this codebase keeps finding. The check catalogue
+names a *custom resolver* as an accepted implementation, so pinning now happens
+in a network backend: only the address the socket opens to is substituted, and
+the hostname stays intact all the way down. `Host` and TLS SNI are derived from
+the name as usual, so certificate validation still runs against it — verified
+against the live API, not assumed.
+
+### Tests
+
+`tests/test_ssrf.py`. The load-bearing one is
+`test_rebinding_second_lookup_is_never_used`: a zone answering public once and
+internal immediately after must never reach the internal address. It is the only
+test that fails if an address is validated and the connection then made by
+hostname anyway.
+
+`test_resolution_happens_exactly_once_per_connect` covers the "1 DNS call per
+request" criterion directly.
+
+Mutation-tested: connecting by hostname fails 2 tests, removing link-local from
+the blocklist fails 3, filtering a mixed answer instead of refusing it fails 2,
+and dropping the backend installation fails 1.
+
 ## [0.10.0] — 2026-07-28
 
 Tier-A audit remediation: **SEC-004, SEC-013, OPS-003, CH-004, SCALE-004,

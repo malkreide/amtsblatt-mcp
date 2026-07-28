@@ -35,6 +35,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from . import __version__  # single source of truth: pyproject.toml
 from ._log import configure_logging, log_event, logged_tool
+from ._net import PinnedResolverTransport
 from .rubrics import (
     GREEN_RUBRICS,
     GREEN_SUB_RUBRICS,
@@ -383,6 +384,11 @@ def _make_client() -> httpx.AsyncClient:
         },
         follow_redirects=True,
         event_hooks={"request": [_enforce_egress_allowlist]},
+        # SEC-004 / SEC-005: resolve once, check the address against the
+        # blocklist, then connect to the address that was checked. The event
+        # hook above answers "is this the name we meant?"; this answers "is this
+        # the machine we meant?", which the hostname cannot.
+        transport=PinnedResolverTransport(),
     )
 
 
