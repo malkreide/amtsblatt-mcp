@@ -30,6 +30,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.types import LATEST_PROTOCOL_VERSION
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from . import __version__  # single source of truth: pyproject.toml
@@ -942,6 +943,29 @@ async def _lifespan(_server: FastMCP):
         yield {}
     finally:
         await _close_client()
+
+
+# ARCH-012: the MCP protocol version this server is written and tested against,
+# pinned explicitly rather than inherited from whatever the SDK happens to
+# default to.
+#
+# The SDK negotiates the version in the session layer and offers no constructor
+# parameter for it, so the pin cannot be enforced by configuration. It is
+# enforced by detection instead: a mismatch logs at WARNING on startup, and
+# tests/test_protocol_version.py fails in CI. That splits the two audiences
+# correctly — an SDK bump breaks the build for us, not the runtime for someone
+# who upgraded `mcp` downstream.
+MCP_PROTOCOL_VERSION = "2025-11-25"
+
+if LATEST_PROTOCOL_VERSION != MCP_PROTOCOL_VERSION:
+    log_event(
+        logging.WARNING,
+        "protocol_version_drift",
+        pinned=MCP_PROTOCOL_VERSION,
+        sdk_latest=LATEST_PROTOCOL_VERSION,
+        hint="the installed mcp SDK negotiates a different protocol version than "
+        "this server was tested against; see the README's MCP Protocol Version section",
+    )
 
 
 mcp = FastMCP(
