@@ -6,6 +6,76 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-07-28
+
+Closes **OBS-001** as far as this repository reaches, and fixes a real gap found
+while testing for it.
+
+### A client-level test of the error paths
+
+Every existing test awaited the tool functions directly. That is right for tool
+logic and useless for this check: it cannot observe `isError`, cannot observe a
+JSON-RPC error code, and cannot tell the two apart. `tests/test_error_paths.py`
+drives a real `ClientSession` over an in-memory transport instead — 11 tests
+covering argument errors, refusals, upstream outages and protocol errors.
+
+### Refusals and outages now carry provenance
+
+Found by writing those tests: every tool returns `str` (the accepted `SDK-002`
+deviation), so a client has no typed field to read — and the failure paths
+returned a bare German sentence with no footer, while every successful answer
+ended in `_provenance: live_api_`. Telling "the source is down" from "nothing
+matched" meant parsing prose.
+
+All three outcomes now wear the same envelope:
+
+- `live_api` — the source answered.
+- `refused` — this server declined by design (blocked rubric, invalid code,
+  egress denial). Retrying changes nothing.
+- `degraded` — the source could not be reached or returned an error. The same
+  call may work later.
+
+The attribution comes along, which the licence wanted on every response anyway
+and which the failure paths had been quietly omitting.
+
+Mutation-tested three ways: dropping the footer fails 4 tests, mislabelling a
+refusal as `degraded` fails 1, and raising instead of degrading fails 3.
+
+### Two SDK limits pinned rather than papered over
+
+- Protocol errors carry **code 0**, not the `-32601` the check asks for, even
+  though `mcp.types` defines the constant. Above the tool layer; not fixable
+  here.
+- An unknown **tool** is reported as `isError` inside a tool result rather than
+  as a protocol error, so "no such tool" and "the tool failed" are
+  indistinguishable without reading the text.
+
+Both are asserted as they are, so an SDK change arrives as a failing test rather
+than as a surprise. `OBS-001` therefore stays `partial` — for a reason that is
+now written down instead of unknown.
+
+### Documentation caught up with the code
+
+`ROADMAP.md` still listed `OPS-001`, `SEC-004`, `SEC-005`, `OBS-006` and
+`ARCH-002` as open work; all five were closed in 0.12.0–0.14.0, within an hour
+of the table being written. The rows are removed and the closures named, with
+the reason the audit under `audits/` still disagrees: it is a measurement taken
+at a point in time, not a status board.
+
+### `mcp` constrained below 2.0
+
+`mcp` 2.0.0 was published and removed `mcp.server.fastmcp` outright — the API
+moved to `mcp.server.mcpserver`. The dependency was an unbounded `>=1.28.1`, so
+CI resolved to it and every job died on `ModuleNotFoundError` at import: `main`
+as well as open branches, with nothing in any diff to explain it.
+
+Now `>=1.28.1,<2`. Verified rather than assumed: the full suite runs green
+against 1.29.0 and `LATEST_PROTOCOL_VERSION` is unchanged at `2025-11-25`, so
+the bound admits the newest compatible release and excludes only the break.
+
+Migrating to the 2.x API is real work and a decision to take deliberately. A
+resolver picking a major version on publication day is not that decision.
+
 ### CI — the MCP registry publish is idempotent
 
 The PyPI step carries `skip-existing: true`; the registry step had no
@@ -26,7 +96,7 @@ release that never reached PyPI) still fails, which was verified rather than
 assumed: the step's shell was extracted and run against four outcomes — success,
 duplicate, 404, and a non-1 exit code.
 
-No package change; version unchanged.
+No package change of its own; it ships with this release.
 
 ## [0.15.0] — 2026-07-28
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name        = "amtsblatt-mcp"
-version     = "0.15.0"
+version     = "0.16.0"
 description = "MCP server for amtsblattportal.ch (SHAB + cantonal gazettes) — procurement and official notices, person-data rubrics excluded by design"
 readme      = "README.md"
 license     = { file = "LICENSE" }
@@ -30,7 +30,14 @@ classifiers = [
 dependencies = [
     # OBS-003: structured logging with contextvars-bound correlation ids.
     "structlog>=24.1",
-    "mcp[cli]>=1.28.1",
+    # Upper bound added deliberately: `mcp` 2.0.0 removed `mcp.server.fastmcp`
+    # outright (the API moved to `mcp.server.mcpserver`), so an unbounded
+    # `>=1.28.1` turned every CI run red the day it was published — on `main` as
+    # well as on open branches. Migrating to the 2.x API is a real piece of work
+    # and a decision to take on purpose, not something a resolver should make.
+    # Verified against 1.29.0: full suite green, `LATEST_PROTOCOL_VERSION`
+    # unchanged at 2025-11-25.
+    "mcp[cli]>=1.28.1,<2",
     "httpx>=0.27.0",
     "pydantic>=2.0.0",
     # SDK-004: _cors.py imports Starlette directly. It arrives transitively via

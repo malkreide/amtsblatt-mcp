@@ -59,6 +59,26 @@ the per-test event loop.
 **`OBS-006` — closed in 0.13.0** (a root span per tool call) and **`ARCH-002` —
 closed in 0.14.0** (use-case tags on every tool), likewise not re-measured.
 
+**`OBS-001` — as closed in 0.16.0 as this repo can close it.** The gap was that
+nothing tested the protocol-error path against the execution-error path; every
+existing test awaited the tool functions directly, where `isError` is not
+observable. `tests/test_error_paths.py` drives a real `ClientSession` instead.
+
+It also fixed a real hole rather than only measuring one. Every tool returns
+`str` (`SDK-002`), so a client has no typed field to read — and the failure
+paths returned a bare German sentence with no footer at all, while every
+successful answer ended in `_provenance: live_api_`. The only way to tell "the
+source is down" from "nothing matched" was to parse prose. All three outcomes
+now carry the marker: `live_api`, `refused` (declined by design; retrying
+changes nothing) and `degraded` (the source could not be reached; the same call
+may work later). The attribution rides along, which the licence wanted anyway.
+
+The check will stay `partial` regardless, and for a reason worth stating: the
+lowlevel SDK emits protocol-error **code 0**, not the `-32601` the check asks
+for, though `mcp.types` defines the constant. That is above the tool layer.
+Two tests assert the current behaviour, so an SDK fix arrives as a failing test
+rather than as a surprise.
+
 Of the blocking set above, only `SCALE-002`, `SCALE-003`, `SEC-003` and `SEC-009`
 remain, and none of them is a code change waiting to be written — see below and
 `ROADMAP.md`.
