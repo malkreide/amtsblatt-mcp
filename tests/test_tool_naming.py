@@ -22,6 +22,7 @@ TOOL_PREFIX = "gazette_"
 # Kept in sync deliberately: a rename has to be a conscious edit here too.
 EXPECTED_TOOLS = {
     "gazette_search_publications",
+    "gazette_search_detailed",
     "gazette_search_procurement",
     "gazette_get_publication",
     "gazette_list_rubrics",

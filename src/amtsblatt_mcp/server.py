@@ -142,6 +142,9 @@ GAZETTE_IGNORED_FILTER_THRESHOLD = 2_000_000
 # The upstream imposes NO server-side page-size cap (verified: size=2000
 # returned 2000 items). The cap below is entirely client-side.
 GAZETTE_MAX_LIMIT = 100
+# ARCH-007: cap how many hits the aggregated tool expands to full text, so one
+# call fans out to a bounded number of parallel upstream requests.
+GAZETTE_MAX_DETAIL_N = 5
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # A CPV code is exactly 8 digits (optionally with a check digit). Used only to
@@ -1064,6 +1067,26 @@ class SearchInput(BaseModel):
         return v.upper() if v else v
 
 
+class DetailedSearchInput(SearchInput):
+    """`SearchInput` plus the fan-out bound for the aggregated tool.
+
+    Inherits every filter and validator from `SearchInput` deliberately: the
+    aggregated tool must accept exactly the same query surface, or callers would
+    have to learn two dialects of the same search.
+    """
+
+    top_n: int = Field(
+        default=3,
+        description=(
+            f"Wie viele der obersten Treffer im Volltext geliefert werden "
+            f"(1–{GAZETTE_MAX_DETAIL_N}). Jeder kostet eine zusätzliche "
+            "Upstream-Anfrage; sie laufen parallel."
+        ),
+        ge=1,
+        le=GAZETTE_MAX_DETAIL_N,
+    )
+
+
 class ProcurementInput(BaseModel):
     model_config = ConfigDict(
         str_strip_whitespace=True, validate_assignment=True, extra="forbid"
@@ -1355,6 +1378,178 @@ async def gazette_search_publications(params: SearchInput) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Tool: gazette_search_detailed
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="gazette_search_detailed",
+    annotations={
+        "title": "Suchen und Volltexte in einem Aufruf holen",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+@logged_tool("gazette_search_detailed")
+async def gazette_search_detailed(params: DetailedSearchInput) -> str:
+    """Sucht Publikationen UND liefert den Volltext der obersten Treffer — ein Aufruf.
+
+    Aggregierter Einstieg für den häufigen Fall «finde Bekanntmachungen und zeig
+    mir, was drinsteht». Ohne dieses Tool braucht dieselbe Frage 1 + N Aufrufe:
+    einmal `gazette_search_publications`, dann `gazette_get_publication` je
+    Treffer. Hier laufen die Detailabrufe **parallel**, die Wartezeit ist also
+    die des langsamsten Einzelabrufs statt ihrer Summe.
+
+    Filter und Semantik sind identisch mit `gazette_search_publications` —
+    einschliesslich der Freigabeliste: ohne `rubric` werden alle freigegebenen
+    Rubriken injiziert, und jeder abgerufene Volltext durchläuft dasselbe
+    Post-Fetch-Green-Gate. Eine Publikation aus gesperrter Rubrik wird auch hier
+    verworfen und nie gerendert.
+
+    Für Ausschreibungen mit Volltext in einem Aufruf: `rubric='OB-<Kanton>'`
+    setzen, z.B. `rubric='OB-TI'`. `gazette_search_procurement` bleibt der
+    bequemere Einstieg, wenn nur die Trefferliste gebraucht wird — es kennt die
+    Kanton-zu-Rubrik-Auflösung und die inaktiven Kantone.
+
+    Wann stattdessen die Einzeltools:
+    - Nur die Trefferliste gewünscht → `gazette_search_publications` (billiger).
+    - Volltext zu einer bekannten ID → `gazette_get_publication`.
+    - Mehr als 5 Volltexte → suchen und die gewünschten gezielt einzeln holen.
+
+    Args:
+        params (DetailedSearchInput):
+            - top_n (int): Anzahl Volltexte (1–5, Standard 3)
+            - übrige Felder: identisch zu `gazette_search_publications`
+
+    Returns:
+        str: Trefferliste plus Volltext der obersten `top_n` Publikationen.
+    """
+    # Same green gate as the plain search, before any network call.
+    for code, kind in ((params.rubric, "rubric"), (params.sub_rubric, "subRubric")):
+        if code and not is_green(code):
+            return explain_blocked(code, kind=kind)
+
+    try:
+        if params.rubric:
+            await _validate_rubric_code(params.rubric, "rubric")
+        if params.sub_rubric:
+            await _validate_rubric_code(params.sub_rubric, "subRubric")
+
+        rubrics: Any = params.rubric or sorted(GREEN_RUBRICS)
+        if params.sub_rubric and not params.rubric:
+            rubrics = None
+
+        data = await _search(
+            {
+                "keyword": params.keyword,
+                "rubrics": rubrics,
+                "subRubrics": params.sub_rubric,
+                "cantons": params.canton,
+                "publicationDate.start": params.date_start,
+                "publicationDate.end": params.date_end,
+                "pageRequest.size": min(params.limit, GAZETTE_MAX_LIMIT),
+                "pageRequest.page": params.page or None,
+            }
+        )
+    except Exception as e:
+        return _handle_error(e)
+
+    content = data.get("content", []) or []
+    total = data.get("total")
+    summaries, mix, lang_note = _prepare_summaries(
+        content, params.language, params.only_language
+    )
+
+    wanted = summaries[: params.top_n]
+    ids = [s.get("id") for s in wanted if s.get("id")]
+
+    # ARCH-007: bounded fan-out, run concurrently. Every one of these goes
+    # through the same gate as the single-publication tool.
+    gathered = await asyncio.gather(
+        *(_fetch_publication_gated(pub_id) for pub_id in ids),
+        return_exceptions=True,
+    )
+
+    details: list[dict[str, Any]] = []
+    withheld: list[str] = []
+    for pub_id, outcome in zip(ids, gathered):
+        if isinstance(outcome, BaseException):
+            withheld.append(pub_id)
+            continue
+        parsed, refusal = outcome
+        if refusal is not None or parsed is None:
+            withheld.append(pub_id)
+            continue
+        details.append({"id": pub_id, **parsed})
+
+    log_event(
+        logging.INFO,
+        "aggregated_search",
+        requested=len(ids),
+        expanded=len(details),
+        withheld=len(withheld),
+    )
+
+    if params.response_format == ResponseFormat.JSON:
+        return _json_out(
+            {
+                "count": len(summaries),
+                "total": total,
+                "page": params.page,
+                "scope": "green_rubrics_only",
+                "language_mix": mix,
+                "warnings": [lang_note] if lang_note else [],
+                "results": summaries,
+                "expanded": details,
+                "withheld_ids": withheld,
+            },
+            "live_api",
+        )
+
+    scope = params.rubric or params.sub_rubric or "alle freigegebenen Rubriken"
+    meta_line = (
+        f"Gefunden: **{len(summaries)}** (total: {total}) | Bereich: {scope} | "
+        f"Volltext: {len(details)} von {len(ids)} angefordert"
+    )
+    lines = _render_results(summaries, "Amtsblatt-Suche (mit Volltexten)", meta_line)
+    if lang_note:
+        lines = lines[:2] + ["", f"> ⚠️ {lang_note}"] + lines[2:]
+
+    for detail in details:
+        meta = detail["meta"]
+        title = _pick_language(meta.get("title"))
+        lines += [
+            "",
+            "---",
+            "",
+            f"### {title or 'Publikation'}",
+            "",
+            f"`{detail['id']}` · {meta.get('rubric') or '?'} / "
+            f"{meta.get('subRubric') or '?'} · "
+            f"{_iso_date(meta.get('publicationDate')) or '—'}",
+            "",
+            (detail.get("publicationText") or "").strip() or "_Kein Volltext im XML._",
+        ]
+        if detail.get("deadline"):
+            remaining = _days_remaining(detail["deadline"])
+            lines += ["", f"**Eingabefrist:** {detail['deadline']} ({remaining})"]
+
+    if withheld:
+        lines += [
+            "",
+            "---",
+            "",
+            f"> {len(withheld)} Publikation(en) konnten nicht im Volltext "
+            "geliefert werden — nicht abrufbar oder aus einer gesperrten Rubrik. "
+            "Die Trefferliste oben ist davon unberührt.",
+        ]
+
+    return _md(lines, "live_api")
+
+
+# ---------------------------------------------------------------------------
 # Tool: gazette_search_procurement
 # ---------------------------------------------------------------------------
 
@@ -1573,6 +1768,47 @@ async def gazette_search_procurement(params: ProcurementInput) -> str:
     return _md(lines, "live_api")
 
 
+async def _fetch_publication_gated(pub_id: str) -> tuple[dict[str, Any] | None, str | None]:
+    """Fetch, parse and green-gate one publication.
+
+    Returns `(parsed, None)` when the document may be shown, or `(None, message)`
+    when it must not be — either because the fetch or parse failed, or because
+    the rubric turned out to be blocked.
+
+    This exists as a shared helper rather than inline code because two tools now
+    reach publication content: `gazette_get_publication` and the aggregated
+    `gazette_search_detailed`. The post-fetch gate is the control that keeps
+    person-data rubrics unreachable, and a control that holds in one path but
+    not the other is worse than none — it looks enforced.
+
+    The gate is post-fetch by necessity: a publication id is opaque, so the
+    rubric can only be checked once the document is in hand.
+    """
+    try:
+        xml_text = await _get_text(f"/publications/{pub_id}/xml")
+    except Exception as e:
+        return None, _handle_error(e)
+
+    try:
+        parsed = _parse_publication_xml(xml_text)
+    except ET.ParseError as e:
+        return None, f"Fehler: XML der Publikation {pub_id} konnte nicht geparst werden ({e})."
+
+    meta = parsed["meta"]
+    rubric = meta.get("rubric")
+    sub_rubric = meta.get("subRubric")
+    if rubric and not (is_green(rubric) or (sub_rubric and is_green(sub_rubric))):
+        log_event(
+            logging.WARNING,
+            "blocked_publication_requested",
+            rubric=rubric,
+            publication_id=pub_id,
+        )
+        return None, explain_blocked(rubric, kind="rubric")
+
+    return parsed, None
+
+
 # ---------------------------------------------------------------------------
 # Tool: gazette_get_publication
 # ---------------------------------------------------------------------------
@@ -1610,28 +1846,14 @@ async def gazette_get_publication(params: PublicationInput) -> str:
     Returns:
         str: Volltext, Metadaten, allfällige Eingabefrist und Zusatzfelder.
     """
-    try:
-        xml_text = await _get_text(f"/publications/{params.id}/xml")
-    except Exception as e:
-        return _handle_error(e)
-
-    try:
-        parsed = _parse_publication_xml(xml_text)
-    except ET.ParseError as e:
-        return f"Fehler: XML der Publikation {params.id} konnte nicht geparst werden ({e})."
+    parsed, refusal = await _fetch_publication_gated(params.id)
+    if refusal is not None:
+        return refusal
+    assert parsed is not None  # refusal is None ⇒ parsed is set
 
     meta = parsed["meta"]
-    # Post-fetch green gate: an ID is opaque, so the rubric can only be checked
-    # once the document is in hand. Content from a blocked rubric is discarded
-    # here and never rendered.
     rubric = meta.get("rubric")
     sub_rubric = meta.get("subRubric")
-    if rubric and not (is_green(rubric) or (sub_rubric and is_green(sub_rubric))):
-        log_event(
-            logging.WARNING, "blocked_publication_requested",
-            rubric=rubric, publication_id=params.id,
-        )
-        return explain_blocked(rubric, kind="rubric")
 
     if params.response_format == ResponseFormat.JSON:
         payload = {**parsed}

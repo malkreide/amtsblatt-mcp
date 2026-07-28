@@ -4,6 +4,73 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-07-28
+
+Closes ARCH-007, the last open finding from the 2026-07-27 re-audit. Additive —
+no existing tool, argument or return shape changed.
+
+### The gap
+
+Every tool returned pointers. "Find notices and show me what they say" cost
+1 + N calls — one search, then one `gazette_get_publication` per hit — and the
+model had to do the chaining itself. `asyncio.gather` appeared nowhere in
+`src/`.
+
+### Added — `gazette_search_detailed`
+
+Search *and* the full text of the top `top_n` hits in a single call, with the
+detail fetches running concurrently, so the wait is the slowest single fetch
+rather than their sum.
+
+It inherits `SearchInput` outright, so the query surface is identical to
+`gazette_search_publications` — callers do not learn a second dialect of the
+same search. `top_n` is bounded to 1–5 so one call cannot become an unbounded
+burst of upstream requests.
+
+For procurement with full text in one call, pass `rubric='OB-<canton>'`.
+`gazette_search_procurement` remains the better entry point when only the hit
+list is wanted — it knows the canton-to-rubric resolution and the inactive
+cantons.
+
+### The part that mattered most: the green gate
+
+Aggregation adds a **second** path to publication content. A data-protection
+control that holds in one path and not the other is worse than none, because it
+looks enforced.
+
+So the post-fetch gate moved into a shared `_fetch_publication_gated()` helper
+that both tools call, rather than being reimplemented. Every expanded document
+passes it; one from a blocked rubric is discarded, counted, and reported as
+withheld — never rendered, in Markdown or JSON.
+
+That is asserted directly on the aggregated path rather than inferred from the
+shared helper. Verified by mutation: disabling the gate fails three tests in
+`tests/test_aggregation.py`.
+
+### One bug this caught in itself
+
+The first version of the rendering read `detail.get("text")`. The parser returns
+that field as `publicationText`, so the tool emitted *"Kein Volltext im XML"*
+for every single hit — the aggregation returned no text at all, which is the
+entire point of it.
+
+The test that should have caught this asserted a title that comes from the
+search summary, not from the publication body, so it passed. It now asserts a
+phrase that exists only inside the XML, and mutation-testing the field name back
+to the broken one fails it.
+
+### Added
+
+- `tests/test_aggregation.py` — 12 tests: aggregation, fan-out bounds, partial
+  failure, filter parity with the plain search, and four on the green gate
+- `GAZETTE_MAX_DETAIL_N = 5`
+
+### Changed
+
+- `tests/test_logging.py::test_every_registered_tool_is_wrapped` now derives its
+  tool list from the live registry instead of a hardcoded one. A hardcoded list
+  goes stale exactly when a tool is added — which is when the check matters.
+
 ## [0.5.0] — 2026-07-27
 
 Closes the six findings the 2026-07-27 re-audit downgraded, plus a version-drift
