@@ -532,18 +532,5 @@ async def test_silently_ignored_filter_is_detected_by_the_plausibility_guard():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.live
-@pytest.mark.asyncio
-async def test_live_procurement_basel_stadt():
-    _reset_rubrics_cache()
-    result = await gazette_search_procurement(ProcurementInput(canton="BS", limit=5))
-    assert "amtsblattportal.ch" in result
-    assert "Fehler" not in result
 
 
-@pytest.mark.live
-@pytest.mark.asyncio
-async def test_live_blocked_rubric_still_refuses():
-    _reset_rubrics_cache()
-    result = await gazette_search_publications(SearchInput(rubric="KK", keyword="Muster"))
-    assert "fail-closed" in result

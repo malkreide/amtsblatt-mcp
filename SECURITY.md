@@ -52,9 +52,11 @@ remain open.
 
 Two remain worth naming:
 
-- **`OPS-001` was closed in the sister server and never ported here.**
-  `gazette_list_rubrics` has 2 unit tests against a floor of 5,
-  `gazette_source_status` has 3, and only 3 of 6 tools have any live test at all.
+- **`OPS-001` — closed in 0.12.0, not yet re-measured.** Every tool now has 6+
+  unit tests and at least one live test, all live tests are consolidated in
+  `tests/test_live.py`, and a nightly CI job runs them. The live suite
+  immediately surfaced a real bug the mocked suite could not see: the pooled
+  client outlived the per-test event loop.
 - **`OPS-003`** — no phase is declared anywhere in the README, so there is no
   statement the tool annotations can be checked against.
 

@@ -4,6 +4,70 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] — 2026-07-28
+
+Closes **OPS-001**: per-tool test floor, consolidated live suite, nightly job.
+
+### Where it stood
+
+`gazette_list_rubrics` had 2 unit tests against a floor of 5,
+`gazette_source_status` had 3, and only 3 of 6 tools had any live test. Live
+tests were scattered across `test_search.py` and `test_publication.py`, which is
+how the gap stayed open: the live suite looked complete because nobody could
+count it in one place.
+
+Measured now: every tool at 6+ unit tests and at least one live test.
+
+### A real bug the live suite surfaced immediately
+
+`tests/conftest.py` is new, and it exists because the first live run failed with
+`RuntimeError: Event loop is closed`. The pooled client from SDK-001 binds to
+the event loop that created it, and pytest-asyncio gives each test its own loop
+— so a client created in one test and reused in the next is dead on arrival.
+
+The respx-mocked suite never saw it, because those tests open no connection.
+Only a live test could. An autouse fixture now resets the shared client around
+every test, which also stops the rubrics cache leaking between them.
+
+### The live tests corrected three wrong assumptions
+
+Written against what the API does, not what it was assumed to do:
+
+- **A bare `rubrics` filter is silently ignored upstream.** `rubric="HR"` alone
+  returns the whole 2.2M corpus; the server's own Silent-Ignore guard then
+  refuses the result. The tests use rubric + canton.
+- **`OB` is not a green rubric** — only its cantonal sub-rubrics (`OB-BS`, …)
+  are, so `rubric="OB"` is refused by the allow-list.
+- **`PublicationInput`'s field is `id`,** not `publication_id`.
+
+`test_live_get_publication_round_trip` searches for a real id and then fetches
+it, because that is the only way to exercise the tool against ids we did not
+invent.
+
+### The taxonomy tool is upstream-driven
+
+Two of the new `gazette_list_rubrics` tests exist because that surprised the
+author: the listing is the upstream rubric list intersected with the green set,
+not a static table. An empty upstream response yields an empty listing, and an
+unreachable upstream yields an explicit error — correct on both counts, and now
+asserted rather than assumed.
+
+### Guards
+
+`tests/test_tool_naming.py` gains a coverage floor (5 unit, 1 live per tool) and
+a check that all live markers live in `tests/test_live.py`. The counting helper
+carries a note about the earlier version that mis-attributed per-function
+decorators and reported zero live coverage for every tool — trusted in the other
+direction it would have closed this finding on a scripting bug.
+
+Mutation-tested: raising the floor to 8 fails the guard.
+
+### CI
+
+`live` job added, gated to `schedule` (nightly 03:17 UTC) and
+`workflow_dispatch`, so the mainline build is never held hostage to gazette
+availability.
+
 ## [0.11.0] — 2026-07-28
 
 Closes **SEC-004** and **SEC-005**: resolved-address blocklist and DNS pinning.

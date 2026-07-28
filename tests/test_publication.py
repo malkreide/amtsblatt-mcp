@@ -296,11 +296,6 @@ async def test_source_status_flags_an_unreachable_source():
     assert "kein** leeres Ergebnis" in result or "leeres Ergebnis" in result
 
 
-@pytest.mark.live
-@pytest.mark.asyncio
-async def test_live_source_status():
-    result = await gazette_source_status(StatusInput())
-    assert "✅" in result
 
 
 def test_shared_client_is_reused_across_calls():
@@ -446,3 +441,59 @@ class TestAttribution:
         """
         assert "Licence:" in ATTRIBUTION
         assert "amtsblattportal.ch" in ATTRIBUTION
+
+
+# ---------------------------------------------------------------------------
+# OPS-001: gazette_source_status was at 3 unit tests against a floor of 5
+# ---------------------------------------------------------------------------
+
+
+class TestSourceStatusCoverage:
+    """The tool a caller reaches for when a result looks wrong.
+
+    Its job is to distinguish "the source said nothing" from "the source could
+    not be asked" — so its own failure modes need to be unambiguous.
+    """
+
+    @pytest.mark.asyncio
+    async def test_status_reports_the_green_scope(self):
+        """A caller checking status is often really asking "why did I get
+        nothing?", and the answer is frequently the allow-list, not an outage."""
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+                return_value=httpx.Response(200, json=[])
+            )
+            result = await gazette_source_status(StatusInput())
+        assert "fail-closed" in result
+        assert "Freigegebene Rubriken" in result
+
+    @pytest.mark.asyncio
+    async def test_upstream_5xx_is_reported_as_unhealthy(self):
+        """A 500 is not an empty result and must not render like one."""
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+                return_value=httpx.Response(500, text="boom")
+            )
+            result = await gazette_source_status(StatusInput())
+        assert "❌" in result or "⚠️" in result
+
+    @pytest.mark.asyncio
+    async def test_status_leaks_no_upstream_body(self):
+        """An error body can carry internals; the model sees the envelope only."""
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+                return_value=httpx.Response(500, text="Traceback: /srv/secret/app.py line 42")
+            )
+            result = await gazette_source_status(StatusInput())
+        assert "/srv/secret" not in result
+        assert "Traceback" not in result
+
+    @pytest.mark.asyncio
+    async def test_status_reports_a_timeout_distinctly(self):
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+                side_effect=httpx.ReadTimeout("slow")
+            )
+            result = await gazette_source_status(StatusInput())
+        assert "❌" in result or "⚠️" in result
+        assert "leeres Ergebnis" in result or "nicht erreichbar" in result
