@@ -122,3 +122,20 @@ def test_live_tests_are_all_in_one_file() -> None:
         if p.name != "test_live.py" and decorator.search(p.read_text(encoding="utf-8"))
     ]
     assert not stray, f"live markers outside tests/test_live.py: {stray}"
+
+
+def test_otel_tests_are_not_silently_skipped() -> None:
+    """OBS-006's tests use `importorskip`.
+
+    Without opentelemetry in the dev extra they skip in CI, and a test that
+    always skips is not a test — it is a green tick with nothing behind it.
+    """
+    import pathlib
+
+    pyproject = (pathlib.Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    dev = pyproject.split("dev = [", 1)[1].split("]", 1)[0]
+    assert "opentelemetry-sdk" in dev, (
+        "tests/test_otel.py would skip in CI: add opentelemetry-sdk to the dev extra"
+    )

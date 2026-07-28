@@ -4,6 +4,49 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] — 2026-07-28
+
+Closes **OBS-006**: a root span per tool call.
+
+### What auto-instrumentation could not give
+
+`HTTPXClientInstrumentor` produces spans for the HTTP requests a tool makes.
+That is not the same as a span for the tool call: a trace showed the requests
+and never the call that made them, and **a tool failing before it reached the
+network produced no trace at all** — which is every allow-list refusal, every
+validation error, and every cache hit.
+
+`tool_span()` wraps each call in `logged_tool`, carrying `mcp.tool.name`,
+`mcp.tool.result.is_error` and the correlation id. It is a no-op context manager
+when OpenTelemetry is absent, so the extra stays optional and the caller needs
+no branch.
+
+### Deliberately no argument values on spans
+
+Tool arguments here include free-text keywords a user typed. Putting them in a
+span attribute moves them into a telemetry backend with different retention and
+access than this server's own logs. The correlation id joins a span to the log
+line that has the detail; `test_span_carries_no_argument_values` asserts it.
+
+Error spans carry the exception *type* only, for the same reason OBS-002 keeps
+messages away from the model.
+
+### The tests could have been worthless twice over
+
+`tests/test_otel.py` uses `importorskip`, and the `dev` extra had no
+opentelemetry — so in CI the whole file would have skipped silently. A test that
+always skips is a green tick with nothing behind it. The packages are now dev
+dependencies and `test_otel_tests_are_not_silently_skipped` asserts it stays
+that way.
+
+The first version of the fixture also installed a fresh `TracerProvider` per
+test. `set_tracer_provider` is process-global and ignores repeat calls, so only
+the first test received spans — one passed, five failed. The provider is now
+installed once and the exporter cleared between tests.
+
+Mutation-tested: removing the span from `logged_tool` fails all 6 tests; putting
+the exception message on the span instead of its type fails 1.
+
 ## [0.12.0] — 2026-07-28
 
 Closes **OPS-001**: per-tool test floor, consolidated live suite, nightly job.
