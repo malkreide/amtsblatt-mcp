@@ -225,9 +225,32 @@ GAZETTE_RETRY_BACKOFF = float(os.environ.get("GAZETTE_RETRY_BACKOFF", "0.5"))
 RUBRICS_TTL_SECONDS = float(os.environ.get("RUBRICS_TTL", "86400"))
 
 CANTON_CODES = [
-    "AG", "AI", "AR", "BE", "BL", "BS", "FR", "GE", "GL", "GR",
-    "JU", "LU", "NE", "NW", "OW", "SG", "SH", "SO", "SZ", "TG",
-    "TI", "UR", "VD", "VS", "ZG", "ZH",
+    "AG",
+    "AI",
+    "AR",
+    "BE",
+    "BL",
+    "BS",
+    "FR",
+    "GE",
+    "GL",
+    "GR",
+    "JU",
+    "LU",
+    "NE",
+    "NW",
+    "OW",
+    "SG",
+    "SH",
+    "SO",
+    "SZ",
+    "TG",
+    "TI",
+    "UR",
+    "VD",
+    "VS",
+    "ZG",
+    "ZH",
 ]
 
 # ---------------------------------------------------------------------------
@@ -266,9 +289,7 @@ PROCUREMENT_RUBRICS: dict[str, dict[str, Any]] = {
     },
 }
 PROCUREMENT_ACTIVE_CANTONS = [c for c, v in PROCUREMENT_RUBRICS.items() if v["active"]]
-PROCUREMENT_INACTIVE_CANTONS = [
-    c for c, v in PROCUREMENT_RUBRICS.items() if not v["active"]
-]
+PROCUREMENT_INACTIVE_CANTONS = [c for c, v in PROCUREMENT_RUBRICS.items() if not v["active"]]
 
 # Non-simap procurement that lives in a sub-rubric of an otherwise blocked
 # parent. Kept separate because these must be sent as `subRubrics`, never as
@@ -296,9 +317,7 @@ PROCUREMENT_SUB_RUBRICS: dict[str, dict[str, Any]] = {
     "OW": {"sub_rubric": "AR-OW40", "active": True, "note": "nicht über simap.ch"},
     "SH": {"sub_rubric": "BA-SH40", "active": True, "note": "nicht über simap.ch"},
 }
-PROCUREMENT_SUB_RUBRIC_CODES = frozenset(
-    v["sub_rubric"] for v in PROCUREMENT_SUB_RUBRICS.values()
-)
+PROCUREMENT_SUB_RUBRIC_CODES = frozenset(v["sub_rubric"] for v in PROCUREMENT_SUB_RUBRICS.values())
 
 
 class GazetteFilterIgnored(RuntimeError):
@@ -369,9 +388,7 @@ async def _enforce_egress_allowlist(request: httpx.Request) -> None:
             url=str(request.url),
             allowed=sorted(ALLOWED_HOSTS),
         )
-        raise EgressDenied(
-            f"Egress to host {host!r} is not in ALLOWED_HOSTS", request=request
-        )
+        raise EgressDenied(f"Egress to host {host!r} is not in ALLOWED_HOSTS", request=request)
 
 
 def _make_client() -> httpx.AsyncClient:
@@ -428,8 +445,11 @@ async def _get_json(path: str, params: dict | None = None) -> Any:
         r = await client.get(f"{GAZETTE_BASE}{path}", params=params)
         if r.status_code in _TRANSIENT_STATUS and attempt < GAZETTE_MAX_RETRIES:
             log_event(
-                logging.WARNING, "gazette_retry",
-                path=path, status=r.status_code, attempt=attempt,
+                logging.WARNING,
+                "gazette_retry",
+                path=path,
+                status=r.status_code,
+                attempt=attempt,
             )
             await asyncio.sleep(GAZETTE_RETRY_BACKOFF * attempt)
             continue
@@ -444,8 +464,11 @@ async def _get_text(path: str, params: dict | None = None) -> str:
         r = await client.get(f"{GAZETTE_BASE}{path}", params=params)
         if r.status_code in _TRANSIENT_STATUS and attempt < GAZETTE_MAX_RETRIES:
             log_event(
-                logging.WARNING, "gazette_retry",
-                path=path, status=r.status_code, attempt=attempt,
+                logging.WARNING,
+                "gazette_retry",
+                path=path,
+                status=r.status_code,
+                attempt=attempt,
             )
             await asyncio.sleep(GAZETTE_RETRY_BACKOFF * attempt)
             continue
@@ -484,9 +507,7 @@ def _assert_green_params(params: dict[str, Any]) -> None:
         codes = value if isinstance(value, list) else [value]
         for code in codes:
             if not is_green(code):
-                log_event(
-                    logging.ERROR, "green_gate_violation", param=key, code=code
-                )
+                log_event(logging.ERROR, "green_gate_violation", param=key, code=code)
                 raise RubricBlocked(explain_blocked(code, kind=key.rstrip("s")))
 
 
@@ -502,9 +523,7 @@ async def _search(raw_params: dict[str, Any]) -> dict:
     # means the filter was silently dropped upstream. This is the only defence
     # against a silent parameter rename on the provider side.
     if isinstance(total, int) and total > GAZETTE_IGNORED_FILTER_THRESHOLD:
-        log_event(
-            logging.ERROR, "gazette_filter_ignored", total=total, params=sorted(params)
-        )
+        log_event(logging.ERROR, "gazette_filter_ignored", total=total, params=sorted(params))
         raise GazetteFilterIgnored(
             f"Filter wurde vom Upstream ignoriert — Ergebnis nicht vertrauenswürdig "
             f"(total={total:,}, erwartet < {GAZETTE_IGNORED_FILTER_THRESHOLD:,}). "
@@ -826,8 +845,12 @@ def _node_to_value(el: ET.Element) -> Any:
 _TEXT_ELEMENTS = ("publicationText", "publication", "text", "body")
 # Element names that plausibly carry a submission deadline.
 _DEADLINE_ELEMENTS = (
-    "deadline", "submitDeadline", "offerDeadline", "applicationDeadline",
-    "entryDeadline", "closingDate",
+    "deadline",
+    "submitDeadline",
+    "offerDeadline",
+    "applicationDeadline",
+    "entryDeadline",
+    "closingDate",
 )
 
 
@@ -917,9 +940,7 @@ def _parse_publication_xml(xml_text: str) -> dict:
 
 def _md(lines: list[str], provenance: str) -> str:
     """Append the mandatory attribution + provenance footer (Markdown)."""
-    return "\n".join(
-        [*lines, "", "---", f"_{ATTRIBUTION}_", f"_provenance: {provenance}_"]
-    )
+    return "\n".join([*lines, "", "---", f"_{ATTRIBUTION}_", f"_provenance: {provenance}_"])
 
 
 def _json_out(payload: dict, provenance: str) -> str:
@@ -967,6 +988,7 @@ def _handle_error(e: Exception) -> str:
 # ---------------------------------------------------------------------------
 # Server
 # ---------------------------------------------------------------------------
+
 
 @asynccontextmanager
 async def _lifespan(_server: FastMCP):
@@ -1043,9 +1065,7 @@ if transport == "sse":
 
 
 class SearchInput(BaseModel):
-    model_config = ConfigDict(
-        str_strip_whitespace=True, validate_assignment=True, extra="forbid"
-    )
+    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     keyword: str | None = Field(
         default=None,
@@ -1122,9 +1142,7 @@ class SearchInput(BaseModel):
     @classmethod
     def validate_canton(cls, v: str | None) -> str | None:
         if v and v.upper() not in CANTON_CODES:
-            raise ValueError(
-                f"Ungültiges Kantonskürzel '{v}'. Gültig: {', '.join(CANTON_CODES)}"
-            )
+            raise ValueError(f"Ungültiges Kantonskürzel '{v}'. Gültig: {', '.join(CANTON_CODES)}")
         return v.upper() if v else v
 
 
@@ -1149,9 +1167,7 @@ class DetailedSearchInput(SearchInput):
 
 
 class ProcurementInput(BaseModel):
-    model_config = ConfigDict(
-        str_strip_whitespace=True, validate_assignment=True, extra="forbid"
-    )
+    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     keyword: str | None = Field(
         default=None,
@@ -1197,9 +1213,7 @@ class ProcurementInput(BaseModel):
         ge=1,
         le=GAZETTE_MAX_LIMIT,
     )
-    page: int = Field(
-        default=0, description="Seitenzahl für Pagination, 0-basiert.", ge=0
-    )
+    page: int = Field(default=0, description="Seitenzahl für Pagination, 0-basiert.", ge=0)
     language: str = Field(
         default="de",
         description="Bevorzugte Sprache. Standard: 'de'.",
@@ -1223,16 +1237,12 @@ class ProcurementInput(BaseModel):
     @classmethod
     def validate_canton(cls, v: str | None) -> str | None:
         if v and v.upper() not in CANTON_CODES:
-            raise ValueError(
-                f"Ungültiges Kantonskürzel '{v}'. Gültig: {', '.join(CANTON_CODES)}"
-            )
+            raise ValueError(f"Ungültiges Kantonskürzel '{v}'. Gültig: {', '.join(CANTON_CODES)}")
         return v.upper() if v else v
 
 
 class PublicationInput(BaseModel):
-    model_config = ConfigDict(
-        str_strip_whitespace=True, validate_assignment=True, extra="forbid"
-    )
+    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     id: str = Field(
         ...,
@@ -1306,14 +1316,10 @@ def _render_results(summaries: list[dict], heading: str, meta_line: str) -> list
     """Shared Markdown rendering for both search tools."""
     lines = [f"## {heading}", meta_line, ""]
     if not summaries:
-        lines.append(
-            "_Keine Treffer für diese Filter. Zeitraum, Stichwort oder Rubrik anpassen._"
-        )
+        lines.append("_Keine Treffer für diese Filter. Zeitraum, Stichwort oder Rubrik anpassen._")
     for s in summaries:
         cantons = s.get("cantons")
-        canton_str = (
-            ", ".join(cantons) if isinstance(cantons, list) else (cantons or "—")
-        )
+        canton_str = ", ".join(cantons) if isinstance(cantons, list) else (cantons or "—")
         lines += [
             f"- **{s.get('publicationDate') or '—'}** | {canton_str} · "
             f"{s.get('rubric') or '?'}/{s.get('subRubric') or '?'} | "
@@ -1338,7 +1344,9 @@ def _render_results(summaries: list[dict], heading: str, meta_line: str) -> list
 )
 @logged_tool("gazette_search_publications")
 async def gazette_search_publications(params: SearchInput) -> str:
-    """Sucht amtliche Publikationen im Amtsblattportal (SHAB + kantonale Amtsblätter).
+    """<use_case>Search the released gazette rubrics by keyword, rubric, canton and date — the general entry point when the question is "what was officially published about X?". Combine rubric with canton: a bare rubric filter is silently ignored upstream.</use_case>
+
+    Sucht amtliche Publikationen im Amtsblattportal (SHAB + kantonale Amtsblätter).
 
     Durchsucht ausschliesslich die freigegebenen («grünen») Rubriken: Handels-
     register, öffentliche Beschaffung, kantonale und kommunale Bekanntmachungen,
@@ -1409,9 +1417,7 @@ async def gazette_search_publications(params: SearchInput) -> str:
 
     content = data.get("content", []) or []
     total = data.get("total")
-    summaries, mix, lang_note = _prepare_summaries(
-        content, params.language, params.only_language
-    )
+    summaries, mix, lang_note = _prepare_summaries(content, params.language, params.only_language)
 
     if params.response_format == ResponseFormat.JSON:
         return _json_out(
@@ -1455,7 +1461,9 @@ async def gazette_search_publications(params: SearchInput) -> str:
 )
 @logged_tool("gazette_search_detailed")
 async def gazette_search_detailed(params: DetailedSearchInput) -> str:
-    """Sucht Publikationen UND liefert den Volltext der obersten Treffer — ein Aufruf.
+    """<use_case>Answer a question needing both the hit list and each hit's full text in one step. Prefer this over a search followed by N gazette_get_publication calls.</use_case>
+
+    Sucht Publikationen UND liefert den Volltext der obersten Treffer — ein Aufruf.
 
     Aggregierter Einstieg für den häufigen Fall «finde Bekanntmachungen und zeig
     mir, was drinsteht». Ohne dieses Tool braucht dieselbe Frage 1 + N Aufrufe:
@@ -1519,9 +1527,7 @@ async def gazette_search_detailed(params: DetailedSearchInput) -> str:
 
     content = data.get("content", []) or []
     total = data.get("total")
-    summaries, mix, lang_note = _prepare_summaries(
-        content, params.language, params.only_language
-    )
+    summaries, mix, lang_note = _prepare_summaries(content, params.language, params.only_language)
 
     wanted = summaries[: params.top_n]
     ids = [s.get("id") for s in wanted if s.get("id")]
@@ -1689,7 +1695,9 @@ def _procurement_scope(
 )
 @logged_tool("gazette_search_procurement")
 async def gazette_search_procurement(params: ProcurementInput) -> str:
-    """Sucht öffentliche Ausschreibungen (Beschaffungswesen/Submissionen).
+    """<use_case>Find public tenders published in the gazette (Submissionen) — the procurement-specific entry point. Note only AR, BS, TI, ZG, BL and VS mirror tenders here; for full Swiss coverage including Zurich use swiss-procurement-mcp.</use_case>
+
+    Sucht öffentliche Ausschreibungen (Beschaffungswesen/Submissionen).
 
     Beschaffung ist ausschliesslich eine KANTONALE Rubrik (`OB-<Kanton>`), nicht
     föderal. Nur wenige Kantone publizieren sie hier: AR und TI (aktiv) sowie
@@ -1730,9 +1738,7 @@ async def gazette_search_procurement(params: ProcurementInput) -> str:
     Returns:
         str: Ausschreibungen (neueste zuerst) mit Datum, Kanton, Titel, Sprache, ID.
     """
-    rubrics, sub_rubrics, warnings = _procurement_scope(
-        params.canton, params.include_inactive
-    )
+    rubrics, sub_rubrics, warnings = _procurement_scope(params.canton, params.include_inactive)
 
     cpv_warning = None
     if params.keyword and CPV_RE.match(params.keyword):
@@ -1747,8 +1753,11 @@ async def gazette_search_procurement(params: ProcurementInput) -> str:
         if params.response_format == ResponseFormat.JSON:
             return _json_out(
                 {
-                    "count": 0, "total": 0, "rubrics": [],
-                    "warnings": all_warnings, "results": [],
+                    "count": 0,
+                    "total": 0,
+                    "rubrics": [],
+                    "warnings": all_warnings,
+                    "results": [],
                 },
                 "no_call",
             )
@@ -1783,9 +1792,7 @@ async def gazette_search_procurement(params: ProcurementInput) -> str:
 
     content = data.get("content", []) or []
     total = data.get("total")
-    summaries, mix, lang_note = _prepare_summaries(
-        content, params.language, params.only_language
-    )
+    summaries, mix, lang_note = _prepare_summaries(content, params.language, params.only_language)
     # Upstream sorting is silently ignored (default is newest-first); sort
     # client-side so the order is guaranteed rather than assumed.
     summaries.sort(key=lambda s: s.get("publicationDate") or "", reverse=True)
@@ -1815,9 +1822,7 @@ async def gazette_search_procurement(params: ProcurementInput) -> str:
     meta_line = f"Gefunden: **{len(summaries)}** (total: {total})" + (
         f" | Stichwort: «{params.keyword}»" if params.keyword else ""
     )
-    lines = _render_results(
-        summaries, f"Öffentliche Ausschreibungen · {scope}", meta_line
-    )
+    lines = _render_results(summaries, f"Öffentliche Ausschreibungen · {scope}", meta_line)
     if all_warnings:
         lines = lines[:2] + [""] + [f"> ⚠️ {w}" for w in all_warnings] + lines[2:]
     if isinstance(total, int) and total > len(summaries):
@@ -1887,7 +1892,9 @@ async def _fetch_publication_gated(pub_id: str) -> tuple[dict[str, Any] | None, 
 )
 @logged_tool("gazette_get_publication")
 async def gazette_get_publication(params: PublicationInput) -> str:
-    """Einzelne Publikation inkl. amtlichem Volltext (aus dem XML, defensiv geparst).
+    """<use_case>Retrieve the full text of one publication once you have its id from a search. Refuses ids whose rubric is not released, after fetching — the rubric is not knowable from the id alone.</use_case>
+
+    Einzelne Publikation inkl. amtlichem Volltext (aus dem XML, defensiv geparst).
 
     Die Listen-API liefert nur Metadaten — der eigentliche Inhalt steht
     ausschliesslich im rubrikspezifischen XML unter `/publications/{id}/xml`.
@@ -1954,9 +1961,7 @@ async def gazette_get_publication(params: PublicationInput) -> str:
                 lines.append(f"- **{key}:** {company[key]}")
         addr = company.get("address")
         if isinstance(addr, dict):
-            lines.append(
-                f"- **address:** {' '.join(str(v) for v in addr.values() if v)}"
-            )
+            lines.append(f"- **address:** {' '.join(str(v) for v in addr.values() if v)}")
         elif addr:
             lines.append(f"- **address:** {addr}")
         lines.append("")
@@ -1975,7 +1980,9 @@ async def gazette_get_publication(params: PublicationInput) -> str:
             "eine Zweitpublikation. Der Originaldatensatz — mit CPV- und BKP-Codes, "
             "Zuschlägen und Publikationsverlauf — liegt in `swiss-procurement-mcp`._",
         ]
-    elif rubric and (rubric.startswith("OB-") or (sub_rubric or "") in PROCUREMENT_SUB_RUBRIC_CODES):
+    elif rubric and (
+        rubric.startswith("OB-") or (sub_rubric or "") in PROCUREMENT_SUB_RUBRIC_CODES
+    ):
         lines += [
             "",
             "_Diese Beschaffungspublikation trägt keine simap-Nummer, existiert also "
@@ -2005,7 +2012,9 @@ _CLASS_ICON = {"green": "🟢", "yellow": "🟡", "red": "🔴", "unclassified":
 )
 @logged_tool("gazette_list_rubrics")
 async def gazette_list_rubrics(params: RubricsInput) -> str:
-    """Rubrik-Taxonomie des Amtsblattportals mit Ampel-Klassierung.
+    """<use_case>Discover which rubrics exist and which this server serves, before searching. Call this when a search returns nothing to tell "no such publications" apart from "that rubric is deliberately not served".</use_case>
+
+    Rubrik-Taxonomie des Amtsblattportals mit Ampel-Klassierung.
 
     Voraussetzung für gültige Filter: Rubrik-Codes werden in den Such-Tools
     gegen diese Taxonomie UND gegen die Freigabe-Liste validiert. Standardmässig
@@ -2074,9 +2083,7 @@ async def gazette_list_rubrics(params: RubricsInput) -> str:
             provenance,
         )
 
-    heading = (
-        "Erschlossene Rubriken" if green_only else "Rubriken (vollständige Taxonomie)"
-    )
+    heading = "Erschlossene Rubriken" if green_only else "Rubriken (vollständige Taxonomie)"
     lines = [f"## {heading}", f"Total: **{len(entries)}**", ""]
     if green_only:
         lines += [
@@ -2143,7 +2150,9 @@ def _cache_age(cache: tuple[float, Any] | None) -> str:
 )
 @logged_tool("gazette_source_status")
 async def gazette_source_status(params: StatusInput) -> str:
-    """Status des Amtsblattportals, Cache-Alter und Umfang der Freigabe-Liste.
+    """<use_case>Check whether amtsblattportal.ch is reachable and what the released scope is. Call this when a search returns nothing and you need to distinguish an empty result from a source that could not be asked — the two are not the same answer.</use_case>
+
+    Status des Amtsblattportals, Cache-Alter und Umfang der Freigabe-Liste.
 
     Prüft die Erreichbarkeit des Upstreams, meldet das Alter des
     Taxonomie-Caches und wie viele Rubriken erschlossen sind.
@@ -2224,9 +2233,7 @@ def _build_sse_app():
     app = mcp.sse_app()
     # Middleware added later runs first → add rate-limit first, then auth, so
     # the rate-limit bucket key is the authenticated token hash.
-    app.add_middleware(
-        RateLimitMiddleware, limit=DEFAULT_RATE_LIMIT, window=DEFAULT_RATE_WINDOW
-    )
+    app.add_middleware(RateLimitMiddleware, limit=DEFAULT_RATE_LIMIT, window=DEFAULT_RATE_WINDOW)
     app.add_middleware(BearerAuthMiddleware, expected_key=api_key)
     # SDK-004. Added last, therefore runs first: a browser never sends
     # `Authorization` on a preflight OPTIONS, so CORS has to answer the
@@ -2235,8 +2242,10 @@ def _build_sse_app():
     # with a symptom pointing at the wrong layer.
     apply_cors(app)
     log_event(
-        logging.INFO, "sse_app_built",
-        rate_limit=DEFAULT_RATE_LIMIT, rate_window=DEFAULT_RATE_WINDOW,
+        logging.INFO,
+        "sse_app_built",
+        rate_limit=DEFAULT_RATE_LIMIT,
+        rate_window=DEFAULT_RATE_WINDOW,
         cors_origins=len(configured_origins()),
     )
     return app
@@ -2248,8 +2257,10 @@ def main() -> None:
     init_otel()
     if transport == "stdio":
         log_event(
-            logging.INFO, "starting",
-            transport="stdio", green_rubrics=len(GREEN_RUBRICS),
+            logging.INFO,
+            "starting",
+            transport="stdio",
+            green_rubrics=len(GREEN_RUBRICS),
         )
         mcp.run(transport="stdio")
         return
@@ -2258,8 +2269,11 @@ def main() -> None:
 
         app = _build_sse_app()
         log_event(
-            logging.INFO, "starting",
-            transport="sse", host=mcp.settings.host, port=mcp.settings.port,
+            logging.INFO,
+            "starting",
+            transport="sse",
+            host=mcp.settings.host,
+            port=mcp.settings.port,
         )
         uvicorn.run(
             app,
@@ -2268,9 +2282,7 @@ def main() -> None:
             log_level=mcp.settings.log_level.lower(),
         )
         return
-    raise SystemExit(
-        f"Unsupported MCP_TRANSPORT={transport!r} (expected 'stdio' or 'sse')"
-    )
+    raise SystemExit(f"Unsupported MCP_TRANSPORT={transport!r} (expected 'stdio' or 'sse')")
 
 
 if __name__ == "__main__":

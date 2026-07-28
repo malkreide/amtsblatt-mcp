@@ -29,8 +29,7 @@ from amtsblatt_mcp._net import (
 def _addrinfo(*addresses: str):
     """Shape `socket.getaddrinfo` returns: (family, type, proto, canon, sockaddr)."""
     return [
-        (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (a, 443))
-        for a in addresses
+        (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (a, 443)) for a in addresses
     ]
 
 

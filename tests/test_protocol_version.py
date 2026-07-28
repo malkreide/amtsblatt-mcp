@@ -35,7 +35,7 @@ def test_pin_matches_the_installed_sdk() -> None:
 
 
 def test_pin_is_a_dated_spec_version_not_a_moving_target() -> None:
-    """"latest" or a range would defeat the purpose of pinning."""
+    """ "latest" or a range would defeat the purpose of pinning."""
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", MCP_PROTOCOL_VERSION), MCP_PROTOCOL_VERSION
 
 

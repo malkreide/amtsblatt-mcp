@@ -186,12 +186,16 @@ MOCK_SEARCH: dict = {
     "content": [
         pub_item(
             "fbf0ff9e-3e28-4e09-8a1e-32a7aa4cea8f",
-            "OB-BS", "OB-BS70", "2026-07-07",
+            "OB-BS",
+            "OB-BS70",
+            "2026-07-07",
             "Abbruch Ausschreibung Trambeschaffung Plus",
         ),
         pub_item(
             "aa11bb22-3e28-4e09-8a1e-32a7aa4cea01",
-            "OB-BS", "OB-BS10", "2024-11-11",
+            "OB-BS",
+            "OB-BS10",
+            "2024-11-11",
             "Ausschreibung Informatik-Dienstleistungen",
         ),
     ],
@@ -223,35 +227,60 @@ MOCK_SEARCH_MULTILANG: dict = {
     "content": [
         # (1) collapsible pair
         pub_item(
-            "aa000001-0000-0000-0000-000000000001", "OB-TI", "OB-TI10", "2026-07-24",
+            "aa000001-0000-0000-0000-000000000001",
+            "OB-TI",
+            "OB-TI10",
+            "2026-07-24",
             "Bando - NUOVO CENTRO SPORTIVO, STABIO - OPERE PER IMPIANTI SPORTIVI",
-            canton="TI", language="it", publication_number="OB-TI10-0000002892",
+            canton="TI",
+            language="it",
+            publication_number="OB-TI10-0000002892",
             office="Repubblica e Cantone del Ticino",
         ),
         pub_item(
-            "aa000002-0000-0000-0000-000000000002", "OB-TI", "OB-TI10", "2026-07-24",
+            "aa000002-0000-0000-0000-000000000002",
+            "OB-TI",
+            "OB-TI10",
+            "2026-07-24",
             "Appel d’offres - NUOVO CENTRO SPORTIVO, STABIO - OPERE PER IMPIANTI SPORTIVI",
-            canton="TI", language="fr", publication_number="OB-TI10-0000002893",
+            canton="TI",
+            language="fr",
+            publication_number="OB-TI10-0000002893",
             office="Repubblica e Cantone del Ticino",
         ),
         # (2) correction of the very same tender, same day, same body
         pub_item(
-            "aa000003-0000-0000-0000-000000000003", "OB-TI", "OB-TI10", "2026-07-24",
+            "aa000003-0000-0000-0000-000000000003",
+            "OB-TI",
+            "OB-TI10",
+            "2026-07-24",
             "Rettifica Bando - NUOVO CENTRO SPORTIVO, STABIO - OPERE PER IMPIANTI SPORTIVI",
-            canton="TI", language="it", publication_number="OB-TI10-0000002896",
+            canton="TI",
+            language="it",
+            publication_number="OB-TI10-0000002896",
             office="Repubblica e Cantone del Ticino",
         ),
         # (3) translated pair — one notice, two records, two bodies
         pub_item(
-            "bb000001-0000-0000-0000-000000000004", "OB-AR", "OB-AR10", "2026-05-22",
+            "bb000001-0000-0000-0000-000000000004",
+            "OB-AR",
+            "OB-AR10",
+            "2026-05-22",
             "Ausschreibung - Muldenmiete, Muldentransport und Verwertung Chammerholz",
-            canton="AR", language="de", publication_number="OB-AR10-0000000336",
+            canton="AR",
+            language="de",
+            publication_number="OB-AR10-0000000336",
             office="Kanton Appenzell Ausserrhoden",
         ),
         pub_item(
-            "bb000002-0000-0000-0000-000000000005", "OB-AR", "OB-AR10", "2026-05-22",
+            "bb000002-0000-0000-0000-000000000005",
+            "OB-AR",
+            "OB-AR10",
+            "2026-05-22",
             "Appel d’offres - Location et transport de bennes, valorisation",
-            canton="AR", language="fr", publication_number="OB-AR10-0000000337",
+            canton="AR",
+            language="fr",
+            publication_number="OB-AR10-0000000337",
             office="Kanton Appenzell Ausserrhoden",
         ),
     ],
@@ -270,7 +299,9 @@ MOCK_SEARCH_PAGE_2: dict = {
     "content": [
         pub_item(
             "cc33dd44-3e28-4e09-8a1e-32a7aa4cea02",
-            "OB-BS", "OB-BS10", "2024-03-03",
+            "OB-BS",
+            "OB-BS10",
+            "2024-03-03",
             "Ausschreibung Schulmobiliar Basel",
         ),
     ],
@@ -353,9 +384,7 @@ MOCK_XML_MIRRORED_PROCUREMENT = """<?xml version='1.0' encoding='UTF-8'?>
 
 # Some publishers fill the field with a dash instead of omitting it; that must
 # read as "no reference", not as an unresolvable id.
-MOCK_XML_PLACEHOLDER_SIMAP_REF = MOCK_XML_MIRRORED_PROCUREMENT.replace(
-    "#41510-01", "--"
-)
+MOCK_XML_PLACEHOLDER_SIMAP_REF = MOCK_XML_MIRRORED_PROCUREMENT.replace("#41510-01", "--")
 
 # Commercial register: the other schema shape — `publicationText` plus a
 # `company` block, under the `shab` tenant namespace.

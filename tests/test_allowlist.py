@@ -115,8 +115,10 @@ def test_known_green_rubrics_are_released():
 def test_green_sub_rubrics_have_blocked_parents():
     """The non-simap procurement sub-rubrics sit under parents that stay closed."""
     for sub, parent in (
-        ("AR-NW40", "AR-NW"), ("AR-OW40", "AR-OW"),
-        ("AR-VS40", "AR-VS"), ("BA-SH40", "BA-SH"),
+        ("AR-NW40", "AR-NW"),
+        ("AR-OW40", "AR-OW"),
+        ("AR-VS40", "AR-VS"),
+        ("BA-SH40", "BA-SH"),
     ):
         assert is_green(sub) is True
         assert is_green(parent) is False, f"parent {parent} must stay blocked"
@@ -200,9 +202,7 @@ async def test_blocked_rubric_returns_explanation_and_makes_no_call(blocked):
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await gazette_search_publications(
-            SearchInput(rubric=blocked, keyword="Muster")
-        )
+        result = await gazette_search_publications(SearchInput(rubric=blocked, keyword="Muster"))
 
     # No data reached the user...
     assert route.call_count == 0
@@ -365,9 +365,7 @@ class TestListRubricsCoverage:
         table would claim rubrics the source no longer publishes."""
         _reset_rubrics_cache()
         with respx.mock:
-            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-                return_value=httpx.Response(200, json=[])
-            )
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
             result = await gazette_list_rubrics(RubricsInput())
         assert "Total: **0**" in result
 
@@ -377,9 +375,7 @@ class TestListRubricsCoverage:
         and "could not look" must never render the same."""
         _reset_rubrics_cache()
         with respx.mock:
-            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-                side_effect=httpx.ConnectError("down")
-            )
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(side_effect=httpx.ConnectError("down"))
             result = await gazette_list_rubrics(RubricsInput())
         assert "KEIN leeres Ergebnis" in result
 

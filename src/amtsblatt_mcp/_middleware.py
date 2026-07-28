@@ -44,9 +44,7 @@ class BearerAuthMiddleware:
         # build the comparison target. Nothing else in this class ever holds
         # the plaintext, and the instance itself carries no readable secret.
         if isinstance(expected_key, str):
-            raise TypeError(
-                "expected_key must be a SecretStr, not a bare str — see ARCH-005."
-            )
+            raise TypeError("expected_key must be a SecretStr, not a bare str — see ARCH-005.")
         plaintext = expected_key.get_secret_value()
         if not plaintext:
             raise ValueError("BearerAuthMiddleware requires a non-empty expected_key")

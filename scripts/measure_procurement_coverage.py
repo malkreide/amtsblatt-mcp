@@ -95,9 +95,7 @@ def main() -> int:
     with httpx.Client(timeout=30.0, headers={"Accept": "application/json"}) as client:
         labels = _labels(client)
         for rubric in RUBRICS:
-            per_year = {
-                y: _count(client, rubric, f"{y}-01-01", f"{y}-12-31") for y in years
-            }
+            per_year = {y: _count(client, rubric, f"{y}-01-01", f"{y}-12-31") for y in years}
             result[rubric] = {
                 "per_year": per_year,
                 "latest": _latest(client, rubric),
@@ -107,8 +105,11 @@ def main() -> int:
             }
 
     if args.json:
-        print(json.dumps({"measured_at": today.isoformat(), "rubrics": result},
-                         ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {"measured_at": today.isoformat(), "rubrics": result}, ensure_ascii=False, indent=2
+            )
+        )
         return 0
 
     header = "| Rubrik | " + " | ".join(str(y) for y in years) + " | Letzte | active? |"

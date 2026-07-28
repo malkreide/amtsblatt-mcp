@@ -81,9 +81,7 @@ async def test_one_call_returns_list_and_full_text():
     _seed_rubrics()
     with respx.mock:
         _mock_search_and_xml({PUB_A: MOCK_XML_PROCUREMENT, PUB_B: MOCK_XML_PROCUREMENT})
-        result = await gazette_search_detailed(
-            DetailedSearchInput(rubric="OB-BS", top_n=2)
-        )
+        result = await gazette_search_detailed(DetailedSearchInput(rubric="OB-BS", top_n=2))
 
     assert "Trambeschaffung" in result  # from the result list
     assert "Vergabeverfahren gemäss Art. 43" in result  # only in the XML body
@@ -95,9 +93,7 @@ async def test_one_call_returns_list_and_full_text():
 async def test_expands_exactly_top_n_hits():
     _seed_rubrics()
     with respx.mock:
-        routes = _mock_search_and_xml(
-            {PUB_A: MOCK_XML_PROCUREMENT, PUB_B: MOCK_XML_PROCUREMENT}
-        )
+        routes = _mock_search_and_xml({PUB_A: MOCK_XML_PROCUREMENT, PUB_B: MOCK_XML_PROCUREMENT})
         await gazette_search_detailed(DetailedSearchInput(rubric="OB-BS", top_n=1))
 
     assert routes[PUB_A].called, "the top hit was not expanded"
@@ -113,9 +109,7 @@ async def test_detail_fetches_run_concurrently():
     """
     _seed_rubrics()
     with respx.mock:
-        routes = _mock_search_and_xml(
-            {PUB_A: MOCK_XML_PROCUREMENT, PUB_B: MOCK_XML_PROCUREMENT}
-        )
+        routes = _mock_search_and_xml({PUB_A: MOCK_XML_PROCUREMENT, PUB_B: MOCK_XML_PROCUREMENT})
         await gazette_search_detailed(DetailedSearchInput(rubric="OB-BS", top_n=2))
 
     assert routes[PUB_A].called and routes[PUB_B].called
@@ -149,12 +143,8 @@ async def test_blocked_rubric_content_is_never_rendered():
     """
     _seed_rubrics()
     with respx.mock:
-        _mock_search_and_xml(
-            {PUB_A: MOCK_XML_BLOCKED_RUBRIC, PUB_B: MOCK_XML_PROCUREMENT}
-        )
-        result = await gazette_search_detailed(
-            DetailedSearchInput(rubric="OB-BS", top_n=2)
-        )
+        _mock_search_and_xml({PUB_A: MOCK_XML_BLOCKED_RUBRIC, PUB_B: MOCK_XML_PROCUREMENT})
+        result = await gazette_search_detailed(DetailedSearchInput(rubric="OB-BS", top_n=2))
 
     # The person data from the blocked document must not appear anywhere.
     assert "Erika Mustermann" not in result
@@ -171,9 +161,7 @@ async def test_sole_hit_from_a_blocked_rubric_yields_no_body_at_all():
     _seed_rubrics()
     with respx.mock:
         _mock_search_and_xml({PUB_A: MOCK_XML_BLOCKED_RUBRIC})
-        result = await gazette_search_detailed(
-            DetailedSearchInput(rubric="OB-BS", top_n=1)
-        )
+        result = await gazette_search_detailed(DetailedSearchInput(rubric="OB-BS", top_n=1))
 
     assert "Erika Mustermann" not in result
     assert "Konkurseröffnung" not in result
@@ -198,9 +186,7 @@ async def test_blocked_rubric_filter_is_refused_before_any_call():
 async def test_json_output_lists_withheld_ids_separately():
     _seed_rubrics()
     with respx.mock:
-        _mock_search_and_xml(
-            {PUB_A: MOCK_XML_BLOCKED_RUBRIC, PUB_B: MOCK_XML_PROCUREMENT}
-        )
+        _mock_search_and_xml({PUB_A: MOCK_XML_BLOCKED_RUBRIC, PUB_B: MOCK_XML_PROCUREMENT})
         raw = await gazette_search_detailed(
             DetailedSearchInput(rubric="OB-BS", top_n=2, response_format="json")
         )
@@ -238,9 +224,7 @@ async def test_one_failing_detail_does_not_sink_the_whole_call():
         respx.get(f"{GAZETTE_BASE}/publications/{PUB_B}/xml").mock(
             return_value=httpx.Response(200, text=MOCK_XML_PROCUREMENT)
         )
-        result = await gazette_search_detailed(
-            DetailedSearchInput(rubric="OB-BS", top_n=2)
-        )
+        result = await gazette_search_detailed(DetailedSearchInput(rubric="OB-BS", top_n=2))
 
     assert "Trambeschaffung" in result  # the list survived
     assert "Volltext: 1 von 2 angefordert" in result
@@ -255,9 +239,7 @@ async def test_inherits_the_search_filter_surface():
             return_value=httpx.Response(200, json=MOCK_SEARCH_EMPTY)
         )
         await gazette_search_detailed(
-            DetailedSearchInput(
-                rubric="OB-BS", canton="BS", date_start="2026-07-01", limit=5
-            )
+            DetailedSearchInput(rubric="OB-BS", canton="BS", date_start="2026-07-01", limit=5)
         )
 
     params = route.calls[0].request.url.params

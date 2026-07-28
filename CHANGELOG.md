@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] — 2026-07-28
+
+Closes **ARCH-002**: every tool description carries a `<use_case>` tag.
+
+The description is what the model reads when choosing between tools, and naming
+the *function* is not the same as naming the *occasion*. All 6 tools now
+open with a `<use_case>` block stating when to reach for them — including the
+distinctions that are invisible from the name, such as when the aggregated
+search is preferable to a search followed by N detail calls.
+
+`test_tools_carry_a_use_case_tag` enforces the 80% floor and
+`test_no_description_is_too_short` a 100-character minimum. Mutation-tested:
+stripping the tag from three tools fails the coverage guard.
+
 ## [0.13.0] — 2026-07-28
 
 Closes **OBS-006**: a root span per tool call.

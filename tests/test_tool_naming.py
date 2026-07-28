@@ -84,7 +84,9 @@ def _coverage() -> dict[str, dict[str, int]]:
     counts = {t: {"unit": 0, "live": 0} for t in EXPECTED_TOOLS}
     for path in root.glob("test_*.py"):
         kind = "live" if path.name == "test_live.py" else "unit"
-        blocks = re.split(r"\n(?=(?:@[^\n]*\n)*\s*(?:async )?def test_)", path.read_text(encoding="utf-8"))
+        blocks = re.split(
+            r"\n(?=(?:@[^\n]*\n)*\s*(?:async )?def test_)", path.read_text(encoding="utf-8")
+        )
         for block in blocks:
             if not re.search(r"(?:async )?def test_", block):
                 continue
@@ -139,3 +141,42 @@ def test_otel_tests_are_not_silently_skipped() -> None:
     assert "opentelemetry-sdk" in dev, (
         "tests/test_otel.py would skip in CI: add opentelemetry-sdk to the dev extra"
     )
+
+
+# ---------------------------------------------------------------------------
+# ARCH-002: every tool description carries a use-case tag
+# ---------------------------------------------------------------------------
+
+USE_CASE_COVERAGE = 0.8
+MIN_DESCRIPTION_CHARS = 100
+
+
+def _tool_descriptions() -> dict[str, str]:
+    import inspect
+
+    import amtsblatt_mcp.server as srv
+
+    return {
+        name: inspect.getdoc(getattr(srv, name)) or ""
+        for name in EXPECTED_TOOLS
+    }
+
+
+def test_tools_carry_a_use_case_tag() -> None:
+    """The description is what the model reads when choosing a tool.
+
+    Naming the *function* is not the same as naming the *occasion*: six tools
+    that all "search publications" are indistinguishable without it.
+    """
+    descriptions = _tool_descriptions()
+    tagged = [n for n, d in descriptions.items() if "<use_case>" in d]
+    ratio = len(tagged) / len(descriptions)
+    assert ratio >= USE_CASE_COVERAGE, (
+        f"only {len(tagged)}/{len(descriptions)} tools carry <use_case>; "
+        f"the floor is {USE_CASE_COVERAGE:.0%}"
+    )
+
+
+def test_no_description_is_too_short() -> None:
+    short = {n: len(d) for n, d in _tool_descriptions().items() if len(d) < MIN_DESCRIPTION_CHARS}
+    assert not short, f"tool descriptions below {MIN_DESCRIPTION_CHARS} chars: {short}"

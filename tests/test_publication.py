@@ -233,18 +233,14 @@ class TestEgressAllowlist:
 
     @respx.mock
     async def test_allowed_host_passes(self):
-        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            return_value=httpx.Response(200, json=[])
-        )
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
         async with _make_client() as client:
             r = await client.get(f"{GAZETTE_BASE}/rubrics")
         assert r.status_code == 200
 
     @respx.mock
     async def test_disallowed_host_is_blocked(self):
-        respx.get("https://evil.example.com/exfil").mock(
-            return_value=httpx.Response(200)
-        )
+        respx.get("https://evil.example.com/exfil").mock(return_value=httpx.Response(200))
         async with _make_client() as client:
             with pytest.raises(EgressDenied):
                 await client.get("https://evil.example.com/exfil")
@@ -259,9 +255,7 @@ class TestEgressAllowlist:
     @respx.mock
     async def test_redirect_to_a_disallowed_host_is_blocked(self):
         respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            return_value=httpx.Response(
-                302, headers={"location": "https://evil.example.com/steal"}
-            )
+            return_value=httpx.Response(302, headers={"location": "https://evil.example.com/steal"})
         )
         async with _make_client() as client:
             with pytest.raises(EgressDenied):
@@ -276,9 +270,7 @@ class TestEgressAllowlist:
 @pytest.mark.asyncio
 async def test_source_status_reports_scope_and_reachability():
     with respx.mock:
-        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            return_value=httpx.Response(200, json=[])
-        )
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
         result = await gazette_source_status(StatusInput())
     assert "✅" in result
     assert "fail-closed" in result
@@ -288,14 +280,10 @@ async def test_source_status_reports_scope_and_reachability():
 @pytest.mark.asyncio
 async def test_source_status_flags_an_unreachable_source():
     with respx.mock:
-        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            side_effect=httpx.ConnectError("down")
-        )
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(side_effect=httpx.ConnectError("down"))
         result = await gazette_source_status(StatusInput())
     assert "❌" in result
     assert "kein** leeres Ergebnis" in result or "leeres Ergebnis" in result
-
-
 
 
 def test_shared_client_is_reused_across_calls():
@@ -393,9 +381,7 @@ class TestHttpsEnforcement:
     @respx.mock
     async def test_https_to_an_allowed_host_still_passes(self):
         """The scheme check must not have broken the normal path."""
-        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            return_value=httpx.Response(200, json=[])
-        )
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
         async with _make_client() as client:
             assert (await client.get(f"{GAZETTE_BASE}/rubrics")).status_code == 200
 
@@ -460,9 +446,7 @@ class TestSourceStatusCoverage:
         """A caller checking status is often really asking "why did I get
         nothing?", and the answer is frequently the allow-list, not an outage."""
         with respx.mock:
-            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-                return_value=httpx.Response(200, json=[])
-            )
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
             result = await gazette_source_status(StatusInput())
         assert "fail-closed" in result
         assert "Freigegebene Rubriken" in result
@@ -471,9 +455,7 @@ class TestSourceStatusCoverage:
     async def test_upstream_5xx_is_reported_as_unhealthy(self):
         """A 500 is not an empty result and must not render like one."""
         with respx.mock:
-            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-                return_value=httpx.Response(500, text="boom")
-            )
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(500, text="boom"))
             result = await gazette_source_status(StatusInput())
         assert "❌" in result or "⚠️" in result
 
@@ -491,9 +473,7 @@ class TestSourceStatusCoverage:
     @pytest.mark.asyncio
     async def test_status_reports_a_timeout_distinctly(self):
         with respx.mock:
-            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-                side_effect=httpx.ReadTimeout("slow")
-            )
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(side_effect=httpx.ReadTimeout("slow"))
             result = await gazette_source_status(StatusInput())
         assert "❌" in result or "⚠️" in result
         assert "leeres Ergebnis" in result or "nicht erreichbar" in result
