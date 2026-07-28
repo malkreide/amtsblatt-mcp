@@ -209,19 +209,22 @@ async def test_context_does_not_leak_after_the_call(events) -> None:
     assert "tool" not in after[0]
 
 
-def test_every_registered_tool_is_wrapped() -> None:
-    """A tool added without @logged_tool logs nothing — catch that here."""
-    import amtsblatt_mcp.server as srv
+async def test_every_registered_tool_is_wrapped() -> None:
+    """A tool added without @logged_tool logs nothing — catch that here.
 
-    names = [
-        "gazette_search_publications",
-        "gazette_search_procurement",
-        "gazette_get_publication",
-        "gazette_list_rubrics",
-        "gazette_source_status",
-    ]
+    Derived from the live registry rather than a hardcoded list: a hardcoded one
+    goes stale the moment a tool is added, which is exactly when this check
+    matters most.
+    """
+    import amtsblatt_mcp.server as srv
+    from amtsblatt_mcp.server import mcp
+
+    names = sorted(t.name for t in await mcp.list_tools())
+    assert names, "no tools registered"
     for name in names:
-        assert hasattr(getattr(srv, name), "__wrapped__"), f"{name} is not wrapped"
+        fn = getattr(srv, name, None)
+        assert fn is not None, f"{name} has no module-level function of that name"
+        assert hasattr(fn, "__wrapped__"), f"{name} is not wrapped by @logged_tool"
 
 
 def test_configure_logging_is_idempotent() -> None:

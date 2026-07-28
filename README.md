@@ -145,6 +145,7 @@ the last two mean something tried to reach a rubric this server does not serve.
 | Tool | Signature | Notes |
 |---|---|---|
 | `gazette_search_publications` | `(keyword?, rubric?, sub_rubric?, canton?, date_start?, date_end?, limit=20, page=0, language='de', only_language=False)` | Green rubrics enforced. Without `rubric`, all green rubrics are injected — a keyword-only query can never reach a blocked one. |
+| `gazette_search_detailed` | same filters **+ `top_n=3`** | **Aggregated.** Search *and* full text for the top `top_n` hits in one call, fetched in parallel. Same green gate on every expanded document; blocked ones are withheld and counted, never rendered. |
 | `gazette_search_procurement` | `(keyword?, canton?, date_start?, date_end?, include_inactive=False, limit=20, page=0, language='de', only_language=False)` | `OB-*` rubrics plus the gazette-native sub-rubrics `AR-VS40`, `AR-OW40`, `BA-SH40`. A canton with neither gets a simap.ch explainer and **no HTTP call**. No CPV — the source has none. |
 | `gazette_get_publication` | `(id, response_format='markdown')` | Full official text from XML. Re-checks the rubric after fetching; content from a blocked rubric is discarded. |
 | `gazette_list_rubrics` | `(language='de', rubric_class='green', response_format='markdown')` | `rubric_class='all'` shows the full taxonomy with traffic-light classes and reasons — listed ≠ queryable. |
