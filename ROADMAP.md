@@ -25,15 +25,31 @@ the current run lives under `audits/`.
 
 | Item | Check | State |
 |---|---|---|
-| Raise per-tool test coverage to the floor: `gazette_list_rubrics` (2 unit tests), `gazette_source_status` (3), and live tests for the three tools that have none | `OPS-001` | open — highest value item here |
-| Separate nightly/manual live-test workflow, as the sister server has | `OPS-001` | open |
-| Resolved-IP blocklist for private, loopback, link-local and `169.254.169.254` | `SEC-004` | open |
-| DNS pinning so the resolved IP is the one connected to | `SEC-005` | open |
-| Per-tool-call OTel span carrying `mcp.tool.name` and `mcp.tool.result.is_error` — today only httpx client spans exist, so a tool call has no root span | `OBS-006` | open |
-| `<use_case>` tags on all tool descriptions | `ARCH-002` | open |
 | Split `server.py` (~2200 lines) into a `tools/` package | `ARCH-011` | open — refactor with regression risk, low payoff |
+| Standardised JSON-RPC codes on protocol errors | `OBS-001` | blocked upstream, see below |
 | Structured tool returns instead of rendered Markdown | `SDK-002` | **not planned** — deliberate, see below |
 | Progress reporting via `ctx: Context` | `SDK-003` | not planned while every tool returns in milliseconds |
+
+Closed since the last audit run, and therefore still listed as `fail`/`partial`
+there: `OPS-001` (per-tool test floor plus the nightly live job in `ci.yml`),
+`SEC-004` and `SEC-005` (`_net.py`, `tests/test_ssrf.py`), `OBS-006` (root span
+per tool call in `_otel.py`) and `ARCH-002` (`<use_case>` on all six tools). The
+audit under `audits/` is a measurement, not a status board — it will keep saying
+so until it is re-run.
+
+**`OBS-001` is closed as far as this repo reaches.** `tests/test_error_paths.py`
+drives a real `ClientSession` and asserts the paths apart. Because every tool
+returns `str` (see `SDK-002`), there is no typed field for a client to inspect,
+so the outcome rides in the footer instead: `live_api`, `refused` (this server
+declined by design — retrying changes nothing) or `degraded` (the source could
+not be reached — the same call may work later). Refusals and outages used to
+return a bare German sentence carrying neither provenance nor the attribution
+the licence requires; now they wear the same envelope as a result.
+
+What is left is not implementable here — the lowlevel SDK server emits error
+**code 0** rather than the `-32601` the check asks for, and `mcp.types` defines
+the constant without using it. Two tests pin that, so the day the SDK starts
+emitting a real code, the suite says so.
 
 **`SDK-002` is an accepted deviation, not a backlog item.** Tools return `str`
 because the rendered output is composed for a reader and carries provenance,

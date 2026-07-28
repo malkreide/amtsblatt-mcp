@@ -949,40 +949,71 @@ def _json_out(payload: dict, provenance: str) -> str:
     return json.dumps(enriched, ensure_ascii=False, indent=2)
 
 
+def _note(text: str, provenance: str) -> str:
+    """A refusal or a degraded answer, wearing the same envelope as a result.
+
+    OBS-001: every tool here returns `str`, so a client cannot tell "nothing
+    matched" from "the source was unreachable" by looking at a status field —
+    both come back as `isError: false` with prose inside. A successful answer
+    ends in `_provenance: live_api_`; without this helper the failure paths
+    ended in nothing at all, which left German prose as the only signal.
+
+    With it, the three outcomes are one field apart rather than one sentence
+    apart: `live_api`, `refused` (policy said no), `degraded` (the source could
+    not be asked). The attribution comes along for free, which it should have
+    been doing anyway — it is a licence condition, not a decoration.
+
+    Markdown only, deliberately: a caller asking for `response_format='json'`
+    still gets prose here, because the failure happens before the format branch
+    is reached. That is pre-existing and unchanged; the footer at least makes
+    the outcome greppable in both cases.
+    """
+    return _md([text], provenance)
+
+
 def _handle_error(e: Exception) -> str:
-    """Translate an exception into an actionable, human-readable message."""
+    """Translate an exception into an actionable, human-readable message.
+
+    The provenance split is what the caller acts on: `refused` means this server
+    declined and retrying changes nothing, `degraded` means the source failed
+    and the same call may well work later.
+    """
     if isinstance(e, RubricBlocked):
-        return str(e)
+        return _note(str(e), "refused")
     if isinstance(e, (GazetteFilterIgnored, GazetteInvalidCode)):
-        return str(e)
+        return _note(str(e), "refused")
     if isinstance(e, EgressDenied):
-        return f"Egress verweigert: {e}. Ziel-Host nicht in ALLOWED_HOSTS."
+        return _note(f"Egress verweigert: {e}. Ziel-Host nicht in ALLOWED_HOSTS.", "refused")
     if isinstance(e, httpx.HTTPStatusError):
         status = e.response.status_code
         if status == 400:
-            return "Fehler 400: Ungültige Anfrage. Bitte Parameter prüfen."
+            return _note("Fehler 400: Ungültige Anfrage. Bitte Parameter prüfen.", "degraded")
         if status == 401:
             # Verified upstream behaviour: a missing `publicationStates` yields
             # 401/AccessDeniedException, NOT 400. It never means "credentials
             # required" — the read API is unauthenticated.
-            return (
+            return _note(
                 "Fehler 401: Die Quelle hat die Anfrage abgelehnt. Das deutet auf "
                 "einen fehlenden `publicationStates`-Parameter hin, nicht auf "
-                "fehlende Zugangsdaten — die Lese-API ist unauthentifiziert."
+                "fehlende Zugangsdaten — die Lese-API ist unauthentifiziert.",
+                "degraded",
             )
         if status == 404:
-            return "Fehler 404: Publikation nicht gefunden. Bitte ID prüfen."
+            return _note("Fehler 404: Publikation nicht gefunden. Bitte ID prüfen.", "degraded")
         if status == 429:
-            return "Fehler 429: Rate-Limit überschritten. Bitte kurz warten."
-        return f"Fehler {status}: Anfrage an das Amtsblattportal fehlgeschlagen."
+            return _note("Fehler 429: Rate-Limit überschritten. Bitte kurz warten.", "degraded")
+        return _note(f"Fehler {status}: Anfrage an das Amtsblattportal fehlgeschlagen.", "degraded")
     if isinstance(e, httpx.TimeoutException):
-        return "Timeout: Das Amtsblattportal antwortet nicht. Bitte erneut versuchen."
-    if isinstance(e, httpx.ConnectError):
-        return (
-            "Verbindungsfehler: Das Amtsblattportal ist nicht erreichbar. "
-            "Dies ist KEIN leeres Ergebnis — es konnten keine Daten abgefragt werden."
+        return _note(
+            "Timeout: Das Amtsblattportal antwortet nicht. Bitte erneut versuchen.", "degraded"
         )
-    return f"Unerwarteter Fehler: {type(e).__name__}: {e}"
+    if isinstance(e, httpx.ConnectError):
+        return _note(
+            "Verbindungsfehler: Das Amtsblattportal ist nicht erreichbar. "
+            "Dies ist KEIN leeres Ergebnis — es konnten keine Daten abgefragt werden.",
+            "degraded",
+        )
+    return _note(f"Unerwarteter Fehler: {type(e).__name__}: {e}", "degraded")
 
 
 # ---------------------------------------------------------------------------
@@ -1384,7 +1415,7 @@ async def gazette_search_publications(params: SearchInput) -> str:
     # blocked rubric never even reveals whether it exists upstream.
     for code, kind in ((params.rubric, "rubric"), (params.sub_rubric, "subRubric")):
         if code and not is_green(code):
-            return explain_blocked(code, kind=kind)
+            return _note(explain_blocked(code, kind=kind), "refused")
 
     try:
         if params.rubric:
@@ -1498,7 +1529,7 @@ async def gazette_search_detailed(params: DetailedSearchInput) -> str:
     # Same green gate as the plain search, before any network call.
     for code, kind in ((params.rubric, "rubric"), (params.sub_rubric, "subRubric")):
         if code and not is_green(code):
-            return explain_blocked(code, kind=kind)
+            return _note(explain_blocked(code, kind=kind), "refused")
 
     try:
         if params.rubric:
@@ -1858,7 +1889,10 @@ async def _fetch_publication_gated(pub_id: str) -> tuple[dict[str, Any] | None, 
     try:
         parsed = _parse_publication_xml(xml_text)
     except ET.ParseError as e:
-        return None, f"Fehler: XML der Publikation {pub_id} konnte nicht geparst werden ({e})."
+        return None, _note(
+            f"Fehler: XML der Publikation {pub_id} konnte nicht geparst werden ({e}).",
+            "degraded",
+        )
 
     meta = parsed["meta"]
     rubric = meta.get("rubric")
@@ -1870,7 +1904,7 @@ async def _fetch_publication_gated(pub_id: str) -> tuple[dict[str, Any] | None, 
             rubric=rubric,
             publication_id=pub_id,
         )
-        return None, explain_blocked(rubric, kind="rubric")
+        return None, _note(explain_blocked(rubric, kind="rubric"), "refused")
 
     return parsed, None
 
