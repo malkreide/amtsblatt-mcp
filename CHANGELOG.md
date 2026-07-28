@@ -62,6 +62,20 @@ of the table being written. The rows are removed and the closures named, with
 the reason the audit under `audits/` still disagrees: it is a measurement taken
 at a point in time, not a status board.
 
+### `mcp` constrained below 2.0
+
+`mcp` 2.0.0 was published and removed `mcp.server.fastmcp` outright — the API
+moved to `mcp.server.mcpserver`. The dependency was an unbounded `>=1.28.1`, so
+CI resolved to it and every job died on `ModuleNotFoundError` at import: `main`
+as well as open branches, with nothing in any diff to explain it.
+
+Now `>=1.28.1,<2`. Verified rather than assumed: the full suite runs green
+against 1.29.0 and `LATEST_PROTOCOL_VERSION` is unchanged at `2025-11-25`, so
+the bound admits the newest compatible release and excludes only the break.
+
+Migrating to the 2.x API is real work and a decision to take deliberately. A
+resolver picking a major version on publication day is not that decision.
+
 ### CI — the MCP registry publish is idempotent
 
 The PyPI step carries `skip-existing: true`; the registry step had no
