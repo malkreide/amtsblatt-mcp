@@ -456,7 +456,7 @@ See [SECURITY.md](SECURITY.md) for reporting and operator hardening notes.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Data-source notice: [NOTICE.md](NOTICE.md).
 
 Data source: **amtsblattportal.ch**, operated by SECO / State Secretariat for
 Economic Affairs on behalf of the Swiss Confederation. Freely usable, but
