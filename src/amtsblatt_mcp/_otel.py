@@ -10,9 +10,8 @@ from __future__ import annotations
 import logging
 import os
 
+from . import __version__ as _VERSION
 from ._log import log_event
-
-_VERSION = "0.1.2"
 
 
 def init_otel() -> bool:

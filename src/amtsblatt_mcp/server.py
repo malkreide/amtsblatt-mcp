@@ -30,8 +30,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
+from . import __version__  # single source of truth: pyproject.toml
 from ._log import configure_logging, log_event, logged_tool
 from .rubrics import (
     GREEN_RUBRICS,
@@ -44,8 +45,6 @@ from .rubrics import (
 )
 
 configure_logging()
-
-__version__ = "0.4.0"
 
 # ---------------------------------------------------------------------------
 # Source constants
@@ -1928,8 +1927,11 @@ def _build_sse_app():
     """
     from ._middleware import BearerAuthMiddleware, RateLimitMiddleware
 
-    api_key = os.environ.get("MCP_API_KEY", "").strip()
-    if not api_key:
+    # ARCH-005: held as SecretStr, so an accidental f-string, repr() or log of
+    # the config renders "**********" instead of the key. The plaintext is only
+    # unwrapped at the one place that needs it — the constant-time comparison.
+    api_key = SecretStr(os.environ.get("MCP_API_KEY", "").strip())
+    if not api_key.get_secret_value():
         raise SystemExit(
             "MCP_API_KEY must be set when MCP_TRANSPORT=sse. "
             "Generate a random key (e.g. `openssl rand -hex 32`) and pass it via env."

@@ -15,7 +15,14 @@ services:
       LOG_LEVEL: INFO
     read_only: true
     cap_drop: [ALL]
+    # SEC-007. Docker applies its built-in seccomp profile (the equivalent of
+    # Kubernetes' RuntimeDefault) unless security_opt overrides it — so the
+    # profile is deliberately NOT listed here. Writing `seccomp:unconfined`
+    # would disable it, which is the opposite of what the check asks for.
+    # For Kubernetes, set it explicitly; see the securityContext block in
+    # docs/container-hardening.md.
     security_opt: [no-new-privileges:true]
+    user: "10001:10001"
     # Resource limits (SCALE-006): honoured by `docker compose up` (v2).
     mem_limit: 256m
     cpus: 0.5
