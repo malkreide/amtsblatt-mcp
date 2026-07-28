@@ -7,34 +7,39 @@
 This server is audited against the internal MCP best-practice catalogue (the
 portfolio `mcp-audit` methodology, 68 checks / 8 categories, catalogue hash
 `091f446b…`). The latest measured run
-(`audits/2026-07-28T062517-Z-amtsblatt-mcp/`) scored **20 pass / 18 partial /
-8 fail** across 46 applicable checks — **not production-ready**.
+(`audits/2026-07-28T094256-Z-amtsblatt-mcp/`) scored **21 pass / 18 partial /
+7 fail** across 46 applicable checks — **not production-ready**.
 
-Seven checks block production: `OPS-001`, `OPS-003`, `SCALE-002`, `SCALE-003`,
-`SDK-004`, `SEC-003` and `SEC-009`. `SCALE-002` and `SEC-009` are accepted
-risks (see below) but are still recorded as `fail`, because an accepted risk is
-a decision, not a passing check.
+Trend against the identical applicable set: 20/18/8 → **21/18/7**.
+
+`SDK-004` closed in 0.8.0 and is confirmed by this run. The server is
+cloud-deployed over SSE and carried no CORS layer, so `Mcp-Session-Id` was
+neither exposed nor accepted and a browser-based MCP client lost its session
+immediately after initialize. `_cors.py` names the header in both directions and
+is added *last*, so it runs *first* — a browser never sends `Authorization` on a
+preflight, and with the bearer gate ahead of CORS every preflight would have
+answered 401. CORS short-circuits preflights only; GET and POST without the key
+still return 401, and a test asserts it. Origins are fail-closed:
+`MCP_CORS_ORIGINS` is unset by default.
+
+Six checks still block production: `OPS-001`, `OPS-003`, `SCALE-002`,
+`SCALE-003`, `SEC-003` and `SEC-009`. `SCALE-002` and `SEC-009` are accepted
+risks (see below) but stay recorded as `fail`, because an accepted risk is a
+decision, not a passing check.
 
 Three are worth naming here:
 
-- **`SEC-021` regressed relative to the sister server.** `ALLOWED_HOSTS` is
+- **`SEC-021` is a regression against the sister server.** `ALLOWED_HOSTS` is
   overridable at runtime through `MCP_ALLOWED_HOSTS`, and an override *replaces*
   the default set rather than extending it. The check requires the code-layer
   allow-list to be non-config-mutable precisely so that a misconfigured
   deployment cannot redirect egress wholesale. `swiss-procurement-mcp` uses a
   hard `frozenset` with no override and passes.
 - **`OPS-001` was closed in the sister server and never ported here.**
-  `gazette_list_rubrics` has 2 unit tests against a floor of 5, and only 3 of 6
-  tools have any live test at all.
-- **`SDK-004`** — **closed in 0.8.0, not yet re-measured.** The server is
-  cloud-deployed over SSE and carried no CORS layer, so `Mcp-Session-Id` was
-  neither exposed nor accepted and a browser-based MCP client lost its session
-  immediately after initialize. `_cors.py` now names the header in both
-  directions and is added *last*, so it runs *first* — a browser never sends
-  `Authorization` on a preflight, and with the bearer gate ahead of CORS every
-  preflight would have answered 401. CORS short-circuits preflights only; GET
-  and POST without the key still return 401, and a test asserts it. Origins are
-  fail-closed: `MCP_CORS_ORIGINS` is unset by default.
+  `gazette_list_rubrics` has 2 unit tests against a floor of 5,
+  `gazette_source_status` has 3, and only 3 of 6 tools have any live test at all.
+- **`OPS-003`** — no phase is declared anywhere in the README, so there is no
+  statement the tool annotations can be checked against.
 
 Full report and per-finding documents: `audits/`.
 
