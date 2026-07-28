@@ -2171,6 +2171,7 @@ def _build_sse_app():
     Requires `MCP_API_KEY`. Fails loud at startup otherwise — no implicit
     "auth disabled" mode is supported for SSE.
     """
+    from ._cors import apply_cors, configured_origins
     from ._middleware import BearerAuthMiddleware, RateLimitMiddleware
 
     # ARCH-005: held as SecretStr, so an accidental f-string, repr() or log of
@@ -2190,9 +2191,16 @@ def _build_sse_app():
         RateLimitMiddleware, limit=DEFAULT_RATE_LIMIT, window=DEFAULT_RATE_WINDOW
     )
     app.add_middleware(BearerAuthMiddleware, expected_key=api_key)
+    # SDK-004. Added last, therefore runs first: a browser never sends
+    # `Authorization` on a preflight OPTIONS, so CORS has to answer the
+    # preflight before BearerAuthMiddleware rejects it. Ordered the other way
+    # round, every preflight would 401 and browser clients would be shut out
+    # with a symptom pointing at the wrong layer.
+    apply_cors(app)
     log_event(
         logging.INFO, "sse_app_built",
         rate_limit=DEFAULT_RATE_LIMIT, rate_window=DEFAULT_RATE_WINDOW,
+        cors_origins=len(configured_origins()),
     )
     return app
 

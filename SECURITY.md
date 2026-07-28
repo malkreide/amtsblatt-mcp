@@ -26,9 +26,15 @@ Three are worth naming here:
 - **`OPS-001` was closed in the sister server and never ported here.**
   `gazette_list_rubrics` has 2 unit tests against a floor of 5, and only 3 of 6
   tools have any live test at all.
-- **`SDK-004`** — this server is cloud-deployed over HTTP transport with no CORS
-  middleware, so `Mcp-Session-Id` is never exposed and a browser-based MCP
-  client cannot hold a session.
+- **`SDK-004`** — **closed in 0.8.0, not yet re-measured.** The server is
+  cloud-deployed over SSE and carried no CORS layer, so `Mcp-Session-Id` was
+  neither exposed nor accepted and a browser-based MCP client lost its session
+  immediately after initialize. `_cors.py` now names the header in both
+  directions and is added *last*, so it runs *first* — a browser never sends
+  `Authorization` on a preflight, and with the bearer gate ahead of CORS every
+  preflight would have answered 401. CORS short-circuits preflights only; GET
+  and POST without the key still return 401, and a test asserts it. Origins are
+  fail-closed: `MCP_CORS_ORIGINS` is unset by default.
 
 Full report and per-finding documents: `audits/`.
 
