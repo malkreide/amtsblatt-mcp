@@ -109,9 +109,9 @@ amtsblatt-mcp
 |---|---|---|
 | `MCP_TRANSPORT` | `stdio` | `stdio` oder `sse` |
 | `MCP_HOST` | `127.0.0.1` | SSE-Bind-Adresse. Standard Loopback; `0.0.0.0` exponiert auf allen Interfaces (das Docker-Image setzt das bewusst). |
+| `MCP_CORS_ORIGINS` | _(nicht gesetzt)_ | Kommagetrennte Origins, die den SSE-Endpunkt aus dem Browser aufrufen dürfen. Nicht gesetzt heisst: kein Cross-Origin-Zugriff aus dem Browser — stdio und Nicht-Browser-Clients sind nicht betroffen. Für die gelisteten Origins wird `Mcp-Session-Id` exponiert und akzeptiert, damit ein Browser-Client eine Session halten kann. `*` wird akzeptiert, loggt aber eine Warnung und deaktiviert Credentials, weil Browser eine Wildcard-Origin zusammen mit Credentials ablehnen. |
 | `MCP_API_KEY` | — | Bearer-Token; **Pflicht** bei SSE |
 | `MCP_RATE_LIMIT` / `MCP_RATE_WINDOW` | `60` / `60` | Sliding-Window-Rate-Limit |
-| `MCP_ALLOWED_HOSTS` | `amtsblattportal.ch,www.amtsblattportal.ch` | Egress-Allow-List. Ein Override ersetzt den Standard vollständig. |
 | `RUBRICS_TTL` | `86400` | Cache-TTL der Taxonomie (Sekunden) |
 | `LOG_LEVEL` | `INFO` | Strukturierte JSON-Logs auf stderr |
 

@@ -192,6 +192,44 @@ class TestEgressAllowlist:
     def test_the_gazette_host_is_allowed(self):
         assert "amtsblattportal.ch" in ALLOWED_HOSTS
 
+    def test_the_allow_list_is_not_environment_mutable(self):
+        """SEC-021: the code-layer allow-list must not be widenable from config.
+
+        It used to be populated from MCP_ALLOWED_HOSTS. A guard that anything
+        able to set an environment variable can widen is not a guard.
+
+        Run in a subprocess rather than via importlib.reload: reloading swaps
+        the module's classes in sys.modules, so every other test still holding
+        the original `EgressDenied` would stop matching the newly-raised one.
+        A fresh interpreter also tests what actually matters — the value the
+        module takes at real process startup.
+        """
+        import json
+        import os
+        import subprocess
+        import sys
+
+        env = {**os.environ, "MCP_ALLOWED_HOSTS": "evil.example,amtsblattportal.ch"}
+        out = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import json;from amtsblatt_mcp.server import ALLOWED_HOSTS;"
+                "print(json.dumps(sorted(ALLOWED_HOSTS)))",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=True,
+        )
+        hosts = json.loads(out.stdout.strip().splitlines()[-1])
+        assert "evil.example" not in hosts, "MCP_ALLOWED_HOSTS still widens the allow-list"
+        assert sorted(ALLOWED_HOSTS) == hosts
+
+    def test_the_allow_list_is_immutable(self):
+        """A frozenset, so no code path can add to it after import either."""
+        assert isinstance(ALLOWED_HOSTS, frozenset)
+
     @respx.mock
     async def test_allowed_host_passes(self):
         respx.get(f"{GAZETTE_BASE}/rubrics").mock(

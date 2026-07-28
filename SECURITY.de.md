@@ -52,10 +52,10 @@ der folgenden melden:
 1. **Ein Gateway vor den SSE-Transport setzen.** Die eingebaute Bearer-Auth und
    das Rate-Limit gelten nur pro Instanz; die Rate-Limit-Buckets liegen im
    Prozessspeicher und werden nicht instanzübergreifend geteilt oder aufgeräumt.
-2. **Egress auch auf Netzwerkebene beschränken.** `MCP_ALLOWED_HOSTS` ist eine
+2. **Egress auch auf Netzwerkebene beschränken.** `ALLOWED_HOSTS` ist eine
    Defense-in-Depth-Massnahme im Prozess, kein Ersatz für eine Egress-Firewall.
-   Beachte: eine Überschreibung *ersetzt* den Standard vollständig — sie muss
-   `amtsblattportal.ch` enthalten.
+   Es ist ein literales `frozenset` in `server.py` ohne Environment-Override
+   (SEC-021) — eine Änderung ist bewusst ein Code-Change.
 3. **`MCP_API_KEY` rotieren** und nie in ein Image einbacken.
 4. **Die JSON-Logs an dein SIEM schicken** und auf `auth_failed`, `rate_limited`,
    `egress_denied`, `green_gate_violation` und `blocked_publication_requested`

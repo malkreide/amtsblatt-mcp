@@ -4,6 +4,97 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-07-28
+
+Closes **SEC-021**: the egress allow-list is no longer configurable.
+
+### Breaking
+
+`MCP_ALLOWED_HOSTS` is removed. `ALLOWED_HOSTS` is a literal `frozenset` in
+`server.py`, changeable only in code.
+
+### Why
+
+SEC-021 requires the code-layer allow-list to be non-config-mutable, and the
+reasoning holds: a guard that anything able to set an environment variable can
+widen is not a guard. This was a regression against `swiss-procurement-mcp`,
+which passes the same check with a hard `frozenset` — not a gap the two servers
+shared.
+
+Removing the override costs nothing real, which is what makes this a clean fix
+rather than a trade-off. `GAZETTE_BASE` is a hardcoded constant, so nothing in
+this server ever builds a URL for another host: **adding one to the allow-list
+could never have caused a request to go there.** The `mirror.example.ch` example
+that `docs/network-egress.md` used to suggest could not have worked. The
+override's only reachable effects were widening what a *followed redirect* may
+reach, and disabling the server outright if an override omitted the gazette
+host — both downside.
+
+### Test
+
+`test_the_allow_list_is_not_environment_mutable` launches a subprocess with
+`MCP_ALLOWED_HOSTS=evil.example,...` set and asserts the imported set is
+unchanged. A subprocess rather than `importlib.reload`, because reloading swaps
+the module's classes in `sys.modules` and every other test still holding the
+original `EgressDenied` stops matching the newly-raised one — three unrelated
+tests failed that way before the approach was changed. A fresh interpreter also
+tests what actually matters: the value the module takes at real process startup.
+
+Mutation-tested — restoring the env override fails the new test.
+
+### Docs
+
+`docs/network-egress.md` rewritten; the `MCP_ALLOWED_HOSTS` rows are gone from
+both READMEs, and the operator hardening note in `SECURITY.md` / `SECURITY.de.md`
+now says a change is deliberately a code change.
+
+## [0.8.0] — 2026-07-28
+
+Closes **SDK-004**: CORS with `Mcp-Session-Id`, in front of the bearer gate.
+
+### The defect
+
+MCP over SSE carries the session in the `Mcp-Session-Id` header. A browser
+cannot *read* a response header the server does not name in
+`Access-Control-Expose-Headers`, and cannot *send* it back unless the server
+names it in `Access-Control-Allow-Headers`. `_middleware.py` provided bearer
+auth and rate limiting and no CORS at all, so a browser-based MCP client
+completed the initialize handshake and then lost the session on the very next
+call. This server is cloud-deployed over SSE, so the transport it exposes to the
+internet was the one that did not work from a browser.
+
+### Middleware order is the load-bearing part
+
+A browser never sends `Authorization` on a preflight `OPTIONS`. With auth ahead
+of CORS every preflight would answer 401 and browser clients would be shut out
+entirely — with a symptom pointing at the wrong layer. `apply_cors` is therefore
+added *last*, because Starlette runs the most recently added middleware first.
+`test_preflight_succeeds_without_the_bearer_key` sends no bearer key, exactly as
+a browser would, and fails if that order ever regresses.
+
+CORS short-circuits preflights and nothing else:
+`test_auth_still_rejects_a_real_request_without_the_key` asserts that GET and
+POST without the key still return 401, so putting CORS in front is not a hole in
+the bearer gate.
+
+### Origins are fail-closed
+
+`MCP_CORS_ORIGINS` is unset by default, meaning no cross-origin browser access.
+An operator who wants browser clients names the origins; nobody inherits a
+permissive default. `*` is honoured but logs a WARNING and forces
+`allow_credentials=False` — browsers reject a wildcard origin together with
+credentials, so accepting both would ship a config that fails at request time
+rather than at startup.
+
+`tests/test_cors.py`, 12 tests, driving real requests through the assembled app
+rather than inspecting the middleware stack — asserting that a `CORSMiddleware`
+object exists would pass with an empty `expose_headers`, which is the defect
+itself. Mutation-tested: reversing the middleware order fails 8 tests, emptying
+`expose_headers` fails 1, defaulting to `*` fails the fail-closed test.
+
+`starlette` is now a declared dependency; `_cors.py` imports it directly and it
+previously arrived only transitively via `mcp`.
+
 ## [0.7.0] — 2026-07-28
 
 Closes ARCH-008 and ARCH-012 from the 2026-07-28 re-audit, and records the

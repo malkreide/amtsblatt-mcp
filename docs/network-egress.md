@@ -17,8 +17,7 @@ configured**, and when configured that endpoint is the operator's own — see
 The allow-list lives in [`server.py`](../src/amtsblatt_mcp/server.py):
 
 ```python
-_DEFAULT_ALLOWED_HOSTS = frozenset({"amtsblattportal.ch", "www.amtsblattportal.ch"})
-ALLOWED_HOSTS: frozenset[str] = frozenset(...)   # MCP_ALLOWED_HOSTS override
+ALLOWED_HOSTS: frozenset[str] = frozenset({"amtsblattportal.ch", "www.amtsblattportal.ch"})
 ```
 
 Every outbound request passes the host check before it is sent. A request to a
@@ -31,27 +30,32 @@ exists for the case the primary control fails — most plausibly a dependency
 following a redirect to an unexpected host, or a future refactor introducing a
 foreign base URL.
 
-## Overriding the allow-list
+## The list is not configurable, deliberately
 
-`MCP_ALLOWED_HOSTS` takes a comma-separated list.
+There is no environment override. `MCP_ALLOWED_HOSTS` was removed in 0.9.0.
 
-> **An override REPLACES the default entirely.** It is not additive. An
-> override that omits `amtsblattportal.ch` disables the server — every request
-> raises `EgressDenied`. This is deliberate: a partially-specified allow-list
-> should fail loudly rather than silently widen.
+SEC-021 requires the code-layer allow-list to be non-config-mutable, and the
+reasoning holds up: a guard that anything able to set an environment variable
+can widen is not a guard. An override also let a misconfigured deployment
+replace the set wholesale — it was not additive — which either disabled the
+server or silently widened what a followed redirect could reach.
 
-```bash
-MCP_ALLOWED_HOSTS=amtsblattportal.ch,www.amtsblattportal.ch,mirror.example.ch
-```
+Removing it cost nothing real. `GAZETTE_BASE` is a hardcoded constant, so
+nothing in this server ever builds a URL for another host: adding one to the
+allow-list could never have caused a request to go there. The old example in
+this document suggesting a `mirror.example.ch` entry was misleading for exactly
+that reason — nothing would ever have requested it.
 
-To add a permanent upstream:
+To add a genuine second upstream:
 
-1. Add the host to `_DEFAULT_ALLOWED_HOSTS` in `server.py`.
+1. Add the host to `ALLOWED_HOSTS` in `server.py`.
 2. Thread the new base URL through explicitly — never derive a host from user
    input.
 3. Add a row to the table above and note it in `CHANGELOG.md`.
 4. Re-check the lethal-trifecta assessment in `SECURITY.md`: a second upstream
    is exactly what turns the exfiltration leg on.
+
+Both steps happen in code, where they are reviewed. That is the point.
 
 ## Network-layer enforcement
 

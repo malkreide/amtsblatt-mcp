@@ -10,12 +10,13 @@ resolution-markers = [
 
 [[package]]
 name = "amtsblatt-mcp"
-version = "0.7.0"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
     { name = "mcp", extra = ["cli"] },
     { name = "pydantic" },
+    { name = "starlette" },
     { name = "structlog" },
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
@@ -49,6 +50,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
+    { name = "starlette", specifier = ">=0.37" },
     { name = "structlog", specifier = ">=24.1" },
     { name = "tzdata", marker = "sys_platform == 'win32'", specifier = ">=2024.1" },
 ]
