@@ -130,9 +130,15 @@ def logged_tool(
                 tool=tool_name, correlation_id=correlation_id
             )
             start = time.monotonic()
+            # OBS-006: a root span per tool call. Imported here rather than at
+            # module scope because _otel imports _log — a top-level import would
+            # be circular.
+            from ._otel import tool_span
+
             try:
                 log_event(logging.DEBUG, "tool_call_started")
-                result = await fn(*args, **kwargs)
+                with tool_span(tool_name, correlation_id):
+                    result = await fn(*args, **kwargs)
             except Exception as exc:
                 log_event(
                     logging.ERROR,

@@ -103,9 +103,9 @@ async def test_all_four_severity_levels_are_used(events) -> None:
     async def err():
         raise ValueError("nope")
 
-    await ok()                                       # debug + info
+    await ok()  # debug + info
     with pytest.raises(ValueError):
-        await err()                                  # debug + error
+        await err()  # debug + error
     log_event(logging.WARNING, "gazette_retry", attempt=1)
 
     levels = {e["level"] for e in events()}

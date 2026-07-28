@@ -239,6 +239,23 @@ terms, and a fail-closed rubric gate that only means something while it covers
 *every* tool in the server. See
 [`docs/procurement-coverage.md`](docs/procurement-coverage.md) for the numbers.
 
+## Maturity & phase
+
+**Phase 1 — read-only.** All six tools are read-only; there is no write path and
+none is planned. See [ROADMAP.md](ROADMAP.md) for the phase-specific backlog,
+what is deliberately not planned, and what a phase transition would require.
+
+The scope restriction that matters most here is not the phase but the **green
+allow-list** — rubrics carrying systematic natural-person data are not
+queryable, enforced in code and re-checked after every fetch. That does not
+change with phase. See [Data Protection & Scope](#data-protection--scope).
+
+SDK and dependency updates arrive as [Dependabot](.github/dependabot.yml) PRs,
+so a breaking protocol or SDK change is reviewed deliberately rather than
+drifting in silently.
+
+---
+
 ## Architecture
 
 ```

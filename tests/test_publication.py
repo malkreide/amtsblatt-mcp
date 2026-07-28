@@ -12,6 +12,7 @@ import respx
 
 from amtsblatt_mcp.server import (
     ALLOWED_HOSTS,
+    ATTRIBUTION,
     GAZETTE_BASE,
     EgressDenied,
     PublicationInput,
@@ -232,18 +233,14 @@ class TestEgressAllowlist:
 
     @respx.mock
     async def test_allowed_host_passes(self):
-        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            return_value=httpx.Response(200, json=[])
-        )
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
         async with _make_client() as client:
             r = await client.get(f"{GAZETTE_BASE}/rubrics")
         assert r.status_code == 200
 
     @respx.mock
     async def test_disallowed_host_is_blocked(self):
-        respx.get("https://evil.example.com/exfil").mock(
-            return_value=httpx.Response(200)
-        )
+        respx.get("https://evil.example.com/exfil").mock(return_value=httpx.Response(200))
         async with _make_client() as client:
             with pytest.raises(EgressDenied):
                 await client.get("https://evil.example.com/exfil")
@@ -258,9 +255,7 @@ class TestEgressAllowlist:
     @respx.mock
     async def test_redirect_to_a_disallowed_host_is_blocked(self):
         respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            return_value=httpx.Response(
-                302, headers={"location": "https://evil.example.com/steal"}
-            )
+            return_value=httpx.Response(302, headers={"location": "https://evil.example.com/steal"})
         )
         async with _make_client() as client:
             with pytest.raises(EgressDenied):
@@ -275,9 +270,7 @@ class TestEgressAllowlist:
 @pytest.mark.asyncio
 async def test_source_status_reports_scope_and_reachability():
     with respx.mock:
-        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            return_value=httpx.Response(200, json=[])
-        )
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
         result = await gazette_source_status(StatusInput())
     assert "✅" in result
     assert "fail-closed" in result
@@ -287,19 +280,10 @@ async def test_source_status_reports_scope_and_reachability():
 @pytest.mark.asyncio
 async def test_source_status_flags_an_unreachable_source():
     with respx.mock:
-        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
-            side_effect=httpx.ConnectError("down")
-        )
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(side_effect=httpx.ConnectError("down"))
         result = await gazette_source_status(StatusInput())
     assert "❌" in result
     assert "kein** leeres Ergebnis" in result or "leeres Ergebnis" in result
-
-
-@pytest.mark.live
-@pytest.mark.asyncio
-async def test_live_source_status():
-    result = await gazette_source_status(StatusInput())
-    assert "✅" in result
 
 
 def test_shared_client_is_reused_across_calls():
@@ -373,3 +357,123 @@ async def test_get_publication_flags_a_gazette_only_record():
         )
     assert "keine simap-Nummer" in result
     assert "nicht auffindbar" in result
+
+
+# ---------------------------------------------------------------------------
+# Tier-A audit remediation: SEC-004, SEC-013, OPS-003, CH-004
+# ---------------------------------------------------------------------------
+
+
+class TestHttpsEnforcement:
+    """SEC-004: the host allow-list alone left plaintext reachable."""
+
+    @respx.mock
+    async def test_plaintext_to_an_allowed_host_is_refused(self):
+        """`http://amtsblattportal.ch/...` passes a hostname allow-list while
+        sending the request in the clear — a gap that reads as covered."""
+        respx.get("http://amtsblattportal.ch/api/v1/rubrics").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        async with _make_client() as client:
+            with pytest.raises(httpx.RequestError, match="HTTPS is required"):
+                await client.get("http://amtsblattportal.ch/api/v1/rubrics")
+
+    @respx.mock
+    async def test_https_to_an_allowed_host_still_passes(self):
+        """The scheme check must not have broken the normal path."""
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
+        async with _make_client() as client:
+            assert (await client.get(f"{GAZETTE_BASE}/rubrics")).status_code == 200
+
+    @respx.mock
+    async def test_scheme_is_reported_before_the_host(self):
+        """A plaintext URL to a foreign host must name the scheme, not the host.
+
+        Reporting "host not allow-listed" for an `http://` URL sends the reader
+        after the wrong problem.
+        """
+        async with _make_client() as client:
+            with pytest.raises(httpx.RequestError, match="HTTPS is required"):
+                await client.get("http://evil.example/steal")
+
+
+class TestRequiredAuditDocuments:
+    @pytest.mark.parametrize("path", ["docs/secret-management.md", "ROADMAP.md"])
+    def test_document_exists(self, path):
+        """SEC-013 and OPS-003 each require a specific file on disk."""
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parents[1]
+        assert (root / path).is_file(), f"{path} is required by the audit catalogue"
+
+    def test_readme_declares_a_phase(self):
+        """OPS-003: a phase that is not declared cannot be checked against the
+        tool annotations, which is the whole point of declaring it."""
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parents[1]
+        for doc in ("README.md", "README.de.md"):
+            text = (root / doc).read_text(encoding="utf-8")
+            assert "Phase 1" in text, f"{doc} declares no phase"
+
+
+class TestAttribution:
+    def test_attribution_names_the_licence_position(self):
+        """CH-004: naming only the operator left the licence implicit.
+
+        Guessing wrong in either direction is a problem: assuming CC BY invents
+        a grant that was never made; assuming all-rights-reserved blocks a reuse
+        the Confederation permits.
+        """
+        assert "Licence:" in ATTRIBUTION
+        assert "amtsblattportal.ch" in ATTRIBUTION
+
+
+# ---------------------------------------------------------------------------
+# OPS-001: gazette_source_status was at 3 unit tests against a floor of 5
+# ---------------------------------------------------------------------------
+
+
+class TestSourceStatusCoverage:
+    """The tool a caller reaches for when a result looks wrong.
+
+    Its job is to distinguish "the source said nothing" from "the source could
+    not be asked" — so its own failure modes need to be unambiguous.
+    """
+
+    @pytest.mark.asyncio
+    async def test_status_reports_the_green_scope(self):
+        """A caller checking status is often really asking "why did I get
+        nothing?", and the answer is frequently the allow-list, not an outage."""
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
+            result = await gazette_source_status(StatusInput())
+        assert "fail-closed" in result
+        assert "Freigegebene Rubriken" in result
+
+    @pytest.mark.asyncio
+    async def test_upstream_5xx_is_reported_as_unhealthy(self):
+        """A 500 is not an empty result and must not render like one."""
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(500, text="boom"))
+            result = await gazette_source_status(StatusInput())
+        assert "❌" in result or "⚠️" in result
+
+    @pytest.mark.asyncio
+    async def test_status_leaks_no_upstream_body(self):
+        """An error body can carry internals; the model sees the envelope only."""
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+                return_value=httpx.Response(500, text="Traceback: /srv/secret/app.py line 42")
+            )
+            result = await gazette_source_status(StatusInput())
+        assert "/srv/secret" not in result
+        assert "Traceback" not in result
+
+    @pytest.mark.asyncio
+    async def test_status_reports_a_timeout_distinctly(self):
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(side_effect=httpx.ReadTimeout("slow"))
+            result = await gazette_source_status(StatusInput())
+        assert "❌" in result or "⚠️" in result
+        assert "leeres Ergebnis" in result or "nicht erreichbar" in result

@@ -4,6 +4,242 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] — 2026-07-28
+
+Closes **ARCH-002**: every tool description carries a `<use_case>` tag.
+
+The description is what the model reads when choosing between tools, and naming
+the *function* is not the same as naming the *occasion*. All 6 tools now
+open with a `<use_case>` block stating when to reach for them — including the
+distinctions that are invisible from the name, such as when the aggregated
+search is preferable to a search followed by N detail calls.
+
+`test_tools_carry_a_use_case_tag` enforces the 80% floor and
+`test_no_description_is_too_short` a 100-character minimum. Mutation-tested:
+stripping the tag from three tools fails the coverage guard.
+
+## [0.13.0] — 2026-07-28
+
+Closes **OBS-006**: a root span per tool call.
+
+### What auto-instrumentation could not give
+
+`HTTPXClientInstrumentor` produces spans for the HTTP requests a tool makes.
+That is not the same as a span for the tool call: a trace showed the requests
+and never the call that made them, and **a tool failing before it reached the
+network produced no trace at all** — which is every allow-list refusal, every
+validation error, and every cache hit.
+
+`tool_span()` wraps each call in `logged_tool`, carrying `mcp.tool.name`,
+`mcp.tool.result.is_error` and the correlation id. It is a no-op context manager
+when OpenTelemetry is absent, so the extra stays optional and the caller needs
+no branch.
+
+### Deliberately no argument values on spans
+
+Tool arguments here include free-text keywords a user typed. Putting them in a
+span attribute moves them into a telemetry backend with different retention and
+access than this server's own logs. The correlation id joins a span to the log
+line that has the detail; `test_span_carries_no_argument_values` asserts it.
+
+Error spans carry the exception *type* only, for the same reason OBS-002 keeps
+messages away from the model.
+
+### The tests could have been worthless twice over
+
+`tests/test_otel.py` uses `importorskip`, and the `dev` extra had no
+opentelemetry — so in CI the whole file would have skipped silently. A test that
+always skips is a green tick with nothing behind it. The packages are now dev
+dependencies and `test_otel_tests_are_not_silently_skipped` asserts it stays
+that way.
+
+The first version of the fixture also installed a fresh `TracerProvider` per
+test. `set_tracer_provider` is process-global and ignores repeat calls, so only
+the first test received spans — one passed, five failed. The provider is now
+installed once and the exporter cleared between tests.
+
+Mutation-tested: removing the span from `logged_tool` fails all 6 tests; putting
+the exception message on the span instead of its type fails 1.
+
+## [0.12.0] — 2026-07-28
+
+Closes **OPS-001**: per-tool test floor, consolidated live suite, nightly job.
+
+### Where it stood
+
+`gazette_list_rubrics` had 2 unit tests against a floor of 5,
+`gazette_source_status` had 3, and only 3 of 6 tools had any live test. Live
+tests were scattered across `test_search.py` and `test_publication.py`, which is
+how the gap stayed open: the live suite looked complete because nobody could
+count it in one place.
+
+Measured now: every tool at 6+ unit tests and at least one live test.
+
+### A real bug the live suite surfaced immediately
+
+`tests/conftest.py` is new, and it exists because the first live run failed with
+`RuntimeError: Event loop is closed`. The pooled client from SDK-001 binds to
+the event loop that created it, and pytest-asyncio gives each test its own loop
+— so a client created in one test and reused in the next is dead on arrival.
+
+The respx-mocked suite never saw it, because those tests open no connection.
+Only a live test could. An autouse fixture now resets the shared client around
+every test, which also stops the rubrics cache leaking between them.
+
+### The live tests corrected three wrong assumptions
+
+Written against what the API does, not what it was assumed to do:
+
+- **A bare `rubrics` filter is silently ignored upstream.** `rubric="HR"` alone
+  returns the whole 2.2M corpus; the server's own Silent-Ignore guard then
+  refuses the result. The tests use rubric + canton.
+- **`OB` is not a green rubric** — only its cantonal sub-rubrics (`OB-BS`, …)
+  are, so `rubric="OB"` is refused by the allow-list.
+- **`PublicationInput`'s field is `id`,** not `publication_id`.
+
+`test_live_get_publication_round_trip` searches for a real id and then fetches
+it, because that is the only way to exercise the tool against ids we did not
+invent.
+
+### The taxonomy tool is upstream-driven
+
+Two of the new `gazette_list_rubrics` tests exist because that surprised the
+author: the listing is the upstream rubric list intersected with the green set,
+not a static table. An empty upstream response yields an empty listing, and an
+unreachable upstream yields an explicit error — correct on both counts, and now
+asserted rather than assumed.
+
+### Guards
+
+`tests/test_tool_naming.py` gains a coverage floor (5 unit, 1 live per tool) and
+a check that all live markers live in `tests/test_live.py`. The counting helper
+carries a note about the earlier version that mis-attributed per-function
+decorators and reported zero live coverage for every tool — trusted in the other
+direction it would have closed this finding on a scripting bug.
+
+Mutation-tested: raising the floor to 8 fails the guard.
+
+### CI
+
+`live` job added, gated to `schedule` (nightly 03:17 UTC) and
+`workflow_dispatch`, so the mainline build is never held hostage to gazette
+availability.
+
+## [0.11.0] — 2026-07-28
+
+Closes **SEC-004** and **SEC-005**: resolved-address blocklist and DNS pinning.
+
+### What the host allow-list could not do
+
+The allow-list answers "is this the name we meant?". It cannot answer "is this
+the *machine* we meant?" — a name resolves to an address, and nothing about an
+allow-listed hostname stops that address being `169.254.169.254` or `127.0.0.1`.
+DNS is controlled by whoever runs the zone.
+
+`_net.py` adds both halves, and they only work together:
+
+- **Blocklist** — the resolved address is checked against loopback, private,
+  CGNAT, link-local, unique-local, benchmarking and unspecified ranges, IPv4 and
+  IPv6. A name resolving to a *mix* of public and internal addresses is refused
+  rather than filtered: a zone answering both is not a configuration to paper
+  over by picking the good one.
+- **Pinning** — validating an address and then connecting *by hostname* is a
+  time-of-check/time-of-use bug. The second lookup can answer differently; that
+  is DNS rebinding, and it defeats a blocklist entirely.
+
+### Pinned via a custom resolver, not by rewriting the URL
+
+The first implementation rewrote the request URL to the literal IP and carried
+the hostname in `Host` and `sni_hostname`. It worked against the live API — but
+it changes what every layer above the socket sees, and it broke 66 respx-based
+tests whose routes match on the URL.
+
+Gating that on a test flag would have been the "control that holds in one path
+but not the other" problem this codebase keeps finding. The check catalogue
+names a *custom resolver* as an accepted implementation, so pinning now happens
+in a network backend: only the address the socket opens to is substituted, and
+the hostname stays intact all the way down. `Host` and TLS SNI are derived from
+the name as usual, so certificate validation still runs against it — verified
+against the live API, not assumed.
+
+### Tests
+
+`tests/test_ssrf.py`. The load-bearing one is
+`test_rebinding_second_lookup_is_never_used`: a zone answering public once and
+internal immediately after must never reach the internal address. It is the only
+test that fails if an address is validated and the connection then made by
+hostname anyway.
+
+`test_resolution_happens_exactly_once_per_connect` covers the "1 DNS call per
+request" criterion directly.
+
+Mutation-tested: connecting by hostname fails 2 tests, removing link-local from
+the blocklist fails 3, filtering a mixed answer instead of refusing it fails 2,
+and dropping the backend installation fails 1.
+
+## [0.10.0] — 2026-07-28
+
+Tier-A audit remediation: **SEC-004, SEC-013, OPS-003, CH-004, SCALE-004,
+SCALE-006, OPS-002**.
+
+### SEC-004 — HTTPS is now enforced, not assumed
+
+The egress hook checked the host and not the scheme, which left a gap that read
+as covered: `http://amtsblattportal.ch/...` passes a hostname allow-list while
+sending the request in the clear. The scheme is checked first, so a plaintext
+URL reports the scheme rather than sending the reader after the wrong problem.
+
+Still open in this check: the resolved-IP blocklist and DNS pinning. `SEC-004`
+therefore stays `partial` — this closes one criterion of three.
+
+### SCALE-004 — HEALTHCHECK
+
+A bare TCP connect rather than an HTTP request: every HTTP path sits behind the
+bearer gate and would answer 401, and a health check reporting "unhealthy" for a
+correctly-secured server is worse than none.
+
+### SCALE-006 — requests/limits split, FD limit
+
+`deploy.resources.reservations` set below the existing limits, so a transient
+spike has headroom instead of being an OOM kill. `ulimits.nofile` raised to
+4096/8192 — the default 1024 is low once a handful of clients hold long-lived
+SSE streams open.
+
+Only `reservations` under `deploy`: Compose refuses a project that sets limits
+in both the short form and `deploy.resources.limits` ("can't set distinct values
+on 'pids_limit' and 'deploy.resources.limits.pids'"), and the short form is what
+`docker compose up` honours outside Swarm. Verified with `docker compose config`.
+
+### OPS-003 — phase declared, roadmap written
+
+`README.md` and `README.de.md` now declare Phase 1, and `ROADMAP.md` carries the
+phase-specific backlog. The roadmap separates *open work* from *blocked on
+infrastructure* (`SEC-002`, `SEC-003`, `SEC-014`, `SEC-015`, `SCALE-002/003`,
+`SEC-009`) and from *deliberately not planned* (`SDK-002`) — otherwise the
+second and third read as neglect.
+
+### SEC-013 — `docs/secret-management.md`
+
+States the Stufe-1 position and why it is defensible: the one secret
+(`MCP_API_KEY`) guards access to a read-only public-data server, is never
+forwarded upstream, and cannot be replayed against amtsblattportal.ch. Documents
+the `SecretStr` handling, the constant-time comparison, the rotation procedure
+and its lack of an overlap window.
+
+### CH-004 — attribution names the licence
+
+Naming only the operator left the licence position implicit. Guessing wrong in
+either direction is a problem: assuming CC BY invents a grant that was never
+made; assuming all-rights-reserved blocks a reuse the Confederation permits.
+
+### OPS-002 — README parity
+
+`README.de.md` gains *MCP Protocol Version* and *Primitive: nur Tools*. Both
+files now carry 20 top-level sections in the same order.
+
+All new guards mutation-tested: dropping the HTTPS check fails 2 tests, removing
+the licence fails 1, deleting `ROADMAP.md` fails 1.
+
 ## [0.9.0] — 2026-07-28
 
 Closes **SEC-021**: the egress allow-list is no longer configurable.

@@ -56,3 +56,127 @@ async def test_prefix_is_leading_not_infix() -> None:
         assert TOOL_PREFIX.rstrip("_") not in rest, (
             f"{name!r} repeats 'gazette' after the prefix; the prefix leads, once."
         )
+
+
+# ---------------------------------------------------------------------------
+# OPS-001: a coverage floor, so a new tool cannot arrive under-tested
+# ---------------------------------------------------------------------------
+
+UNIT_FLOOR = 5
+LIVE_FLOOR = 1
+
+
+def _coverage() -> dict[str, dict[str, int]]:
+    """Count unit and live tests mentioning each tool.
+
+    Live tests are counted by *file* rather than by scanning for a decorator.
+    An earlier version of this counting logic split on decorators and
+    mis-attributed per-function `@pytest.mark.live` markers, reporting zero live
+    coverage for every tool — trusted in the other direction it would have
+    reported full coverage and let the finding close on a scripting bug. All
+    live tests now live in `tests/test_live.py`, which makes the count a file
+    membership question rather than a parsing one.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent
+    counts = {t: {"unit": 0, "live": 0} for t in EXPECTED_TOOLS}
+    for path in root.glob("test_*.py"):
+        kind = "live" if path.name == "test_live.py" else "unit"
+        blocks = re.split(
+            r"\n(?=(?:@[^\n]*\n)*\s*(?:async )?def test_)", path.read_text(encoding="utf-8")
+        )
+        for block in blocks:
+            if not re.search(r"(?:async )?def test_", block):
+                continue
+            for tool in EXPECTED_TOOLS:
+                if tool in block:
+                    counts[tool][kind] += 1
+    return counts
+
+
+def test_every_tool_meets_the_unit_test_floor() -> None:
+    short = {t: c["unit"] for t, c in _coverage().items() if c["unit"] < UNIT_FLOOR}
+    assert not short, f"tools below the {UNIT_FLOOR}-unit-test floor: {short}"
+
+
+def test_every_tool_has_a_live_test() -> None:
+    """A mocked suite proves the server handles the shape it was told to
+    expect. It cannot notice when the upstream changes that shape."""
+    short = [t for t, c in _coverage().items() if c["live"] < LIVE_FLOOR]
+    assert not short, f"tools with no live test: {short}"
+
+
+def test_live_tests_are_all_in_one_file() -> None:
+    """Scattered live tests are how this finding stayed open: the live suite
+    looked complete because nobody could count it in one place."""
+    import pathlib
+    import re
+
+    # Matched at line start so prose mentioning the marker (as the docstring in
+    # `_coverage` does) is not itself a violation.
+    decorator = re.compile(r"^\s*@pytest\.mark\.live", re.M)
+    root = pathlib.Path(__file__).resolve().parent
+    stray = [
+        p.name
+        for p in root.glob("test_*.py")
+        if p.name != "test_live.py" and decorator.search(p.read_text(encoding="utf-8"))
+    ]
+    assert not stray, f"live markers outside tests/test_live.py: {stray}"
+
+
+def test_otel_tests_are_not_silently_skipped() -> None:
+    """OBS-006's tests use `importorskip`.
+
+    Without opentelemetry in the dev extra they skip in CI, and a test that
+    always skips is not a test — it is a green tick with nothing behind it.
+    """
+    import pathlib
+
+    pyproject = (pathlib.Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    dev = pyproject.split("dev = [", 1)[1].split("]", 1)[0]
+    assert "opentelemetry-sdk" in dev, (
+        "tests/test_otel.py would skip in CI: add opentelemetry-sdk to the dev extra"
+    )
+
+
+# ---------------------------------------------------------------------------
+# ARCH-002: every tool description carries a use-case tag
+# ---------------------------------------------------------------------------
+
+USE_CASE_COVERAGE = 0.8
+MIN_DESCRIPTION_CHARS = 100
+
+
+def _tool_descriptions() -> dict[str, str]:
+    import inspect
+
+    import amtsblatt_mcp.server as srv
+
+    return {
+        name: inspect.getdoc(getattr(srv, name)) or ""
+        for name in EXPECTED_TOOLS
+    }
+
+
+def test_tools_carry_a_use_case_tag() -> None:
+    """The description is what the model reads when choosing a tool.
+
+    Naming the *function* is not the same as naming the *occasion*: six tools
+    that all "search publications" are indistinguishable without it.
+    """
+    descriptions = _tool_descriptions()
+    tagged = [n for n, d in descriptions.items() if "<use_case>" in d]
+    ratio = len(tagged) / len(descriptions)
+    assert ratio >= USE_CASE_COVERAGE, (
+        f"only {len(tagged)}/{len(descriptions)} tools carry <use_case>; "
+        f"the floor is {USE_CASE_COVERAGE:.0%}"
+    )
+
+
+def test_no_description_is_too_short() -> None:
+    short = {n: len(d) for n, d in _tool_descriptions().items() if len(d) < MIN_DESCRIPTION_CHARS}
+    assert not short, f"tool descriptions below {MIN_DESCRIPTION_CHARS} chars: {short}"

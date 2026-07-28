@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name        = "amtsblatt-mcp"
-version     = "0.9.0"
+version     = "0.14.0"
 description = "MCP server for amtsblattportal.ch (SHAB + cantonal gazettes) — procurement and official notices, person-data rubrics excluded by design"
 readme      = "README.md"
 license     = { file = "LICENSE" }
@@ -49,6 +49,10 @@ dev = [
     "pytest-cov>=5.0.0",
     "respx>=0.21.0",
     "ruff>=0.4.0",
+    # OBS-006: tests/test_otel.py uses importorskip, so without these installed
+    # it would skip silently in CI — and a test that always skips is not a test.
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
 ]
 otel = [
     "opentelemetry-api>=1.27.0",

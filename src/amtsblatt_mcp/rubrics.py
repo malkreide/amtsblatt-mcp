@@ -54,8 +54,19 @@ _GREEN_COMMUNAL_NOTICES = frozenset({"KO-AR", "KO-BE", "KO-BS", "KO-TI", "KO-ZG"
 # Beschlüsse, Erlasse, Rechtsetzung — statutory texts, institutional.
 _GREEN_ENACTMENTS = frozenset(
     {
-        "RS-AR", "RS-BE", "RS-BL", "RS-BS", "RS-ZG", "RS-ZH", "RS-DA",
-        "RE-NW", "RE-OW", "RE-SH", "RE-SO", "RE-SZ", "RE-VS",
+        "RS-AR",
+        "RS-BE",
+        "RS-BL",
+        "RS-BS",
+        "RS-ZG",
+        "RS-ZH",
+        "RS-DA",
+        "RE-NW",
+        "RE-OW",
+        "RE-SH",
+        "RE-SO",
+        "RE-SZ",
+        "RE-VS",
     }
 )
 
@@ -64,9 +75,7 @@ _GREEN_ENACTMENTS = frozenset(
 _GREEN_POLITICAL_RIGHTS = frozenset({"PR-BS", "PR-TI", "PL-BL"})
 
 # Raumplanung — zoning and land-use planning. Concerns parcels, not persons.
-_GREEN_SPATIAL_PLANNING = frozenset(
-    {"RP-AR", "RP-BE", "RP-BL", "RP-BS", "RP-TI", "RP-ZG", "RP-ZH"}
-)
+_GREEN_SPATIAL_PLANNING = frozenset({"RP-AR", "RP-BE", "RP-BL", "RP-BS", "RP-TI", "RP-ZG", "RP-ZH"})
 
 # Umwelt, Verkehr und Energie — institutional infrastructure notices.
 # Released as a documented extension for the same reason as KO-*.
@@ -90,9 +99,7 @@ GREEN_RUBRICS: frozenset[str] = (
 # Baugesuche or Zivilstand entries. The parent stays blocked; only these exact
 # sub-rubrics are released. A search on one of them must therefore NEVER have
 # its parent rubric injected alongside it.
-GREEN_SUB_RUBRICS: frozenset[str] = frozenset(
-    {"AR-NW40", "AR-OW40", "AR-VS40", "BA-SH40"}
-)
+GREEN_SUB_RUBRICS: frozenset[str] = frozenset({"AR-NW40", "AR-OW40", "AR-VS40", "BA-SH40"})
 
 # ---------------------------------------------------------------------------
 # 🔴 RED — documented rationale, used ONLY for error messages
@@ -111,15 +118,9 @@ _REASON_ESTATE = (
 _REASON_CIVIL_STATUS = (
     "Bürgerrecht und Zivilstandswesen betreffen ausschliesslich natürliche Personen"
 )
-_REASON_COURT = (
-    "Gerichtliche Vorladungen und Entscheide nennen systematisch natürliche Personen"
-)
-_REASON_BUILDING = (
-    "Baugesuche nennen regelmässig Grundeigentümer:innen mit Namen und Adresse"
-)
-_REASON_LAND_REGISTRY = (
-    "Grundbuch-/Handänderungspublikationen nennen Eigentümer:innen namentlich"
-)
+_REASON_COURT = "Gerichtliche Vorladungen und Entscheide nennen systematisch natürliche Personen"
+_REASON_BUILDING = "Baugesuche nennen regelmässig Grundeigentümer:innen mit Namen und Adresse"
+_REASON_LAND_REGISTRY = "Grundbuch-/Handänderungspublikationen nennen Eigentümer:innen namentlich"
 
 RED_RUBRICS: dict[str, str] = {
     # Insolvency / debt collection
@@ -130,33 +131,58 @@ RED_RUBRICS: dict[str, str] = {
     "NA": _REASON_INSOLVENCY,
     # Estate / death
     "ES": _REASON_ESTATE,
-    "TE-AR": _REASON_ESTATE, "TE-BE": _REASON_ESTATE, "TE-BL": _REASON_ESTATE,
-    "TE-BS": _REASON_ESTATE, "TE-TI": _REASON_ESTATE, "TE-ZG": _REASON_ESTATE,
+    "TE-AR": _REASON_ESTATE,
+    "TE-BE": _REASON_ESTATE,
+    "TE-BL": _REASON_ESTATE,
+    "TE-BS": _REASON_ESTATE,
+    "TE-TI": _REASON_ESTATE,
+    "TE-ZG": _REASON_ESTATE,
     "TE-ZH": _REASON_ESTATE,
-    "VA-NW": _REASON_ESTATE, "VA-SH": _REASON_ESTATE, "VA-SO": _REASON_ESTATE,
-    "VA-SZ": _REASON_ESTATE, "VA-VS": _REASON_ESTATE,
+    "VA-NW": _REASON_ESTATE,
+    "VA-SH": _REASON_ESTATE,
+    "VA-SO": _REASON_ESTATE,
+    "VA-SZ": _REASON_ESTATE,
+    "VA-VS": _REASON_ESTATE,
     # Family / civil status / citizenship
-    "FZ-AR": _REASON_CIVIL_STATUS, "FZ-BE": _REASON_CIVIL_STATUS,
-    "FZ-BS": _REASON_CIVIL_STATUS, "FZ-ZH": _REASON_CIVIL_STATUS,
-    "BV-BE": _REASON_CIVIL_STATUS, "BV-BS": _REASON_CIVIL_STATUS,
+    "FZ-AR": _REASON_CIVIL_STATUS,
+    "FZ-BE": _REASON_CIVIL_STATUS,
+    "FZ-BS": _REASON_CIVIL_STATUS,
+    "FZ-ZH": _REASON_CIVIL_STATUS,
+    "BV-BE": _REASON_CIVIL_STATUS,
+    "BV-BS": _REASON_CIVIL_STATUS,
     "BV-ZH": _REASON_CIVIL_STATUS,
     # `BU-*` merges Bürgerrecht + Steuer- + Zivilstandswesen into one rubric in
     # NW/OW/SH/SO/SZ/VS. Matched by no prefix in the source table — six
     # cantons' civil-status data would otherwise have no explicit rationale.
-    "BU-NW": _REASON_CIVIL_STATUS, "BU-OW": _REASON_CIVIL_STATUS,
-    "BU-SH": _REASON_CIVIL_STATUS, "BU-SO": _REASON_CIVIL_STATUS,
-    "BU-SZ": _REASON_CIVIL_STATUS, "BU-VS": _REASON_CIVIL_STATUS,
+    "BU-NW": _REASON_CIVIL_STATUS,
+    "BU-OW": _REASON_CIVIL_STATUS,
+    "BU-SH": _REASON_CIVIL_STATUS,
+    "BU-SO": _REASON_CIVIL_STATUS,
+    "BU-SZ": _REASON_CIVIL_STATUS,
+    "BU-VS": _REASON_CIVIL_STATUS,
     # Courts / summons
     "UV": _REASON_COURT,
-    "GB-AR": _REASON_COURT, "GB-BE": _REASON_COURT, "GB-BL": _REASON_COURT,
-    "GB-BS": _REASON_COURT, "GB-TI": _REASON_COURT, "GB-ZG": _REASON_COURT,
+    "GB-AR": _REASON_COURT,
+    "GB-BE": _REASON_COURT,
+    "GB-BL": _REASON_COURT,
+    "GB-BS": _REASON_COURT,
+    "GB-TI": _REASON_COURT,
+    "GB-ZG": _REASON_COURT,
     "GB-ZH": _REASON_COURT,
-    "GE-NW": _REASON_COURT, "GE-OW": _REASON_COURT, "GE-SH": _REASON_COURT,
-    "GE-SO": _REASON_COURT, "GE-SZ": _REASON_COURT, "GE-VS": _REASON_COURT,
+    "GE-NW": _REASON_COURT,
+    "GE-OW": _REASON_COURT,
+    "GE-SH": _REASON_COURT,
+    "GE-SO": _REASON_COURT,
+    "GE-SZ": _REASON_COURT,
+    "GE-VS": _REASON_COURT,
     "SJ-BE": _REASON_COURT,
     # Building applications
-    "BP-AR": _REASON_BUILDING, "BP-BE": _REASON_BUILDING, "BP-BL": _REASON_BUILDING,
-    "BP-BS": _REASON_BUILDING, "BP-TI": _REASON_BUILDING, "BP-ZG": _REASON_BUILDING,
+    "BP-AR": _REASON_BUILDING,
+    "BP-BE": _REASON_BUILDING,
+    "BP-BL": _REASON_BUILDING,
+    "BP-BS": _REASON_BUILDING,
+    "BP-TI": _REASON_BUILDING,
+    "BP-ZG": _REASON_BUILDING,
     "BP-ZH": _REASON_BUILDING,
     # Land registry
     "GR-BL": _REASON_LAND_REGISTRY,
@@ -178,10 +204,16 @@ YELLOW_RUBRICS: dict[str, str] = {
     "AZ": "Anzeigen mit gemischtem Inhalt",
     "AB": "Arbeit — kann natürliche Personen nennen",
     "FM": "Finanzmarkt — kann natürliche Personen nennen",
-    "AI-AR": "Anzeigen und Inserate", "AI-BS": "Anzeigen und Inserate",
-    "AI-TI": "Anzeigen und Inserate", "AI-ZH": "Anzeigen und Inserate",
-    "SW-AR": "Steuerwesen", "SW-BL": "Steuerwesen", "SW-BS": "Steuerwesen",
-    "SW-TI": "Steuerwesen", "SW-ZG": "Steuerwesen", "SW-ZH": "Steuerwesen",
+    "AI-AR": "Anzeigen und Inserate",
+    "AI-BS": "Anzeigen und Inserate",
+    "AI-TI": "Anzeigen und Inserate",
+    "AI-ZH": "Anzeigen und Inserate",
+    "SW-AR": "Steuerwesen",
+    "SW-BL": "Steuerwesen",
+    "SW-BS": "Steuerwesen",
+    "SW-TI": "Steuerwesen",
+    "SW-ZG": "Steuerwesen",
+    "SW-ZH": "Steuerwesen",
     "AL-NW": "allgemeine Sammelrubrik mit gemischtem Inhalt",
     "AL-OW": "allgemeine Sammelrubrik mit gemischtem Inhalt",
     "AL-SH": "allgemeine Sammelrubrik mit gemischtem Inhalt",
@@ -205,8 +237,11 @@ YELLOW_RUBRICS: dict[str, str] = {
     "BE-BS": "Bewilligungen — können natürliche Personen nennen",
     "BE-ZG": "Bewilligungen — können natürliche Personen nennen",
     "EG-BE": "Entsendegesetz — kann natürliche Personen nennen",
-    "BW-BS": "Bildungswesen", "BW-TI": "Bildungswesen", "BW-ZG": "Bildungswesen",
-    "KW-BL": "Kirchenwesen", "KW-BS": "Kirchenwesen",
+    "BW-BS": "Bildungswesen",
+    "BW-TI": "Bildungswesen",
+    "BW-ZG": "Bildungswesen",
+    "KW-BL": "Kirchenwesen",
+    "KW-BS": "Kirchenwesen",
     "AW": "abhandengekommene Wertpapiere",
     "BB": "weitere Register und Bekanntmachungen Bund",
     "EK": "Edelmetallkontrolle",
@@ -249,14 +284,11 @@ def explain_blocked(code: str, kind: str = "rubric") -> str:
 
     if klass == "red":
         why = RED_RUBRICS[code]
-        headline = (
-            f"Die {label} «{code}» ist in diesem Server bewusst nicht erschlossen: {why}."
-        )
+        headline = f"Die {label} «{code}» ist in diesem Server bewusst nicht erschlossen: {why}."
     elif klass == "yellow":
         why = YELLOW_RUBRICS[code]
         headline = (
-            f"Die {label} «{code}» ist noch nicht freigegeben ({why}) und daher "
-            "nicht durchsuchbar."
+            f"Die {label} «{code}» ist noch nicht freigegeben ({why}) und daher nicht durchsuchbar."
         )
     else:
         headline = (

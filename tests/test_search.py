@@ -146,7 +146,7 @@ async def test_identical_body_language_pair_collapses():
 
 @pytest.mark.asyncio
 async def test_correction_never_collapses_into_its_tender():
-    """"Bando - X" and "Rettifica Bando - X" are different publications.
+    """ "Bando - X" and "Rettifica Bando - X" are different publications.
 
     Same rubric, same sub-rubric, same day, same body — only the form prefix
     separates them. Collapsing them would silently drop a correction.
@@ -192,12 +192,22 @@ async def test_unknown_form_prefix_is_never_collapsed():
     from amtsblatt_mcp.server import _collapse_language_variants
 
     rows = [
-        {"id": "1", "rubric": "OB-TI", "subRubric": "OB-TI10",
-         "publicationDate": "2026-07-24", "language": "it",
-         "title": "Comunicazione straordinaria - Progetto X"},
-        {"id": "2", "rubric": "OB-TI", "subRubric": "OB-TI10",
-         "publicationDate": "2026-07-24", "language": "fr",
-         "title": "Communication extraordinaire - Progetto X"},
+        {
+            "id": "1",
+            "rubric": "OB-TI",
+            "subRubric": "OB-TI10",
+            "publicationDate": "2026-07-24",
+            "language": "it",
+            "title": "Comunicazione straordinaria - Progetto X",
+        },
+        {
+            "id": "2",
+            "rubric": "OB-TI",
+            "subRubric": "OB-TI10",
+            "publicationDate": "2026-07-24",
+            "language": "fr",
+            "title": "Communication extraordinaire - Progetto X",
+        },
     ]
     assert len(_collapse_language_variants(rows, "de")) == 2
 
@@ -227,9 +237,7 @@ async def test_pagination_across_a_page_boundary():
     _seed_rubrics()
     with respx.mock:
         respx.get(f"{GAZETTE_BASE}/publications").mock(
-            return_value=httpx.Response(
-                200, json={**MOCK_SEARCH, "total": 3}
-            )
+            return_value=httpx.Response(200, json={**MOCK_SEARCH, "total": 3})
         )
         page0 = await gazette_search_publications(SearchInput(rubric="OB-BS", limit=2, page=0))
     assert "page=1" in page0, "must tell the caller how to fetch the rest"
@@ -530,20 +538,3 @@ async def test_silently_ignored_filter_is_detected_by_the_plausibility_guard():
 # ---------------------------------------------------------------------------
 # Live tests (excluded from CI with -m "not live")
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.live
-@pytest.mark.asyncio
-async def test_live_procurement_basel_stadt():
-    _reset_rubrics_cache()
-    result = await gazette_search_procurement(ProcurementInput(canton="BS", limit=5))
-    assert "amtsblattportal.ch" in result
-    assert "Fehler" not in result
-
-
-@pytest.mark.live
-@pytest.mark.asyncio
-async def test_live_blocked_rubric_still_refuses():
-    _reset_rubrics_cache()
-    result = await gazette_search_publications(SearchInput(rubric="KK", keyword="Muster"))
-    assert "fail-closed" in result

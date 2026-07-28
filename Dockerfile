@@ -37,5 +37,13 @@ COPY --from=builder --chown=10001:10001 /app/.venv /app/.venv
 USER 10001:10001
 EXPOSE 8000
 
+# SCALE-004: a liveness signal for the load balancer. The SSE transport answers
+# on MCP_HOST:PORT; a bare TCP connect is used rather than an HTTP request
+# because every HTTP path is behind the bearer gate and would answer 401 —
+# a health check that reports "unhealthy" for a correctly-secured server is
+# worse than none.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD python -c "import os,socket,sys; s=socket.create_connection((os.environ.get('MCP_HOST','127.0.0.1'), int(os.environ.get('PORT','8000'))), 2); s.close()" || exit 1
+
 # MCP_API_KEY must be provided at runtime — the server fails loud if missing.
 CMD ["python", "-m", "amtsblatt_mcp.server"]

@@ -115,8 +115,10 @@ def test_known_green_rubrics_are_released():
 def test_green_sub_rubrics_have_blocked_parents():
     """The non-simap procurement sub-rubrics sit under parents that stay closed."""
     for sub, parent in (
-        ("AR-NW40", "AR-NW"), ("AR-OW40", "AR-OW"),
-        ("AR-VS40", "AR-VS"), ("BA-SH40", "BA-SH"),
+        ("AR-NW40", "AR-NW"),
+        ("AR-OW40", "AR-OW"),
+        ("AR-VS40", "AR-VS"),
+        ("BA-SH40", "BA-SH"),
     ):
         assert is_green(sub) is True
         assert is_green(parent) is False, f"parent {parent} must stay blocked"
@@ -200,9 +202,7 @@ async def test_blocked_rubric_returns_explanation_and_makes_no_call(blocked):
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             return_value=httpx.Response(200, json=MOCK_SEARCH)
         )
-        result = await gazette_search_publications(
-            SearchInput(rubric=blocked, keyword="Muster")
-        )
+        result = await gazette_search_publications(SearchInput(rubric=blocked, keyword="Muster"))
 
     # No data reached the user...
     assert route.call_count == 0
@@ -325,3 +325,82 @@ async def test_invalid_code_suggestions_never_name_a_blocked_rubric():
     message = str(exc.value)
     for red in ("KK", "SB", "NA", "ES"):
         assert f" {red}," not in message and not message.endswith(f" {red}.")
+
+
+# ---------------------------------------------------------------------------
+# OPS-001: gazette_list_rubrics was at 2 unit tests against a floor of 5
+# ---------------------------------------------------------------------------
+
+
+class TestListRubricsCoverage:
+    """The taxonomy tool is the one a caller reaches for *first*.
+
+    It was the least-tested tool in the server, which is the wrong way round:
+    a wrong answer here sends every subsequent query to the wrong rubric.
+
+    Note the listing is built from the *upstream* rubric list intersected with
+    the green set — it is not a static table. Two of these tests exist because
+    that surprised the author: an empty upstream response yields an empty
+    listing, and an unreachable upstream yields an error rather than a
+    fallback.
+    """
+
+    @pytest.mark.asyncio
+    async def test_green_listing_names_no_blocked_rubric(self):
+        """Naming a red rubric here would tell a caller exactly what to try
+        next, which is the opposite of what the allow-list is for."""
+        _reset_rubrics_cache()
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+                return_value=httpx.Response(200, json=MOCK_RUBRICS)
+            )
+            result = await gazette_list_rubrics(RubricsInput())
+        for red in sorted(RED_RUBRICS):
+            assert f"`{red}`" not in result, f"blocked rubric {red} named in the green listing"
+
+    @pytest.mark.asyncio
+    async def test_empty_upstream_yields_an_empty_listing_not_a_stale_one(self):
+        """The listing mirrors the upstream taxonomy. If the upstream returns
+        nothing, saying so is correct — inventing the green set from the static
+        table would claim rubrics the source no longer publishes."""
+        _reset_rubrics_cache()
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(return_value=httpx.Response(200, json=[]))
+            result = await gazette_list_rubrics(RubricsInput())
+        assert "Total: **0**" in result
+
+    @pytest.mark.asyncio
+    async def test_unreachable_upstream_is_an_error_not_an_empty_result(self):
+        """The distinction this whole server is built around: "nothing found"
+        and "could not look" must never render the same."""
+        _reset_rubrics_cache()
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(side_effect=httpx.ConnectError("down"))
+            result = await gazette_list_rubrics(RubricsInput())
+        assert "KEIN leeres Ergebnis" in result
+
+    @pytest.mark.asyncio
+    async def test_json_format_is_machine_readable(self):
+        _reset_rubrics_cache()
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+                return_value=httpx.Response(200, json=MOCK_RUBRICS)
+            )
+            result = await gazette_list_rubrics(RubricsInput(response_format="json"))
+        import json
+
+        json.loads(result)
+
+    @pytest.mark.asyncio
+    async def test_every_green_rubric_the_upstream_offers_is_listed(self):
+        """The general form: a listing that drops a green rubric the source
+        does publish makes it undiscoverable even though the server serves it."""
+        _reset_rubrics_cache()
+        with respx.mock:
+            respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+                return_value=httpx.Response(200, json=MOCK_RUBRICS)
+            )
+            result = await gazette_list_rubrics(RubricsInput())
+        offered = {r["code"] for r in MOCK_RUBRICS if r.get("code")}
+        missing = [r for r in offered & set(GREEN_RUBRICS) if r not in result]
+        assert not missing, f"green rubrics missing from the listing: {missing}"
