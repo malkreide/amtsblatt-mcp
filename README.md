@@ -311,6 +311,93 @@ authentication, so no bulk dump is maintained.
 - **No push.** Polling only; no subscription or webhook mechanism.
 - **Legally binding text** is the signed PDF, not this API.
 
+## MCP Protocol Version
+
+| | |
+|---|---|
+| **Supported spec version** | `2025-11-25` |
+| **Pinned in** | `MCP_PROTOCOL_VERSION` in [`server.py`](src/amtsblatt_mcp/server.py) |
+| **SDK** | `mcp[cli]>=1.28.1` |
+
+The MCP Python SDK negotiates the protocol version in the session layer and
+offers no constructor parameter for it, so the version cannot be pinned by
+configuration. It is pinned as a declared constant and enforced by detection:
+
+- **At runtime**, a mismatch logs a `protocol_version_drift` event at `WARNING`.
+  The server keeps working.
+- **In CI**, `tests/test_protocol_version.py` fails.
+
+An SDK bump should break *our* build, not the runtime of someone who upgraded
+`mcp` in their own environment.
+
+### Update policy
+
+- Dependabot opens SDK update PRs monthly (`.github/dependabot.yml`).
+- When an update moves the protocol version, the CI test fails. The fix is
+  **not** to edit the constant blindly: read the spec changelog, verify the
+  server still behaves — especially the green allow-list invariants — then bump
+  the constant, this section and `CHANGELOG.md` in one commit.
+- Protocol-version bumps are called out explicitly in `CHANGELOG.md`, not folded
+  into a dependency-bump line.
+
+---
+
+## Primitives: tools only
+
+This server exposes **tools** and neither resources nor prompts. A decision, not
+an omission (ARCH-008).
+
+**Why not resources.** Resources address identifiable, listable content the
+client can enumerate and cache. This corpus is 2.79 million publications that
+grows daily, and — more importantly — **not all of it is servable**. Rubrics
+carrying systematic personal data are excluded by design, and that exclusion is
+enforced at two points: a pre-request green gate on the filters, and a
+post-fetch gate on the returned document.
+
+A resource URI would put a publication id in the client's hands as an
+enumerable address. Since ids are opaque, the rubric behind one cannot be known
+until the document is fetched — which is exactly why the post-fetch gate exists.
+Exposing publications as resources would mean either enumerating ids we have not
+gated yet, or gating at fetch time anyway, at which point the resource
+abstraction buys nothing and costs a second content path to keep the guarantee
+on. This repo has already learned that lesson once: the aggregated tool needed
+the gate extracted into a shared helper precisely because a second path to
+content is where such guarantees quietly stop holding.
+
+One candidate was checked concretely:
+
+| Candidate | Why it stays a tool |
+|---|---|
+| `gazette_list_rubrics` | Genuinely resource-shaped — a finite, slow-changing taxonomy, already cached with a TTL. But its whole purpose is to communicate that *listed ≠ queryable*: it renders traffic-light classes and the reason each blocked rubric is blocked. As a resource that framing would be a document the model may or may not read; as a tool it is an answer to a question the model asked. |
+
+**Why not prompts.** Question templates would duplicate guidance the tool
+docstrings already carry, in a second place that can drift out of sync with the
+allow-list. Given that the docstrings are what tell the model which rubrics are
+reachable, one source is safer than two.
+
+### Return shapes: rendered text, not models
+
+Tools return `str` — Markdown by default, JSON via `response_format='json'` —
+rather than Pydantic models. This is a **documented deviation** from SDK-002,
+made deliberately rather than by neglect.
+
+The rendered output is not a serialisation of an internal object; it is composed
+for the reader. It carries the provenance line, the scope statement
+(`green_rubrics_only`), the deduplication warning when language variants were
+merged, and the explanation a blocked rubric returns *instead of* data. Those
+are the parts that keep the model from drawing wrong conclusions, and they are
+prose, not fields.
+
+Returning a model would either drop them or smuggle them back in as string
+fields, which is the same thing with more ceremony. The `json` format already
+covers the machine-readable case for callers that want it.
+
+**What would change this:** a caller that needs to compute over results rather
+than read them. At that point the right move is typed models on the JSON path
+specifically, not a wholesale change of what every tool returns.
+
+---
+
 ## Testing
 
 ```bash

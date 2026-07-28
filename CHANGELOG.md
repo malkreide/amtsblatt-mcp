@@ -4,6 +4,66 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-07-28
+
+Closes ARCH-008 and ARCH-012 from the 2026-07-28 re-audit, and records the
+accepted deviation on SDK-002. Documentation and one constant — no behaviour
+changes.
+
+### ARCH-012 — MCP protocol version pinned
+
+**Spec version `2025-11-25`** is now pinned as `MCP_PROTOCOL_VERSION` in
+`server.py`, with a new *MCP Protocol Version* section in the README stating the
+version, where it lives, and the update policy.
+
+The SDK offers no way to configure this: negotiation happens in the session
+layer and neither `FastMCP.__init__` nor `Settings` takes the parameter. So the
+pin is a declared constant plus detection — a mismatch logs
+`protocol_version_drift` at `WARNING` at runtime, and `tests/test_protocol_version.py`
+fails in CI.
+
+That split is the point: an SDK bump should break *our* build, not the runtime
+of someone who upgraded `mcp` downstream.
+
+Future protocol-version bumps get their own CHANGELOG line rather than being
+folded into a dependency-bump entry.
+
+### ARCH-008 — tools-only rationale documented
+
+The check accepts either two of the three primitives or a documented reason for
+using one. The README now carries the reason, and it is specific to this server
+rather than generic.
+
+The core of it: publication ids are opaque, so the rubric behind one cannot be
+known until the document is fetched — which is why the post-fetch green gate
+exists. Exposing publications as resources would mean either handing out
+enumerable ids that have not been gated, or gating at fetch time anyway, at
+which point the resource abstraction buys nothing and costs a second content
+path to keep the guarantee on. v0.6.0 already showed what that costs: the
+aggregated tool needed the gate extracted into a shared helper precisely because
+a second path is where such guarantees quietly stop holding.
+
+`gazette_list_rubrics` was checked concretely as a resource candidate and
+rejected with a reason, rather than by blanket policy.
+
+### SDK-002 — accepted deviation, documented
+
+Tools return `str` rather than Pydantic models. The rendered output is composed
+for the reader, not serialised from an object: it carries provenance, the
+`green_rubrics_only` scope statement, the deduplication warning, and the
+explanation a blocked rubric returns instead of data. Those are prose, not
+fields. The `json` response format already covers machine-readable callers.
+
+The README states what would change this: a caller that computes over results
+rather than reading them, at which point typed models belong on the JSON path
+specifically — not on every tool's return.
+
+### Added
+
+- `tests/test_protocol_version.py` — 4 tests: the pin matches the installed SDK,
+  it is a dated spec version rather than a moving target, and the README names
+  both the version and an update policy
+
 ## [0.6.0] — 2026-07-28
 
 Closes ARCH-007, the last open finding from the 2026-07-27 re-audit. Additive —
