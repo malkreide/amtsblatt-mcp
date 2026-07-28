@@ -41,6 +41,15 @@ could never have caused a request to go there. The override's only reachable
 effects were widening what a followed redirect may reach, and disabling the
 server outright if an override omitted the gazette host.
 
+**Closed in 0.10.0, not yet re-measured.** `OPS-003` (Phase 1 declared in both
+READMEs, `ROADMAP.md` written), `SEC-013` (`docs/secret-management.md`),
+`CH-004` (attribution names the licence position, not just the operator),
+`SCALE-004` (a `HEALTHCHECK` using a bare TCP connect, since every HTTP path is
+behind the bearer gate and would answer 401) and `SCALE-006` (requests/limits
+split plus a raised FD limit). `SEC-004` improved but stays `partial`: HTTPS is
+now enforced before egress, while the resolved-IP blocklist and DNS pinning
+remain open.
+
 Two remain worth naming:
 
 - **`OPS-001` was closed in the sister server and never ported here.**

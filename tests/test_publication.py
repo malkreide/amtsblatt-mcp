@@ -12,6 +12,7 @@ import respx
 
 from amtsblatt_mcp.server import (
     ALLOWED_HOSTS,
+    ATTRIBUTION,
     GAZETTE_BASE,
     EgressDenied,
     PublicationInput,
@@ -373,3 +374,75 @@ async def test_get_publication_flags_a_gazette_only_record():
         )
     assert "keine simap-Nummer" in result
     assert "nicht auffindbar" in result
+
+
+# ---------------------------------------------------------------------------
+# Tier-A audit remediation: SEC-004, SEC-013, OPS-003, CH-004
+# ---------------------------------------------------------------------------
+
+
+class TestHttpsEnforcement:
+    """SEC-004: the host allow-list alone left plaintext reachable."""
+
+    @respx.mock
+    async def test_plaintext_to_an_allowed_host_is_refused(self):
+        """`http://amtsblattportal.ch/...` passes a hostname allow-list while
+        sending the request in the clear — a gap that reads as covered."""
+        respx.get("http://amtsblattportal.ch/api/v1/rubrics").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        async with _make_client() as client:
+            with pytest.raises(httpx.RequestError, match="HTTPS is required"):
+                await client.get("http://amtsblattportal.ch/api/v1/rubrics")
+
+    @respx.mock
+    async def test_https_to_an_allowed_host_still_passes(self):
+        """The scheme check must not have broken the normal path."""
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        async with _make_client() as client:
+            assert (await client.get(f"{GAZETTE_BASE}/rubrics")).status_code == 200
+
+    @respx.mock
+    async def test_scheme_is_reported_before_the_host(self):
+        """A plaintext URL to a foreign host must name the scheme, not the host.
+
+        Reporting "host not allow-listed" for an `http://` URL sends the reader
+        after the wrong problem.
+        """
+        async with _make_client() as client:
+            with pytest.raises(httpx.RequestError, match="HTTPS is required"):
+                await client.get("http://evil.example/steal")
+
+
+class TestRequiredAuditDocuments:
+    @pytest.mark.parametrize("path", ["docs/secret-management.md", "ROADMAP.md"])
+    def test_document_exists(self, path):
+        """SEC-013 and OPS-003 each require a specific file on disk."""
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parents[1]
+        assert (root / path).is_file(), f"{path} is required by the audit catalogue"
+
+    def test_readme_declares_a_phase(self):
+        """OPS-003: a phase that is not declared cannot be checked against the
+        tool annotations, which is the whole point of declaring it."""
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parents[1]
+        for doc in ("README.md", "README.de.md"):
+            text = (root / doc).read_text(encoding="utf-8")
+            assert "Phase 1" in text, f"{doc} declares no phase"
+
+
+class TestAttribution:
+    def test_attribution_names_the_licence_position(self):
+        """CH-004: naming only the operator left the licence implicit.
+
+        Guessing wrong in either direction is a problem: assuming CC BY invents
+        a grant that was never made; assuming all-rights-reserved blocks a reuse
+        the Confederation permits.
+        """
+        assert "Licence:" in ATTRIBUTION
+        assert "amtsblattportal.ch" in ATTRIBUTION

@@ -27,4 +27,24 @@ services:
     mem_limit: 256m
     cpus: 0.5
     pids_limit: 128
+    # Reservations are the requests side of the requests/limits split: the
+    # scheduler guarantees this much and the limits above cap the burst. Set
+    # below the limits deliberately — equal values remove the headroom that
+    # makes a transient spike survivable instead of an OOM kill.
+    # Only `reservations` here: Compose refuses a project that sets limits in
+    # both the short form above and `deploy.resources.limits` ("can't set
+    # distinct values on 'pids_limit' and 'deploy.resources.limits.pids'"), and
+    # the short form is what `docker compose up` honours outside Swarm.
+    deploy:
+      resources:
+        reservations:
+          memory: 128M
+          cpus: "0.25"
+    # The server holds one pooled upstream connection plus inbound SSE streams;
+    # the default soft limit of 1024 is low once a handful of clients hold
+    # long-lived streams open.
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
     restart: unless-stopped

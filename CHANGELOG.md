@@ -4,6 +4,69 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] — 2026-07-28
+
+Tier-A audit remediation: **SEC-004, SEC-013, OPS-003, CH-004, SCALE-004,
+SCALE-006, OPS-002**.
+
+### SEC-004 — HTTPS is now enforced, not assumed
+
+The egress hook checked the host and not the scheme, which left a gap that read
+as covered: `http://amtsblattportal.ch/...` passes a hostname allow-list while
+sending the request in the clear. The scheme is checked first, so a plaintext
+URL reports the scheme rather than sending the reader after the wrong problem.
+
+Still open in this check: the resolved-IP blocklist and DNS pinning. `SEC-004`
+therefore stays `partial` — this closes one criterion of three.
+
+### SCALE-004 — HEALTHCHECK
+
+A bare TCP connect rather than an HTTP request: every HTTP path sits behind the
+bearer gate and would answer 401, and a health check reporting "unhealthy" for a
+correctly-secured server is worse than none.
+
+### SCALE-006 — requests/limits split, FD limit
+
+`deploy.resources.reservations` set below the existing limits, so a transient
+spike has headroom instead of being an OOM kill. `ulimits.nofile` raised to
+4096/8192 — the default 1024 is low once a handful of clients hold long-lived
+SSE streams open.
+
+Only `reservations` under `deploy`: Compose refuses a project that sets limits
+in both the short form and `deploy.resources.limits` ("can't set distinct values
+on 'pids_limit' and 'deploy.resources.limits.pids'"), and the short form is what
+`docker compose up` honours outside Swarm. Verified with `docker compose config`.
+
+### OPS-003 — phase declared, roadmap written
+
+`README.md` and `README.de.md` now declare Phase 1, and `ROADMAP.md` carries the
+phase-specific backlog. The roadmap separates *open work* from *blocked on
+infrastructure* (`SEC-002`, `SEC-003`, `SEC-014`, `SEC-015`, `SCALE-002/003`,
+`SEC-009`) and from *deliberately not planned* (`SDK-002`) — otherwise the
+second and third read as neglect.
+
+### SEC-013 — `docs/secret-management.md`
+
+States the Stufe-1 position and why it is defensible: the one secret
+(`MCP_API_KEY`) guards access to a read-only public-data server, is never
+forwarded upstream, and cannot be replayed against amtsblattportal.ch. Documents
+the `SecretStr` handling, the constant-time comparison, the rotation procedure
+and its lack of an overlap window.
+
+### CH-004 — attribution names the licence
+
+Naming only the operator left the licence position implicit. Guessing wrong in
+either direction is a problem: assuming CC BY invents a grant that was never
+made; assuming all-rights-reserved blocks a reuse the Confederation permits.
+
+### OPS-002 — README parity
+
+`README.de.md` gains *MCP Protocol Version* and *Primitive: nur Tools*. Both
+files now carry 20 top-level sections in the same order.
+
+All new guards mutation-tested: dropping the HTTPS check fails 2 tests, removing
+the licence fails 1, deleting `ROADMAP.md` fails 1.
+
 ## [0.9.0] — 2026-07-28
 
 Closes **SEC-021**: the egress allow-list is no longer configurable.

@@ -219,6 +219,24 @@ unterschiedliche Nutzungsbedingungen — und ein fail-closed Rubrik-Gate, das nu
 etwas wert ist, solange es *jedes* Tool des Servers abdeckt. Die Zahlen stehen in
 [`docs/procurement-coverage.md`](docs/procurement-coverage.md).
 
+## Reifegrad & Phase
+
+**Phase 1 — rein lesend.** Alle sechs Tools sind lesend; es gibt keinen
+Schreibpfad und es ist keiner geplant. Siehe [ROADMAP.md](ROADMAP.md) für den
+phasenspezifischen Backlog, das bewusst nicht Geplante und die Voraussetzungen
+eines Phasenwechsels.
+
+Die wichtigere Einschränkung ist hier nicht die Phase, sondern die **grüne
+Allow-List** — Rubriken mit systematischen Personendaten sind nicht abfragbar,
+im Code durchgesetzt und nach jedem Abruf erneut geprüft. Das ändert sich mit
+der Phase nicht. Siehe [Datenschutz & Scope](#datenschutz--scope).
+
+SDK- und Abhängigkeits-Updates kommen als
+[Dependabot](.github/dependabot.yml)-PRs, damit eine brechende Protokoll- oder
+SDK-Änderung bewusst geprüft wird statt still zu driften.
+
+---
+
 ## Architektur
 
 ```
@@ -291,6 +309,64 @@ Authentifizierung, daher wird kein Bulk-Dump gepflegt.
   erreichbar. Details in [`docs/procurement-coverage.md`](docs/procurement-coverage.md).
 - **Kein Push.** Nur Polling; kein Abo- oder Webhook-Mechanismus.
 - **Rechtsverbindlich** ist das signierte PDF, nicht diese API.
+
+## MCP Protocol Version
+
+| | |
+|---|---|
+| **Unterstützte Spec-Version** | `2025-11-25` |
+| **Gepinnt in** | `MCP_PROTOCOL_VERSION` in [`server.py`](src/amtsblatt_mcp/server.py) |
+| **SDK** | `mcp[cli]>=1.28.1` |
+
+Das MCP-Python-SDK handelt die Protokollversion in der Session-Schicht aus und
+bietet dafür keinen Konstruktor-Parameter — die Version lässt sich also nicht
+per Konfiguration pinnen. Sie ist als deklarierte Konstante gepinnt und wird
+durch Erkennung durchgesetzt:
+
+- **Zur Laufzeit** loggt eine Abweichung zwischen Konstante und SDK ein
+  `protocol_version_drift`-Event auf `WARNING`. Der Server läuft weiter.
+- **In der CI** schlägt `tests/test_protocol_version.py` fehl.
+
+Diese Trennung ist Absicht: ein SDK-Bump soll *unseren* Build brechen, nicht die
+Laufzeit von jemandem, der `mcp` in seiner eigenen Umgebung aktualisiert hat.
+
+### Update-Policy
+
+- Dependabot öffnet monatlich SDK-Update-PRs (`.github/dependabot.yml`).
+- Verschiebt ein SDK-Update die Protokollversion, schlägt der CI-Test fehl. Die
+  Lösung ist **nicht**, die Konstante blind anzupassen: erst das Spec-Changelog
+  lesen, das Serververhalten prüfen, dann Konstante, diesen Abschnitt und
+  `CHANGELOG.md` in einem Commit anheben.
+- Protokollversions-Bumps stehen explizit im `CHANGELOG.md`.
+
+---
+
+## Primitive: nur Tools
+
+Dieser Server exponiert **Tools** und weder Resources noch Prompts — eine
+Entscheidung, kein Versäumnis (ARCH-008).
+
+**Warum keine Resources.** Resources adressieren identifizierbare, auflistbare
+Inhalte, die ein Client aufzählen und cachen kann. Publikations-IDs sind hier
+opak, und welche Rubrik hinter einer ID steht, ist erst *nach* dem Abruf
+bekannt — genau deshalb existiert das Post-Fetch-Green-Gate. Publikationen als
+Resources auszugeben hiesse entweder ungegatete IDs herauszugeben oder trotzdem
+beim Abruf zu gaten; dann bringt die Abstraktion nichts und kostet einen zweiten
+Inhaltspfad. Version 0.6.0 hat gezeigt, was das kostet: das aggregierte Tool
+brauchte das Gate in einem gemeinsamen Helper, weil ein zweiter Pfad genau die
+Stelle ist, an der solche Garantien still aufhören zu gelten.
+
+`gazette_list_rubrics` wurde konkret als Resource-Kandidat geprüft: die
+Taxonomie ist endlich und langsam veränderlich. Sie bleibt ein Tool, weil sie
+gefiltert und erklärt wird (grün/gelb/rot mit Begründung) — eine Resource würde
+die rohe Liste liefern und die Begründung verlieren, die den Unterschied
+zwischen «nicht gefunden» und «bewusst nicht angeboten» ausmacht.
+
+**Warum keine Prompts.** Die Tool-Docstrings tragen die Anleitung dort, wo das
+Modell sie liest; Prompts würden sie an einer zweiten, driftfähigen Stelle
+duplizieren.
+
+---
 
 ## Tests
 

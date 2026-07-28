@@ -54,9 +54,16 @@ configure_logging()
 GAZETTE_BASE = "https://amtsblattportal.ch/api/v1"
 GAZETTE_WEB = "https://www.amtsblattportal.ch/#!/search/publications/detail"
 
+# CH-004: attribution names the source *and* the terms it is reused under.
+# Naming only the operator left the licence position implicit, which a reader
+# has to guess at — and guessing wrong in either direction is a problem:
+# assuming CC BY invents a grant that was never made, assuming "all rights
+# reserved" blocks a reuse the Confederation permits.
 ATTRIBUTION = (
     "Data: amtsblattportal.ch (SHAB and cantonal gazettes) — "
-    "SECO / Swiss Confederation. No liability for content "
+    "SECO / Swiss Confederation. Licence: no explicit open-data licence is "
+    "published; reuse follows the amtsblattportal.ch terms of use "
+    "(www.amtsblattportal.ch). No liability for content "
     "of individual publications; only the signed PDF is legally binding."
 )
 
@@ -334,6 +341,24 @@ async def _enforce_egress_allowlist(request: httpx.Request) -> None:
     hop when `follow_redirects=True`), so an unexpected 3xx Location cannot
     exfiltrate the request.
     """
+    # SEC-004: the scheme is checked as well as the host. Checking only the
+    # host left a gap that reads as covered — `http://amtsblattportal.ch/...`
+    # passes an allow-list keyed on hostname while sending the request in the
+    # clear. Checked first, so a plaintext URL reports the scheme rather than
+    # sending the reader after the wrong problem.
+    if request.url.scheme != "https":
+        log_event(
+            logging.ERROR,
+            "egress_denied",
+            reason="non_https",
+            scheme=request.url.scheme,
+            url=str(request.url),
+        )
+        raise EgressDenied(
+            f"Egress over {request.url.scheme!r} is refused; HTTPS is required",
+            request=request,
+        )
+
     host = (request.url.host or "").lower()
     if host not in ALLOWED_HOSTS:
         log_event(
