@@ -67,9 +67,29 @@ jobs:
 
       # Keep server.json in lock-step with the release tag, so the MCP
       # Registry entry and the PyPI package always report the same version.
-      - name: Sync server.json version to the release tag
+      - name: Sync server.json version to the published artifact
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          # pyproject.toml is the single source of truth: it is what the
+          # artifact uploaded to PyPI was built from, so it is the only
+          # version the registry can find there. The tag must agree with it —
+          # otherwise PyPI receives one version and the registry is told to
+          # look for another, and the publish fails with a 404 that reads like
+          # a PyPI propagation delay but never resolves.
+          PYPROJECT_VERSION="$(grep -m1 '^version' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [ -z "$PYPROJECT_VERSION" ]; then
+            echo "::error::could not read version from pyproject.toml"
+            exit 1
+          fi
+
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
+              echo "::error::tag $GITHUB_REF_NAME implies version $TAG_VERSION, but pyproject.toml says $PYPROJECT_VERSION. PyPI received $PYPROJECT_VERSION; the registry would look for $TAG_VERSION and fail."
+              exit 1
+            fi
+          fi
+
+          VERSION="$PYPROJECT_VERSION"
           jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' \
             server.json > server.tmp && mv server.tmp server.json
           echo "server.json set to version $VERSION"

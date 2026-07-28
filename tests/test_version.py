@@ -11,6 +11,7 @@ test is what keeps a fourth literal from appearing.
 
 from __future__ import annotations
 
+import json
 import pathlib
 import re
 
@@ -55,3 +56,31 @@ def test_no_hardcoded_version_literals_remain_in_src() -> None:
         "hardcoded version literal(s) found; read importlib.metadata instead:\n"
         + "\n".join(offenders)
     )
+
+
+# --- server.json (MCP registry manifest) ----------------------------------
+#
+# The companion swiss-procurement-mcp hit this in production: server.json
+# carried its own copy of the version, drifted, and the registry publish
+# failed looking for a PyPI release that had never existed. The error reads
+# like a propagation delay, so retrying looks like the fix and never is.
+
+
+def _server_json() -> dict:
+    path = pathlib.Path(__file__).resolve().parents[1] / "server.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_server_json_version_matches_pyproject() -> None:
+    assert _server_json()["version"] == _declared_version()
+
+
+def test_server_json_package_version_matches_pyproject() -> None:
+    """The registry validates *this* field against PyPI, not the top-level one."""
+    packages = _server_json()["packages"]
+    assert packages, "server.json declares no packages"
+    for pkg in packages:
+        assert pkg["version"] == _declared_version(), (
+            f"package {pkg.get('identifier')!r} pins {pkg['version']}, "
+            f"pyproject says {_declared_version()}"
+        )
