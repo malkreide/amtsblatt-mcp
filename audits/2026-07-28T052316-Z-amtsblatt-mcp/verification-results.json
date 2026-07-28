@@ -1,0 +1,464 @@
+{
+  "audit_meta": {
+    "server_name": "amtsblatt-mcp",
+    "run_id": "2026-07-28T052316-Z-amtsblatt-mcp"
+  },
+  "policy": "fail-or-partial",
+  "results": {
+    "ARCH-001": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "All 5 tools carry a leading gazette_ prefix (server.py:1247,1426,1583,1715,1853)",
+        "snake_case throughout, no spaces, dots, brackets or special characters",
+        "Each docstring opens with the use case, not just the function",
+        "tests/test_tool_naming.py asserts the prefix, the exact surface, and that the prefix leads rather than repeats"
+      ],
+      "gaps": []
+    },
+    "ARCH-002": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Multi-paragraph German docstrings plus a FastMCP instructions block",
+        "search_gazette_procurement now states the mirror relationship and names the simap-free exception"
+      ],
+      "gaps": []
+    },
+    "ARCH-003": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Blocked rubric returns an explanation with zero HTTP calls",
+        "A canton with no active rubric gets the simap explainer; VS/OW/SH now return their native sub-rubric instead"
+      ],
+      "gaps": []
+    },
+    "ARCH-004": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-005": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "critical",
+      "evidence": [
+        "gitleaks CI workflow (.github/workflows/security.yml) on push and PR with fetch-depth: 0, so a secret in any past commit is caught",
+        ".env.example with placeholders committed; .gitignore covers .env and .env.* with an explicit !.env.example",
+        "MCP_API_KEY held as pydantic SecretStr, unwrapped only at the constant-time comparison; BearerAuthMiddleware raises TypeError on a bare str so the old shape cannot return silently",
+        "No secrets in source; the key is read from the environment at startup and the server exits loudly when it is missing"
+      ],
+      "gaps": []
+    },
+    "ARCH-006": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-007": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Aggregated tool gazette_search_detailed: search plus full text of the top top_n hits in one call (server.py)",
+        "asyncio.gather fans the detail fetches out concurrently, bounded by GAZETTE_MAX_DETAIL_N = 5",
+        "The docstring states the aggregated character explicitly and says when to prefer the single-purpose tools instead",
+        "Anchor demo query answerable in <= 2 calls; with rubric='OB-<canton>' in one",
+        "Results are self-contained: publication body, rubric, date and deadline are returned, not ids for a follow-up call",
+        "The post-fetch green gate moved into a shared _fetch_publication_gated() helper so aggregation cannot bypass it; asserted on the aggregated path and verified by mutation (tests/test_aggregation.py)"
+      ],
+      "gaps": []
+    },
+    "ARCH-008": {
+      "status": "partial",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "Tools only; list_rubrics and gazette_source_status are Resource candidates"
+      ],
+      "gaps": [
+        "No Resources, no Prompts, no documented tools-only rationale (unchanged since the last run)"
+      ]
+    },
+    "ARCH-009": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-011": {
+      "status": "pass",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "ARCH-012": {
+      "status": "partial",
+      "category": "ARCH",
+      "severity": "medium",
+      "evidence": [
+        "CHANGELOG.md in Keep-a-Changelog format, three releases documented since the last audit",
+        "Dependabot active"
+      ],
+      "gaps": [
+        "protocolVersion still not pinned anywhere; FastMCP default in use (unchanged since the last run)"
+      ]
+    },
+    "CH-004": {
+      "status": "pass",
+      "category": "CH",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-001": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-002": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-003": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "medium",
+      "evidence": [
+        "structlog>=24.1 declared in pyproject.toml dependencies",
+        "JSON output, one object per line, via structlog.processors.JSONRenderer (_log.py)",
+        "All four severity levels emitted: DEBUG (tool entry), INFO (clean finish with latency), WARNING (upstream degraded), ERROR (tool raised) — asserted by tests/test_logging.py::test_all_four_severity_levels_are_used",
+        "Per-call bound context: tool name plus a 16-char correlation_id bound via structlog.contextvars, so events emitted deep in the HTTP path carry the surrounding call's id (_log.py:logged_tool)",
+        "No print() anywhere in src/; output goes to stderr, asserted in a subprocess because pytest's capture can hide the wrong stream"
+      ],
+      "gaps": []
+    },
+    "OBS-004": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OBS-006": {
+      "status": "pass",
+      "category": "OBS",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OPS-001": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "high",
+      "evidence": [
+        "92 offline tests (respx-mocked) across three files plus live-marked tests",
+        "test_allowlist.py runs as its own CI job, guarding the data-protection invariants",
+        "v0.3.0 added over-collapse guards and the never-send-the-blocked-parent assertion"
+      ],
+      "gaps": []
+    },
+    "OPS-002": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "OPS-003": {
+      "status": "pass",
+      "category": "OPS",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-001": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-002": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-003": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-004": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SCALE-006": {
+      "status": "pass",
+      "category": "SCALE",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SDK-001": {
+      "status": "pass",
+      "category": "SDK",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SDK-002": {
+      "status": "partial",
+      "category": "SDK",
+      "severity": "medium",
+      "evidence": [
+        "Pydantic v2 input models with ConfigDict(extra='forbid') on every tool",
+        "JSON output carries a consistent envelope with source, provenance, count, results and now language_mix"
+      ],
+      "gaps": [
+        "Tool return type is str (rendered Markdown or JSON), not a Pydantic model (unchanged since the last run)"
+      ]
+    },
+    "SDK-003": {
+      "status": "partial",
+      "category": "SDK",
+      "severity": "medium",
+      "evidence": [
+        "Structured per-tool-call logging via the logged_tool decorator"
+      ],
+      "gaps": [
+        "Tools take no ctx: Context, so no progress reporting or ctx.warning (unchanged since the last run)"
+      ]
+    },
+    "SDK-004": {
+      "status": "pass",
+      "category": "SDK",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-002": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-003": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-004": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-005": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-006": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-007": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "Dockerfile sets an explicit non-root UID 10001 (>= 10000 as required), not the 100-999 system range useradd --system would pick",
+        "USER 10001:10001 numeric; compose pins the same via `user:`",
+        "compose: read_only=true, cap_drop [ALL], no-new-privileges",
+        "seccomp: Docker's built-in profile (RuntimeDefault equivalent) applies and is deliberately not overridden; CI asserts Seccomp mode 2 in /proc/self/status on the running container",
+        "CI asserts uid >= 10000 and that the server imports under --read-only --cap-drop ALL; docs/container-hardening.md documents the Kubernetes securityContext equivalent"
+      ],
+      "gaps": []
+    },
+    "SEC-008": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-009": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-013": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-014": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-015": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "medium",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-016": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-018": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "Pydantic v2 ConfigDict(extra='forbid'), field validators, regex patterns and min/max bounds on every input model",
+        "New only_language flag validated through the same models"
+      ],
+      "gaps": []
+    },
+    "SEC-019": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "Lethal-trifecta assessment in SECURITY.md and SECURITY.de.md, assessed leg by leg rather than declared safe",
+        "At most one leg present, and the weakest: person-data rubrics are unreachable by construction, egress is allow-listed to one host, and there is no write, filesystem or sampling surface",
+        "The section states what would flip each leg on, so the assessment stays usable when the server changes"
+      ],
+      "gaps": []
+    },
+    "SEC-020": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "critical",
+      "evidence": [
+        "unchanged since the post-fix state of the 2026-07-20 run; re-verified against v0.3.0"
+      ],
+      "gaps": []
+    },
+    "SEC-021": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "ALLOWED_HOSTS frozenset with a pre-request assertion; EgressDenied raised before a request to a non-allow-listed host leaves the process",
+        "docs/network-egress.md documents the egress surface for an operator, including that MCP_ALLOWED_HOSTS replaces rather than extends the default and that the OTel exporter is inert without an endpoint",
+        "Every behavioural claim in that document was verified against the running code rather than asserted"
+      ],
+      "gaps": []
+    },
+    "SEC-022": {
+      "status": "pass",
+      "category": "SEC",
+      "severity": "high",
+      "evidence": [
+        "FastMCP server namespace amtsblatt_mcp; tools are namespaced under the server identity",
+        "CHANGELOG names the tool-definition changes explicitly for both renamed tools"
+      ],
+      "gaps": [
+        "Per-tool prefixing is only partial — see ARCH-001"
+      ]
+    }
+  }
+}
