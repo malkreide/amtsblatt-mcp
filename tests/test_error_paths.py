@@ -38,15 +38,19 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-from mcp import types
-from mcp.shared.exceptions import McpError
-from mcp.shared.memory import create_connected_server_and_client_session as connect
+from mcp import Client, MCPError
 
 from amtsblatt_mcp.server import GAZETTE_BASE, mcp
 
 from .fixtures import MOCK_RUBRICS, MOCK_SEARCH_EMPTY
 
 pytestmark = pytest.mark.asyncio
+
+# The JSON-RPC codes a protocol fault may legitimately carry. Spec `2026-07-28`
+# partitions the server-error range explicitly — -32000..-32019 stays
+# implementation-defined, -32020..-32099 belongs to the MCP specification — and
+# the pre-defined JSON-RPC codes below sit outside both.
+PROTOCOL_ERROR_CODES = frozenset({-32700, -32600, -32601, -32602, -32603})
 
 
 def provenance(result) -> str | None:
@@ -67,21 +71,21 @@ def provenance(result) -> str | None:
 
 async def test_invalid_argument_is_an_execution_error() -> None:
     """A too-long keyword is the tool's problem to report, not the protocol's."""
-    async with connect(mcp) as client:
+    async with Client(mcp) as client:
         result = await client.call_tool(
             "gazette_search_publications", {"params": {"keyword": "x" * 500}}
         )
-    assert result.isError is True
+    assert result.is_error is True
     assert "validation error" in result.content[0].text.lower()
 
 
 async def test_unknown_field_is_rejected_at_the_boundary() -> None:
     """`extra="forbid"` on the input models; OBS-001 governs how that is delivered."""
-    async with connect(mcp) as client:
+    async with Client(mcp) as client:
         result = await client.call_tool(
             "gazette_search_publications", {"params": {"keyword": "bau", "bogus": 1}}
         )
-    assert result.isError is True
+    assert result.is_error is True
     assert "extra" in result.content[0].text.lower()
 
 
@@ -91,7 +95,7 @@ async def test_execution_error_carries_no_stack_trace() -> None:
     `mask_error_details` does not exist in `mcp` 1.28.1, so there is no setting
     to turn on — the guarantee has to be checked rather than configured.
     """
-    async with connect(mcp) as client:
+    async with Client(mcp) as client:
         result = await client.call_tool(
             "gazette_search_publications", {"params": {"keyword": "x" * 500}}
         )
@@ -116,14 +120,14 @@ async def test_upstream_failure_is_not_an_execution_error() -> None:
     distinction the model actually needs — "nothing matched" versus "I could
     not ask". This test is what stops it being lost.
     """
-    async with connect(mcp) as client, respx.mock:
+    async with Client(mcp) as client, respx.mock:
         respx.get(f"{GAZETTE_BASE}/rubrics").mock(side_effect=httpx.ConnectError("down"))
         respx.get(f"{GAZETTE_BASE}/publications").mock(side_effect=httpx.ConnectError("down"))
         result = await client.call_tool(
             "gazette_search_publications", {"params": {"keyword": "bau"}}
         )
 
-    assert result.isError is False, "degraded is a result, not an error"
+    assert result.is_error is False, "degraded is a result, not an error"
     assert provenance(result) == "degraded"
     assert "KEIN leeres Ergebnis" in result.content[0].text
 
@@ -135,7 +139,7 @@ async def test_degraded_is_distinguishable_from_an_empty_result() -> None:
     `isError: false` with zero publications in them; only the footer separates
     them, which is why the footer is asserted rather than the prose.
     """
-    async with connect(mcp) as client:
+    async with Client(mcp) as client:
         with respx.mock:
             respx.get(f"{GAZETTE_BASE}/rubrics").mock(
                 return_value=httpx.Response(200, json=MOCK_RUBRICS)
@@ -169,11 +173,11 @@ async def test_policy_refusal_is_marked_refused_not_degraded() -> None:
     No network mock here on purpose: the green gate runs before any request, so
     a refusal that reached the network would fail this test by connecting.
     """
-    async with connect(mcp) as client:
+    async with Client(mcp) as client:
         result = await client.call_tool(
             "gazette_search_publications", {"params": {"rubric": "SB", "canton": "ZH"}}
         )
-    assert result.isError is False
+    assert result.is_error is False
     assert provenance(result) == "refused"
     assert "bewusst nicht erschlossen" in result.content[0].text
 
@@ -184,7 +188,7 @@ async def test_every_outcome_carries_the_attribution() -> None:
     Success carries the attribution because `_md` puts it there. Refusals and
     outages used to return a bare sentence and carry nothing at all.
     """
-    async with connect(mcp) as client:
+    async with Client(mcp) as client:
         refused = await client.call_tool(
             "gazette_search_publications", {"params": {"rubric": "SB", "canton": "ZH"}}
         )
@@ -203,48 +207,64 @@ async def test_every_outcome_carries_the_attribution() -> None:
 # --- protocol errors: the request itself was wrong ------------------------
 
 
-async def test_unknown_method_is_a_protocol_error() -> None:
-    """A method the server does not implement raises rather than returning a result."""
-    async with connect(mcp) as client:
-        with pytest.raises(McpError) as exc:
-            await client.send_request(
-                types.ClientRequest(
-                    types.GetPromptRequest(
-                        method="prompts/get",
-                        params=types.GetPromptRequestParams(name="nope"),
-                    )
-                ),
-                types.GetPromptResult,
-            )
-    assert "unknown prompt" in exc.value.error.message.lower()
+async def test_protocol_error_carries_a_standardised_code() -> None:
+    """OBS-001 criterion 3 — and the reason this server moved to `mcp` 2.x.
 
+    Under 1.x every protocol error came back with `code == 0`, not a JSON-RPC
+    code at all, even though `mcp.types` defined the constants. The criterion
+    could not pass, so the gap was pinned by a test instead of papered over.
 
-async def test_protocol_error_code_is_not_yet_standardised() -> None:
-    """Pins an SDK gap so a future fix is announced, not discovered.
-
-    OBS-001 asks for `-326xx` / `-320xx` codes on protocol errors. `mcp.types`
-    defines `METHOD_NOT_FOUND = -32601` and friends, but the lowlevel server
-    emits **0**. Nothing in this repo can change that — it is above the tool
-    layer — so the behaviour is asserted as-is.
-
-    When the SDK starts emitting a real code this test fails, which is the
-    point: that is the day OBS-001 can be re-scored.
+    2.0 emits real codes. A resource that does not exist is `-32602`
+    (INVALID_PARAMS), which is also the spec's own correction: `2026-07-28`
+    moved resource-not-found from `-32002` to `-32602` to align with JSON-RPC.
     """
-    async with connect(mcp) as client:
-        with pytest.raises(McpError) as exc:
-            await client.send_request(
-                types.ClientRequest(
-                    types.ReadResourceRequest(
-                        method="resources/read",
-                        params=types.ReadResourceRequestParams(uri="file:///nope"),
-                    )
-                ),
-                types.ReadResourceResult,
-            )
-    assert exc.value.error.code == 0, (
-        "the SDK now emits a real JSON-RPC code — re-check OBS-001 criterion 3"
-    )
-    assert types.METHOD_NOT_FOUND == -32601, "the constants exist; the server does not use them"
+    async with Client(mcp) as client:
+        with pytest.raises(MCPError) as exc:
+            await client.read_resource("file:///nope")
+
+    assert exc.value.error.code == -32602
+    assert exc.value.error.code in PROTOCOL_ERROR_CODES
+
+
+async def test_no_protocol_error_falls_outside_the_standard_codes() -> None:
+    """The general form, so a regression to code 0 cannot pass unnoticed.
+
+    `get_prompt` answers `-32603` (INTERNAL_ERROR) rather than something
+    prompt-specific. In range, so it passes — but worth naming as imprecise: the
+    request was well-formed and named a prompt that does not exist, which is
+    nearer INVALID_PARAMS than an internal fault. Asserted against the range as
+    well as the literals, so the imprecision is recorded without being frozen.
+    """
+    async with Client(mcp) as client:
+        codes = []
+        for call in (
+            lambda: client.read_resource("file:///nope"),
+            lambda: client.get_prompt("no_such_prompt"),
+        ):
+            with pytest.raises(MCPError) as exc:
+                await call()
+            codes.append(exc.value.error.code)
+
+    assert codes == [-32602, -32603]
+    assert all(c in PROTOCOL_ERROR_CODES for c in codes), codes
+    assert 0 not in codes, "code 0 is back — OBS-001 has regressed to the 1.x behaviour"
+
+
+async def test_protocol_error_message_leaks_nothing_internal() -> None:
+    """OBS-002 again, on the path that got *more* conservative in 2.0.
+
+    1.x answered `get_prompt` with the raw `ValueError` text ("Unknown prompt:
+    nope"). 2.0 answers "Internal server error" and keeps the detail
+    server-side. Less helpful to a developer reading logs, better for a boundary
+    that faces a model.
+    """
+    async with Client(mcp) as client:
+        with pytest.raises(MCPError) as exc:
+            await client.get_prompt("no_such_prompt")
+
+    message = exc.value.error.message
+    assert "Traceback" not in message
+    assert "/home/" not in message and "site-packages" not in message
 
 
 async def test_unknown_tool_is_reported_as_an_execution_error() -> None:
@@ -254,16 +274,16 @@ async def test_unknown_tool_is_reported_as_an_execution_error() -> None:
     reports it inside a tool result with `isError: true`. That makes "no such
     tool" and "the tool failed" indistinguishable without reading the text.
     """
-    async with connect(mcp) as client:
+    async with Client(mcp) as client:
         result = await client.call_tool("no_such_tool", {})
-    assert result.isError is True
+    assert result.is_error is True
     assert "unknown tool" in result.content[0].text.lower()
 
 
 async def test_every_advertised_tool_is_callable() -> None:
     """A tool listed but not dispatchable is the worst case, because the model
     has no way to know before trying."""
-    async with connect(mcp) as client:
+    async with Client(mcp) as client:
         listed = {t.name for t in (await client.list_tools()).tools}
         result = await client.call_tool("no_such_tool", {})
 
@@ -271,4 +291,23 @@ async def test_every_advertised_tool_is_callable() -> None:
     assert all(name.startswith("gazette_") for name in listed)
     # The negative control: an unlisted name really does fail, so the assertion
     # above is not passing vacuously.
-    assert result.isError is True
+    assert result.is_error is True
+
+
+async def test_the_pooled_client_has_a_shutdown_hook() -> None:
+    """SDK-001: without this wiring nothing ever closes the pooled connections.
+
+    Added while migrating to `mcp` 2.x, because a mutation test found the gap:
+    deleting `lifespan=_lifespan` from the server construction left all 214
+    tests passing. The sister server has had this guard since 0.10.0; this one
+    did not, so the shutdown hook could have been dropped in any refactor
+    without a single test noticing.
+
+    Asserted through the server object rather than by reading the source, and
+    against the user-supplied lifespan specifically rather than "some lifespan
+    is set" — 2.0 installs a default one, so the weaker check would pass with
+    ours removed.
+    """
+    from amtsblatt_mcp.server import _lifespan
+
+    assert mcp.settings.lifespan is _lifespan, "the pooled client has no shutdown hook"

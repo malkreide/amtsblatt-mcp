@@ -26,7 +26,7 @@ the current run lives under `audits/`.
 | Item | Check | State |
 |---|---|---|
 | Split `server.py` (~2200 lines) into a `tools/` package | `ARCH-011` | open — refactor with regression risk, low payoff |
-| Standardised JSON-RPC codes on protocol errors | `OBS-001` | blocked upstream, see below |
+| Migrate off the deprecated HTTP+SSE transport | — | open, see below — this server's only HTTP transport |
 | Structured tool returns instead of rendered Markdown | `SDK-002` | **not planned** — deliberate, see below |
 | Progress reporting via `ctx: Context` | `SDK-003` | not planned while every tool returns in milliseconds |
 
@@ -46,10 +46,19 @@ not be reached — the same call may work later). Refusals and outages used to
 return a bare German sentence carrying neither provenance nor the attribution
 the licence requires; now they wear the same envelope as a result.
 
-What is left is not implementable here — the lowlevel SDK server emits error
-**code 0** rather than the `-32601` the check asks for, and `mcp.types` defines
-the constant without using it. Two tests pin that, so the day the SDK starts
-emitting a real code, the suite says so.
+**The blocked criterion cleared in 0.17.0.** Under `mcp` 1.x the lowlevel server
+emitted error **code 0** rather than the `-32601` the check asks for, and two
+tests pinned that so the day the SDK fixed it the suite would say so. The
+migration to `mcp` 2.x made them fail; they are now assertions that a protocol
+error carries `-32602` / `-32603`. What remains open is not a code change: an
+unknown *tool* is still delivered as a tool result rather than a protocol error.
+
+**Migrating off SSE now has a deadline.** Spec `2026-07-28` reclassifies HTTP+SSE
+as Deprecated under a twelve-month removal window, and removes protocol-level
+sessions and stream resumability outright. SSE is this server's *only* HTTP
+transport, so this weighs heavier here than for the sister server, which also
+offers streamable-http. Nothing breaks today — the SDK still ships `sse_app()` —
+but the open question is when to move, not whether.
 
 **`SDK-002` is an accepted deviation, not a backlog item.** Tools return `str`
 because the rendered output is composed for a reader and carries provenance,

@@ -314,7 +314,7 @@ Authentifizierung, daher wird kein Bulk-Dump gepflegt.
 
 | | |
 |---|---|
-| **Unterstützte Spec-Version** | `2025-11-25` |
+| **Unterstützte Spec-Version** | `2026-07-28` |
 | **Gepinnt in** | `MCP_PROTOCOL_VERSION` in [`server.py`](src/amtsblatt_mcp/server.py) |
 | **SDK** | `mcp[cli]>=1.28.1` |
 
@@ -390,7 +390,7 @@ anonymisiert — keine echten Personendaten.
 amtsblatt-mcp/
 ├── src/amtsblatt_mcp/
 │   ├── rubrics.py       # Fail-closed Freigabe-Liste — der Scope-Entscheid
-│   ├── server.py        # FastMCP-Server, 5 Tools, Quirk-Schutz, XML-Parsing
+│   ├── server.py        # MCPServer, 5 Tools, Quirk-Schutz, XML-Parsing
 │   ├── _log.py          # Strukturiertes JSON-Logging + Tool-Call-Events
 │   ├── _middleware.py   # Bearer-Auth + Rate-Limit (nur SSE)
 │   └── _otel.py         # Optionale OpenTelemetry-Anbindung

@@ -50,7 +50,7 @@ Standard zu belassen.
 
 - Python 3.11+, Type Hints erforderlich.
 - Ruff, Zeilenlänge 100.
-- Den bestehenden FastMCP-/Pydantic-v2-Mustern in `server.py` folgen: ein
+- Den bestehenden MCPServer-/Pydantic-v2-Mustern in `server.py` folgen: ein
   Pydantic-Input-Modell pro Tool, deutsche Docstrings im Google-Stil, Tools
   geben `str` zurück und werfen nie — Fehler kommen als erklärende Meldungen
   zurück.

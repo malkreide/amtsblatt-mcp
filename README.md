@@ -332,7 +332,7 @@ authentication, so no bulk dump is maintained.
 
 | | |
 |---|---|
-| **Supported spec version** | `2025-11-25` |
+| **Supported spec version** | `2026-07-28` |
 | **Pinned in** | `MCP_PROTOCOL_VERSION` in [`server.py`](src/amtsblatt_mcp/server.py) |
 | **SDK** | `mcp[cli]>=1.28.1` |
 
@@ -437,7 +437,7 @@ real personal data.
 amtsblatt-mcp/
 ├── src/amtsblatt_mcp/
 │   ├── rubrics.py       # Fail-closed green allow-list — the scope decision
-│   ├── server.py        # FastMCP server, 5 tools, quirk guards, XML parsing
+│   ├── server.py        # MCPServer, 5 tools, quirk guards, XML parsing
 │   ├── _log.py          # Structured JSON logging + per-tool call events
 │   ├── _middleware.py   # Bearer auth + sliding-window rate limit (SSE only)
 │   └── _otel.py         # Optional OpenTelemetry wiring
