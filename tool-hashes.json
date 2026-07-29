@@ -1,0 +1,20 @@
+{
+  "snapshot_version": 2,
+  "package_version": "0.19.0",
+  "hashed_fields": [
+    "name",
+    "description",
+    "input_schema",
+    "output_schema",
+    "annotations"
+  ],
+  "surface_sha256": "3a2b8a062aa12a5f058d127eaa0fdc41cc1f58f7a923ce7fcec5e8191ee80063",
+  "tools": {
+    "gazette_get_publication": "d2ccf74899651f8166f808ce43b77119bdc688e883cc37c736021aec67ca10a1",
+    "gazette_list_rubrics": "e66404eb3fcc84c9aa78442141acf02eb292df3cb4eed18ac7f8d1ace725a6c6",
+    "gazette_search_detailed": "938f20c73d2ea33b5de6455b45961373851cbf9f4e0f1b3e7d4837d2c00a8158",
+    "gazette_search_procurement": "fc64767e0b906f99a7048bab838ea268906c2ebc5eac99f15a6740076bd02639",
+    "gazette_search_publications": "6077875b56a2b3c1ff479c5ea8eca525ab0e3276ad1595e7565f4fafbacaa5ee",
+    "gazette_source_status": "428a87083671160e26a08cbbadafaee16db6c9f70cec53ba587b154c89c9da5c"
+  }
+}
