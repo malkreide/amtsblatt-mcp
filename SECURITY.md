@@ -7,10 +7,23 @@
 This server is audited against the internal MCP best-practice catalogue (the
 portfolio `mcp-audit` methodology, 68 checks / 8 categories, catalogue hash
 `091f446b…`). The latest measured run
-(`audits/2026-07-29T095811-Z-amtsblatt-mcp/`) scored **32 pass / 8 partial /
+(`audits/2026-07-29T135616-Z-amtsblatt-mcp/`) scored **32 pass / 8 partial /
 6 fail** across 46 applicable checks — **not production-ready**.
 
-Trend against the identical applicable set: 20/18/8 → 21/18/7 → **32/8/6**.
+Trend against the identical applicable set: 20/18/8 → 21/18/7 → 32/8/6 →
+**32/8/6**.
+
+**The 0.18.0 transport work moved no check, and that is the honest result.**
+Serving streamable-http on `/mcp` improved the posture — `SEC-009` gained
+server-side session invalidation (`DELETE /mcp` is handled; on `/sse` it was
+405), and `MCP_STATELESS=1` became available at all — but neither is what the
+two checks ask for. `SEC-009` wants a session *bound* to a validated user id and
+`SCALE-002` wants sticky routing or shared session state; absence of sessions is
+neither. One of six `SEC-009` criteria is now met, up from zero on the default
+transport, which is not enough to leave `fail`.
+
+Recorded this way on purpose: a release that improves security without improving
+a score is the case where the temptation to re-grade is strongest.
 
 That run closed a long gap between what was measured and what was true. The
 previous measurement predated five releases; every number quoted in between was
