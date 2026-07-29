@@ -35,6 +35,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from . import __version__  # single source of truth: pyproject.toml
 from ._log import configure_logging, log_event, logged_tool
+from ._matching import empty_note, match_type
 from ._net import PinnedResolverTransport
 from .rubrics import (
     GREEN_RUBRICS,
@@ -1353,11 +1354,23 @@ def _prepare_summaries(
     return summaries, mix, _language_note(mix)
 
 
-def _render_results(summaries: list[dict], heading: str, meta_line: str) -> list[str]:
-    """Shared Markdown rendering for both search tools."""
-    lines = [f"## {heading}", meta_line, ""]
+def _render_results(
+    summaries: list[dict], heading: str, meta_line: str, no_match_note: str
+) -> list[str]:
+    """Shared Markdown rendering for both search tools.
+
+    `no_match_note` has no default on purpose. It is what a caller gets instead
+    of results, and ARCH-003 asks that it be actionable; a default would let the
+    next search tool added here fall back to a generic line without anyone
+    noticing. Three call sites is a cheap price for that.
+
+    The match type is rendered into the meta line rather than left implicit in
+    the count, because these tools return Markdown rather than a typed object —
+    if it is not in the text, it does not reach the model.
+    """
+    lines = [f"## {heading}", f"{meta_line} | Treffertyp: `{match_type(len(summaries))}`", ""]
     if not summaries:
-        lines.append("_Keine Treffer für diese Filter. Zeitraum, Stichwort oder Rubrik anpassen._")
+        lines.append(no_match_note)
     for s in summaries:
         cantons = s.get("cantons")
         canton_str = ", ".join(cantons) if isinstance(cantons, list) else (cantons or "—")
@@ -1460,6 +1473,15 @@ async def gazette_search_publications(params: SearchInput) -> str:
     total = data.get("total")
     summaries, mix, lang_note = _prepare_summaries(content, params.language, params.only_language)
 
+    no_match = empty_note(
+        keyword=params.keyword,
+        rubric=params.rubric,
+        sub_rubric=params.sub_rubric,
+        canton=params.canton,
+        date_start=params.date_start,
+        date_end=params.date_end,
+    )
+
     if params.response_format == ResponseFormat.JSON:
         return _json_out(
             {
@@ -1467,6 +1489,8 @@ async def gazette_search_publications(params: SearchInput) -> str:
                 "total": total,
                 "page": params.page,
                 "scope": "green_rubrics_only",
+                "match_type": match_type(len(summaries)),
+                "note": no_match if not summaries else None,
                 "language_mix": mix,
                 "warnings": [lang_note] if lang_note else [],
                 "results": summaries,
@@ -1476,7 +1500,7 @@ async def gazette_search_publications(params: SearchInput) -> str:
 
     scope = params.rubric or params.sub_rubric or "alle freigegebenen Rubriken"
     meta_line = f"Gefunden: **{len(summaries)}** (total: {total}) | Bereich: {scope}"
-    lines = _render_results(summaries, "Amtsblatt-Suche", meta_line)
+    lines = _render_results(summaries, "Amtsblatt-Suche", meta_line, no_match)
     if lang_note:
         lines = lines[:2] + ["", f"> ⚠️ {lang_note}"] + lines[2:]
     if isinstance(total, int) and total > len(summaries):
@@ -1600,6 +1624,15 @@ async def gazette_search_detailed(params: DetailedSearchInput) -> str:
         withheld=len(withheld),
     )
 
+    no_match = empty_note(
+        keyword=params.keyword,
+        rubric=params.rubric,
+        sub_rubric=params.sub_rubric,
+        canton=params.canton,
+        date_start=params.date_start,
+        date_end=params.date_end,
+    )
+
     if params.response_format == ResponseFormat.JSON:
         return _json_out(
             {
@@ -1607,6 +1640,8 @@ async def gazette_search_detailed(params: DetailedSearchInput) -> str:
                 "total": total,
                 "page": params.page,
                 "scope": "green_rubrics_only",
+                "match_type": match_type(len(summaries)),
+                "note": no_match if not summaries else None,
                 "language_mix": mix,
                 "warnings": [lang_note] if lang_note else [],
                 "results": summaries,
@@ -1621,7 +1656,7 @@ async def gazette_search_detailed(params: DetailedSearchInput) -> str:
         f"Gefunden: **{len(summaries)}** (total: {total}) | Bereich: {scope} | "
         f"Volltext: {len(details)} von {len(ids)} angefordert"
     )
-    lines = _render_results(summaries, "Amtsblatt-Suche (mit Volltexten)", meta_line)
+    lines = _render_results(summaries, "Amtsblatt-Suche (mit Volltexten)", meta_line, no_match)
     if lang_note:
         lines = lines[:2] + ["", f"> ⚠️ {lang_note}"] + lines[2:]
 
@@ -1842,6 +1877,13 @@ async def gazette_search_procurement(params: ProcurementInput) -> str:
     if lang_note:
         all_warnings = all_warnings + [lang_note]
 
+    no_match = empty_note(
+        keyword=params.keyword,
+        canton=params.canton,
+        date_start=params.date_start,
+        date_end=params.date_end,
+    )
+
     if params.response_format == ResponseFormat.JSON:
         return _json_out(
             {
@@ -1852,6 +1894,8 @@ async def gazette_search_procurement(params: ProcurementInput) -> str:
                 "sub_rubrics": sub_rubrics,
                 "canton": params.canton,
                 "keyword": params.keyword,
+                "match_type": match_type(len(summaries)),
+                "note": no_match if not summaries else None,
                 "language_mix": mix,
                 "warnings": all_warnings,
                 "results": summaries,
@@ -1863,7 +1907,7 @@ async def gazette_search_procurement(params: ProcurementInput) -> str:
     meta_line = f"Gefunden: **{len(summaries)}** (total: {total})" + (
         f" | Stichwort: «{params.keyword}»" if params.keyword else ""
     )
-    lines = _render_results(summaries, f"Öffentliche Ausschreibungen · {scope}", meta_line)
+    lines = _render_results(summaries, f"Öffentliche Ausschreibungen · {scope}", meta_line, no_match)
     if all_warnings:
         lines = lines[:2] + [""] + [f"> ⚠️ {w}" for w in all_warnings] + lines[2:]
     if isinstance(total, int) and total > len(summaries):

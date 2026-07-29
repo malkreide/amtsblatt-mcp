@@ -10,6 +10,66 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - (none)
 
+## [0.20.0] — 2026-07-29
+
+Closes **`ARCH-003`** — empty search results. Not by adding fuzzy matching, but
+by deciding against it explicitly and making the empty result carry its weight
+instead.
+
+### Why nothing here widens a search term
+
+`ARCH-003` asks for a fuzzy or suggestion mechanism on the *non-sensitive*
+search tools. This server has none. All three searches query official gazette
+publications — bankruptcy notices, debt-collection summonses, estate calls,
+construction objections — and every one of them is about a named legal or
+natural person.
+
+Broadening `Muster AG` to `Muster` returns notices about different companies.
+The realistic outcome of that is naming the wrong company as bankrupt, and no
+note in the response reliably survives the trip to a user. "No publication
+matched" is a legitimate, actionable answer; an invented one is not.
+
+The decision is pinned in the type rather than only in prose: `MatchType` has
+no `fuzzy` member, so adding widening means editing `_matching.py` and reading
+why it is absent. A test asserts the member set, and another asserts that an
+empty search sends exactly one upstream request carrying the caller's keyword
+unmodified.
+
+The companion server splits the other way for the same reason: in
+`swiss-procurement-mcp` the *taxonomy* lookups widen, because a CPV code is a
+closed set with no person attached, while the tender searches do not.
+
+### What an empty result says instead
+
+It names the filters that were actually applied — a caller told only "no
+results" tends to retry the identical search in a different shape — and points
+at the two things it cannot see from outside:
+
+- **The scope gate.** Searches run against the green rubrics only, so a keyword
+  that genuinely appears in the gazette can come back empty because its rubric
+  is deliberately not served. `gazette_list_rubrics(rubric_class='all')`
+  distinguishes "no such publication" from "not served here". Those are
+  different claims and only the second is this server's own doing — an empty
+  result that does not say so asserts the first.
+- **Upstream health.** A degraded source and an empty result are
+  indistinguishable at this layer, so the note points at
+  `gazette_source_status`.
+
+`_render_results` takes that note as a required argument. A default would let
+the next search tool added here fall back to a generic line without anyone
+noticing, which is the failure this finding describes.
+
+### `match_type` on every response
+
+`exact` or `none`, in the JSON payload and in the rendered Markdown meta line.
+Both, because these tools return text: anything not in the text does not reach
+the model.
+
+Mutation-tested five ways — restoring the generic empty line fails 7 tests,
+labelling everything `exact` fails 4, adding a `fuzzy` member fails 1, dropping
+the note from the JSON payload fails 1, and making one search retry with a
+broadened keyword fails 1.
+
 ## [0.19.0] — 2026-07-29
 
 Closes the substantive half of **`SEC-022`**: the tool surface now carries a

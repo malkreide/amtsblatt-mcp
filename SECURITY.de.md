@@ -47,6 +47,26 @@ der folgenden melden:
 - Eine Tool-Signatur, die einen personenidentifizierenden Parameter akzeptiert.
 - Eine Absage-Meldung, die eine Umgehung offenlegt.
 
+## Keine unscharfe Suche — bewusst (ARCH-003)
+
+Keines der drei Such-Tools erweitert einen Suchbegriff automatisch. Alle drei
+durchsuchen amtliche Publikationen über namentlich genannte Personen und Firmen:
+Konkurse, Betreibungen, Erbenrufe, Baueinsprachen. Eine von `Muster AG` auf
+`Muster` verbreiterte Suche liefert Meldungen über *andere* Firmen, und das
+realistische Ergebnis ist, dass die falsche Firma als konkursit benannt wird.
+«Keine Publikation gefunden» ist eine belastbare Antwort; eine erfundene nicht.
+
+Stattdessen erklärt sich ein leeres Ergebnis selbst: es nennt die verwendeten
+Filter und verweist auf zwei Dinge, die von aussen nicht sichtbar sind — die
+Rubriken-Freigabe (`gazette_list_rubrics(rubric_class='all')` zeigt, ob die
+passende Rubrik hier bewusst nicht erschlossen ist) und den Zustand der Quelle
+(`gazette_source_status`; eine Störung sieht von hier aus gleich aus wie ein
+leeres Ergebnis). Jede Antwort trägt `match_type` — `exact` oder `none`.
+
+Der Schwesterserver (`swiss-procurement-mcp`) entscheidet aus demselben Grund
+umgekehrt: dort erweitern die *Taxonomie*-Abfragen, weil an einem CPV-Code keine
+Person hängt, die Ausschreibungssuche dagegen nicht.
+
 ## Härtungshinweise für Betreiber
 
 1. **Ein Gateway vor den SSE-Transport setzen.** Die eingebaute Bearer-Auth und

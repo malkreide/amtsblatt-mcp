@@ -251,6 +251,47 @@ operator decides. On `MCP_TRANSPORT=sse` the flag is ignored, deliberately:
 leaving it apparently in effect would tell an operator they run session-free when
 they do not.
 
+### No fuzzy matching, anywhere (ARCH-003)
+
+`ARCH-003` asks that empty search results trigger a fuzzy or suggestion
+mechanism on the non-sensitive search tools, and that any tool which stays
+exact-only says so. This server has no non-sensitive search tool. All three —
+`gazette_search_publications`, `gazette_search_detailed`,
+`gazette_search_procurement` — query official gazette publications: bankruptcy
+notices, debt-collection summonses, estate calls, construction objections. Every
+one of them is *about* a named legal or natural person.
+
+A keyword search broadened from `Muster AG` to `Muster` returns notices about
+different companies. The server cannot tell the model it changed the question in
+a way the model reliably carries through to the user, so the realistic outcome
+of widening here is naming the wrong company as bankrupt. "No publication
+matched" is a legitimate, actionable answer; an invented one is not. There is no
+widening strategy careful enough to be worth that trade, so none is implemented,
+and `MatchType` has no `fuzzy` member — the decision is pinned in the type, not
+only in this paragraph.
+
+The companion server (`swiss-procurement-mcp`) splits the other way for the same
+reason: its *taxonomy* lookups widen, because a CPV code is a closed set with no
+person attached, while its tender searches do not.
+
+What replaces widening is an empty result that explains itself. Beyond naming
+the filters that were applied, it points at two things a caller cannot see from
+outside:
+
+- **The scope gate.** Searches run against the green rubrics only, so a keyword
+  that genuinely appears in the gazette can come back empty because its rubric
+  is deliberately not served. The note points at
+  `gazette_list_rubrics(rubric_class='all')`, which distinguishes "no such
+  publication" from "not served here" — different claims, and only the second
+  one is this server's own doing.
+- **Upstream health.** A degraded source and an empty result are
+  indistinguishable at this layer, so the note points at
+  `gazette_source_status`.
+
+Every response carries `match_type` (`exact` or `none`) — in the JSON payload
+and in the rendered Markdown meta line, since these tools return text and
+anything not in the text does not reach the model.
+
 ## Supported Versions
 
 | Version | Supported |
