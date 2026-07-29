@@ -119,6 +119,28 @@ async def test_presentation_only_changes_do_not_churn_the_hash() -> None:
     assert tool_hash(restyled) == before
 
 
+async def test_docstring_indentation_does_not_move_the_hash() -> None:
+    """The fingerprint must survive an interpreter upgrade. It did not, once.
+
+    Every tool description here comes from a docstring, and Python 3.13 dedents
+    docstrings at compile time. The first CI run of this guard was green on
+    3.10–3.12 and red on 3.13 with no source change at all — all six tool
+    hashes differed, which reads exactly like six rewritten descriptions.
+
+    A drift guard that cries wolf on a Python bump is one that gets regenerated
+    unread, so descriptions are dedented before hashing. This asserts the two
+    spellings agree; `test_a_changed_description_changes_the_hash` is the other
+    half, and the pair is what keeps the normalisation from becoming a place to
+    hide something.
+    """
+    tool = (await mcp.list_tools())[0]
+    flat = "Sucht Publikationen.\n\nArgs:\n    params: die Eingabe.\n"
+    indented = "Sucht Publikationen.\n\n    Args:\n        params: die Eingabe.\n    "
+    assert tool_hash(tool.model_copy(update={"description": flat})) == tool_hash(
+        tool.model_copy(update={"description": indented})
+    ), "the same text at two indentation levels is the same tool surface"
+
+
 async def test_annotations_are_part_of_the_fingerprint() -> None:
     """A read-only hint flipping to False is behavioural, not cosmetic.
 

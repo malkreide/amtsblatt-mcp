@@ -24,13 +24,18 @@ a maintainer is supposed to remember.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 from typing import Any
 
 # Bumped when the canonicalisation below changes, so an old snapshot is
 # recognised as incomparable rather than silently mismatching. Without it, a
 # change to *how* we hash would look exactly like a change to *what* we hash.
-SNAPSHOT_VERSION = 1
+#
+# 2: descriptions are dedented before hashing. Version 1 produced a different
+#    fingerprint on Python 3.13 than on 3.10–3.12 for an unchanged codebase,
+#    because 3.13 dedents docstrings at compile time.
+SNAPSHOT_VERSION = 2
 
 # The fields a client's model actually reads or is bound by. `title` and `icons`
 # are presentation; `meta` is transport bookkeeping. Including them would make
@@ -45,6 +50,15 @@ def _canonical(tool: Any) -> str:
     `sort_keys` throughout: dict ordering in a JSON Schema is an artefact of how
     Pydantic walked the model, and a hash that changes when an unrelated field is
     reordered would be worse than no hash at all.
+
+    Descriptions are dedented for the same reason, and it is not hypothetical:
+    the first CI run of this guard was green on Python 3.10–3.12 and red on
+    3.13, on an unchanged codebase, because 3.13 dedents docstrings at compile
+    time and every tool description here comes from a docstring. A drift guard
+    that fires on an interpreter upgrade is a drift guard that gets ignored, and
+    the indentation of a docstring is not a property worth defending — dedenting
+    removes uniform leading whitespace and nothing else, so an injected line of
+    instructions still moves the hash.
     """
     payload: dict[str, Any] = {}
     for field in HASHED_FIELDS:
@@ -53,6 +67,8 @@ def _canonical(tool: Any) -> str:
             continue
         if hasattr(value, "model_dump"):
             value = value.model_dump(exclude_none=True, mode="json")
+        if field == "description" and isinstance(value, str):
+            value = inspect.cleandoc(value)
         payload[field] = value
     return json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
