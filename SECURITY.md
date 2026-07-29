@@ -7,10 +7,16 @@
 This server is audited against the internal MCP best-practice catalogue (the
 portfolio `mcp-audit` methodology, 68 checks / 8 categories, catalogue hash
 `091f446b…`). The latest measured run
-(`audits/2026-07-28T094256-Z-amtsblatt-mcp/`) scored **21 pass / 18 partial /
-7 fail** across 46 applicable checks — **not production-ready**.
+(`audits/2026-07-29T095811-Z-amtsblatt-mcp/`) scored **32 pass / 8 partial /
+6 fail** across 46 applicable checks — **not production-ready**.
 
-Trend against the identical applicable set: 20/18/8 → **21/18/7**.
+Trend against the identical applicable set: 20/18/8 → 21/18/7 → **32/8/6**.
+
+That run closed a long gap between what was measured and what was true. The
+previous measurement predated five releases; every number quoted in between was
+a derivation, and the estimate recorded at the time — ~32 pass / 8 partial / 6
+fail — turned out exact. The six remaining fails are unchanged in character:
+none is a code change waiting to be written.
 
 `SDK-004` closed in 0.8.0 and is confirmed by this run. The server is
 cloud-deployed over SSE and carried no CORS layer, so `Mcp-Session-Id` was
@@ -22,10 +28,16 @@ answered 401. CORS short-circuits preflights only; GET and POST without the key
 still return 401, and a test asserts it. Origins are fail-closed:
 `MCP_CORS_ORIGINS` is unset by default.
 
-Six checks still block production: `OPS-001`, `OPS-003`, `SCALE-002`,
-`SCALE-003`, `SEC-003` and `SEC-009`. `SCALE-002` and `SEC-009` are accepted
-risks (see below) but stay recorded as `fail`, because an accepted risk is a
-decision, not a passing check.
+**Five checks block production, measured on 2026-07-29:** `SCALE-002`,
+`SCALE-003`, `SEC-002`, `SEC-003` and `SEC-009`. `SCALE-002` and `SEC-009` are
+accepted risks (see below) but stay recorded as `fail`, because an accepted risk
+is a decision, not a passing check. `SEC-002` and `SEC-003` need an identity
+provider; `SCALE-003` needs an edge load balancer.
+
+`OPS-001` and `OPS-003` were in the blocking set at the previous run and are now
+confirmed closed. Everything below that this document described as "closed, not
+yet re-measured" has been measured: the 2026-07-29 run is the first that scores
+the code as it actually stands.
 
 `SEC-021` was the third at the time of the run and is **closed in 0.9.0, not
 yet re-measured.** `ALLOWED_HOSTS` was overridable at runtime through
@@ -112,9 +124,10 @@ and `_cors.py` was re-verified against the `starlette` 1.3.1 that `mcp` 2.0 pull
 in (preflight 200, `Mcp-Session-Id` allowed and exposed). But migrating off SSE is
 now dated work rather than a preference, and `ROADMAP.md` tracks it.
 
-Of the blocking set above, only `SCALE-002`, `SCALE-003`, `SEC-003` and `SEC-009`
-remain, and none of them is a code change waiting to be written — see below and
-`ROADMAP.md`.
+None of the five blocking checks is a code change waiting to be written — see
+below and `ROADMAP.md`. The remaining eight `partial` findings are led by
+`SDK-002` (deliberate, `str` returns), `ARCH-011` (a `tools/` split with
+regression risk) and `SEC-022` (no tool-hash pinning).
 
 Full report and per-finding documents: `audits/`.
 
