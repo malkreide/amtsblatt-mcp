@@ -47,7 +47,7 @@ implicit default.
 
 - Python 3.11+, type hints required.
 - Ruff, line length 100.
-- Follow the existing FastMCP / Pydantic v2 patterns in `server.py`: one
+- Follow the existing MCPServer / Pydantic v2 patterns in `server.py`: one
   Pydantic input model per tool, German docstrings in Google style, tools return
   `str` and never raise — errors come back as explanatory messages.
 - New tools need tests. Tools that touch rubrics need allow-list tests.

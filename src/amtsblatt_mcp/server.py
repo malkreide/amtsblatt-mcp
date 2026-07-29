@@ -29,7 +29,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import LATEST_PROTOCOL_VERSION
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
@@ -412,7 +412,7 @@ def _make_client() -> httpx.AsyncClient:
 # A single AsyncClient is shared across all requests so TCP connections and TLS
 # sessions are pooled instead of re-established per call. Created lazily on
 # first use (so direct tool invocation in tests works without the server
-# lifespan) and closed on shutdown by the FastMCP lifespan below.
+# lifespan) and closed on shutdown by the server lifespan below.
 _client: httpx.AsyncClient | None = None
 
 
@@ -1022,7 +1022,7 @@ def _handle_error(e: Exception) -> str:
 
 
 @asynccontextmanager
-async def _lifespan(_server: FastMCP):
+async def _lifespan(_server: MCPServer):
     """Server lifespan: guarantee the shared HTTP client is closed on shutdown.
 
     The client itself is created lazily on first request (see `_get_client`),
@@ -1045,7 +1045,7 @@ async def _lifespan(_server: FastMCP):
 # tests/test_protocol_version.py fails in CI. That splits the two audiences
 # correctly — an SDK bump breaks the build for us, not the runtime for someone
 # who upgraded `mcp` downstream.
-MCP_PROTOCOL_VERSION = "2025-11-25"
+MCP_PROTOCOL_VERSION = "2026-07-28"
 
 if LATEST_PROTOCOL_VERSION != MCP_PROTOCOL_VERSION:
     log_event(
@@ -1058,7 +1058,7 @@ if LATEST_PROTOCOL_VERSION != MCP_PROTOCOL_VERSION:
     )
 
 
-mcp = FastMCP(
+mcp = MCPServer(
     "amtsblatt_mcp",
     lifespan=_lifespan,
     instructions=(
@@ -1081,13 +1081,23 @@ mcp = FastMCP(
 )
 
 transport = os.environ.get("MCP_TRANSPORT", "stdio")
-if transport == "sse":
-    # Bind loopback by default; exposing on all interfaces requires an explicit
-    # MCP_HOST=0.0.0.0. This prevents accidental NeighborJack exposure on shared
-    # networks, on top of the mandatory bearer auth + rate limit enforced below.
-    # Containers set MCP_HOST=0.0.0.0 deliberately (see compose.yaml).
-    mcp.settings.host = os.environ.get("MCP_HOST", "127.0.0.1")
-    mcp.settings.port = int(os.environ.get("PORT", "8000"))
+
+
+def bind_host() -> str:
+    """Bind loopback by default; exposing on all interfaces requires an explicit
+    MCP_HOST=0.0.0.0. This prevents accidental NeighborJack exposure on shared
+    networks, on top of the mandatory bearer auth + rate limit enforced below.
+    Containers set MCP_HOST=0.0.0.0 deliberately (see compose.yaml).
+
+    Read on demand rather than stored on the server object: `mcp` 2.0 dropped
+    the `host` and `port` settings, and they were only ever a detour — the
+    values come from the environment and go to uvicorn.
+    """
+    return os.environ.get("MCP_HOST", "127.0.0.1")
+
+
+def bind_port() -> int:
+    return int(os.environ.get("PORT", "8000"))
 
 
 # ---------------------------------------------------------------------------
@@ -2306,13 +2316,13 @@ def main() -> None:
             logging.INFO,
             "starting",
             transport="sse",
-            host=mcp.settings.host,
-            port=mcp.settings.port,
+            host=bind_host(),
+            port=bind_port(),
         )
         uvicorn.run(
             app,
-            host=mcp.settings.host,
-            port=mcp.settings.port,
+            host=bind_host(),
+            port=bind_port(),
             log_level=mcp.settings.log_level.lower(),
         )
         return

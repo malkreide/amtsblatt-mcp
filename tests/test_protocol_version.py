@@ -2,7 +2,7 @@
 
 The check asks for an explicit `protocolVersion` — "no latest, no default". The
 SDK offers no way to configure it: negotiation happens in the session layer and
-neither `FastMCP.__init__` nor `Settings` takes the parameter.
+neither `MCPServer.__init__` nor `Settings` takes the parameter.
 
 So the pin is a declared constant plus detection. This test is the enforcement
 half, and it is deliberately CI-facing rather than runtime-facing: an SDK bump

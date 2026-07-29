@@ -6,6 +6,69 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-07-29
+
+Migrates to **`mcp` 2.x**, which closes the `OBS-001` criterion 0.16.0 had to
+leave open. Protocol version moves from `2025-11-25` to `2026-07-28`.
+
+### The pinned tests did their job
+
+0.16.0 shipped two tests asserting that protocol errors carry **code 0**, whose
+stated purpose was to fail the day the SDK emitted a real one. They fail now.
+
+Under 2.0, `resources/read` on a missing resource answers `-32602`
+(INVALID_PARAMS) and `prompts/get` answers `-32603`. The spec made the same
+correction independently: `2026-07-28` moved resource-not-found from `-32002` to
+`-32602` to align with JSON-RPC and reserved `-32020`…`-32099` for MCP. Both
+tests became assertions, plus a range check so a regression to `0` cannot pass
+unnoticed. **`OBS-001` criterion 3 is met.**
+
+Unchanged and still pinned: an unknown *tool* arrives as a tool result with
+`is_error` rather than as a protocol error. `mask_error_details` does not exist
+in 2.0 either, so `OBS-002` stays test-enforced. One detail improved —
+`prompts/get` used to echo the raw `ValueError` and now answers "Internal server
+error", keeping the detail server-side.
+
+### A gap the migration exposed
+
+Mutation-testing the migrated code found something that predates it: deleting
+`lifespan=_lifespan` from the server construction left **all 214 tests passing**.
+The pooled HTTP client's shutdown hook (`SDK-001`) had no guard here, though the
+sister server has had one since its 0.10.0. `test_the_pooled_client_has_a_shutdown_hook`
+closes that, asserted against the user-supplied lifespan specifically — 2.0
+installs a default one, so the weaker "some lifespan is set" check would have
+passed with ours removed.
+
+### API changes
+
+Two imports: `FastMCP` → `MCPServer`, same constructor kwargs; the tool
+decorator, `run()` and `sse_app()` are unchanged. `mcp.settings.host` / `.port`
+are gone, so `bind_host()` / `bind_port()` read the environment and hand the
+values to uvicorn directly — which is where they were always going.
+
+Tests needed `McpError` → `MCPError`,
+`create_connected_server_and_client_session` → `mcp.Client(server)`, and
+camelCase → snake_case (`isError` → `is_error`).
+
+### What the new spec means for the accepted risks
+
+`2026-07-28` **removes protocol-level sessions** — no `initialize` handshake, no
+`Mcp-Session-Id`, no SSE stream resumability — and reclassifies HTTP+SSE as
+Deprecated with a twelve-month removal window.
+
+That lands harder here than on the sister server, because **SSE is this server's
+only HTTP transport**. Nothing breaks today: the SDK still ships `sse_app()`, and
+`_cors.py` was re-verified against the `starlette` 1.3.1 that `mcp` 2.0 pulls in
+(preflight 200, `Mcp-Session-Id` allowed and exposed, bearer gate intact).
+
+`SEC-009`, `SCALE-002` and `SCALE-003` change character — from controls this
+server has not implemented toward controls the protocol no longer defines — but
+stay recorded as `fail` until the audit catalogue catches up. Reclassifying a
+finding on our own authority is the drift these documents exist to prevent.
+`ROADMAP.md` now carries migrating off SSE as dated work.
+
+215 tests pass, `ruff check` clean.
+
 ## [0.16.0] — 2026-07-28
 
 Closes **OBS-001** as far as this repository reaches, and fixes a real gap found

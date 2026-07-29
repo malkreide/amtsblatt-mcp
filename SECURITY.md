@@ -73,11 +73,44 @@ now carry the marker: `live_api`, `refused` (declined by design; retrying
 changes nothing) and `degraded` (the source could not be reached; the same call
 may work later). The attribution rides along, which the licence wanted anyway.
 
-The check will stay `partial` regardless, and for a reason worth stating: the
-lowlevel SDK emits protocol-error **code 0**, not the `-32601` the check asks
-for, though `mcp.types` defines the constant. That is above the tool layer.
-Two tests assert the current behaviour, so an SDK fix arrives as a failing test
-rather than as a surprise.
+At the time that was written the check still could not pass: the lowlevel SDK
+emitted protocol-error **code 0**, not the `-32601` the check asks for, though
+`mcp.types` defined the constant. Two tests asserted that gap so an SDK fix would
+arrive as a failing test rather than as a surprise. **It did — see 0.17.0.**
+
+**`OBS-001` criterion 3 met in 0.17.0, not yet re-measured.** The migration to
+`mcp` 2.x made the two pinned tests fail, exactly as they were written to. Under
+2.0 a protocol error carries a real JSON-RPC code: `resources/read` on a missing
+resource answers `-32602` (INVALID_PARAMS), `prompts/get` answers `-32603`. The
+spec made the same correction from the other side — `2026-07-28` moved
+resource-not-found from `-32002` to `-32602` and reserved `-32020`…`-32099` for
+MCP.
+
+One deviation stays pinned, unchanged by the migration: an unknown **tool** is
+still delivered as a tool result with `is_error` rather than as a protocol error.
+`OBS-002` is unchanged too — `mask_error_details` does not exist in 2.0 either.
+One detail improved: `prompts/get` used to echo the raw `ValueError` and now
+answers "Internal server error", keeping the detail server-side.
+
+**What the `2026-07-28` spec does to `SEC-009`, `SCALE-002` and `SCALE-003`.**
+All three are about sessions, and the spec **removes protocol-level sessions
+entirely** — no `initialize` handshake, no `Mcp-Session-Id`, no SSE stream
+resumability. Servers needing cross-call state are told to mint explicit handles
+and pass them as tool arguments. This server keeps no cross-call state.
+
+That does not make the findings pass, and the reason is worth stating plainly:
+the audit catalogue still scores them against a protocol that had sessions. What
+changes is their *character* — from "controls this server has not implemented"
+toward "controls the protocol no longer defines". They stay `fail` until the
+catalogue catches up, because reclassifying a finding on our own authority is
+exactly the drift these documents exist to prevent.
+
+**This server is more exposed to that than the sister server**, because its only
+HTTP transport is SSE — which spec `2026-07-28` reclassifies as Deprecated with a
+twelve-month removal window. Nothing breaks today: the SDK still ships `sse_app()`,
+and `_cors.py` was re-verified against the `starlette` 1.3.1 that `mcp` 2.0 pulls
+in (preflight 200, `Mcp-Session-Id` allowed and exposed). But migrating off SSE is
+now dated work rather than a preference, and `ROADMAP.md` tracks it.
 
 Of the blocking set above, only `SCALE-002`, `SCALE-003`, `SEC-003` and `SEC-009`
 remain, and none of them is a code change waiting to be written — see below and
@@ -103,7 +136,7 @@ question — the input the control needs does not exist.
 | User id from a validated token | Impossible — a shared key carries no identity |
 | Session bound to user id | Impossible — same reason |
 | 401/403 on mismatch | Not applicable — no user to mismatch |
-| Explicit TTL | Not settable: `session_idle_timeout` exists on `StreamableHTTPSessionManager` but FastMCP passes it through neither `Settings` nor its constructor (verified against `mcp` 1.28.1) |
+| Explicit TTL | Not settable: `session_idle_timeout` exists on `StreamableHTTPSessionManager` but `MCPServer` passes it through neither `Settings` nor `streamable_http_app()` (re-verified against `mcp` 2.0.0 — the major version did not change this) |
 | Server-side invalidation | Partial — the legacy SSE transport this server serves has no `DELETE` session-termination endpoint |
 
 **Closing it properly** means an OAuth/OIDC provider, which would also unblock
@@ -129,9 +162,9 @@ holding a session dies, the session dies with it.
 
 Two criteria remain unmet, which is why this is not recorded as passing:
 
-- **No explicit session TTL** — not settable through FastMCP, see above.
+- **No explicit session TTL** — not settable through `MCPServer`, see above.
 - **No shared-state session manager** — that needs replacing the SDK's in-process
-  manager, which FastMCP does not expose as an extension point, plus a Redis
+  manager, which the server object does not expose as an extension point, plus a Redis
   dependency this server does not have.
 
 The sister server offers `MCP_STATELESS=1`, which removes session affinity as a
