@@ -1,0 +1,198 @@
+{
+  "audit_meta": {
+    "server_name": "amtsblatt-mcp",
+    "run_id": "2026-07-29T135616-Z-amtsblatt-mcp",
+    "started_at": "2026-07-29T13:56:16.545691+00:00",
+    "timezone_offset": "Z",
+    "skill_version": "1.0.0",
+    "output_dir": "/home/user/amtsblatt-mcp/audits/2026-07-29T135616-Z-amtsblatt-mcp",
+    "catalog_hash": "091f446b27965044ce658a1d5f4b2cabe2b0ab5661dcc1a53b6be8f1f2e093c0",
+    "catalog_dir": "/root/.claude/skills/mcp-audit/checks"
+  },
+  "totals": {
+    "checks_evaluated": 46,
+    "applicable": 46,
+    "by_status": {
+      "pass": 32,
+      "fail": 6,
+      "partial": 8,
+      "todo": 0,
+      "n/a": 0
+    },
+    "by_severity_among_findings": {
+      "critical": 2,
+      "high": 6,
+      "medium": 6,
+      "low": 0
+    },
+    "by_category": {
+      "architecture": {
+        "pass": 9,
+        "fail": 0,
+        "partial": 2,
+        "todo": 0,
+        "n/a": 0
+      },
+      "compliance": {
+        "pass": 1,
+        "fail": 0,
+        "partial": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "observability": {
+        "pass": 3,
+        "fail": 0,
+        "partial": 2,
+        "todo": 0,
+        "n/a": 0
+      },
+      "operations": {
+        "pass": 3,
+        "fail": 0,
+        "partial": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "scalability": {
+        "pass": 3,
+        "fail": 2,
+        "partial": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "sdk": {
+        "pass": 2,
+        "fail": 0,
+        "partial": 2,
+        "todo": 0,
+        "n/a": 0
+      },
+      "security": {
+        "pass": 11,
+        "fail": 4,
+        "partial": 2,
+        "todo": 0,
+        "n/a": 0
+      }
+    }
+  },
+  "findings": {
+    "policy": "fail-or-partial",
+    "policy_statuses": [
+      "fail",
+      "partial"
+    ],
+    "expected_count": 14,
+    "expected_ids": [
+      "ARCH-003",
+      "ARCH-011",
+      "OBS-001",
+      "OBS-002",
+      "SCALE-002",
+      "SCALE-003",
+      "SDK-002",
+      "SDK-003",
+      "SEC-002",
+      "SEC-003",
+      "SEC-009",
+      "SEC-014",
+      "SEC-015",
+      "SEC-022"
+    ],
+    "details": [
+      {
+        "check_id": "ARCH-003",
+        "category": "architecture",
+        "severity": "medium",
+        "status": "partial"
+      },
+      {
+        "check_id": "ARCH-011",
+        "category": "architecture",
+        "severity": "medium",
+        "status": "partial"
+      },
+      {
+        "check_id": "OBS-001",
+        "category": "observability",
+        "severity": "high",
+        "status": "partial"
+      },
+      {
+        "check_id": "OBS-002",
+        "category": "observability",
+        "severity": "high",
+        "status": "partial"
+      },
+      {
+        "check_id": "SCALE-002",
+        "category": "scalability",
+        "severity": "high",
+        "status": "fail"
+      },
+      {
+        "check_id": "SCALE-003",
+        "category": "scalability",
+        "severity": "high",
+        "status": "fail"
+      },
+      {
+        "check_id": "SDK-002",
+        "category": "sdk",
+        "severity": "medium",
+        "status": "partial"
+      },
+      {
+        "check_id": "SDK-003",
+        "category": "sdk",
+        "severity": "medium",
+        "status": "partial"
+      },
+      {
+        "check_id": "SEC-002",
+        "category": "security",
+        "severity": "critical",
+        "status": "fail"
+      },
+      {
+        "check_id": "SEC-003",
+        "category": "security",
+        "severity": "high",
+        "status": "fail"
+      },
+      {
+        "check_id": "SEC-009",
+        "category": "security",
+        "severity": "critical",
+        "status": "fail"
+      },
+      {
+        "check_id": "SEC-014",
+        "category": "security",
+        "severity": "medium",
+        "status": "partial"
+      },
+      {
+        "check_id": "SEC-015",
+        "category": "security",
+        "severity": "medium",
+        "status": "fail"
+      },
+      {
+        "check_id": "SEC-022",
+        "category": "security",
+        "severity": "high",
+        "status": "partial"
+      }
+    ]
+  },
+  "production_ready": false,
+  "blocking_findings": [
+    "SCALE-002",
+    "SCALE-003",
+    "SEC-002",
+    "SEC-003",
+    "SEC-009"
+  ]
+}
