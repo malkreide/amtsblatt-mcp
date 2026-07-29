@@ -2255,6 +2255,44 @@ DEFAULT_RATE_LIMIT = int(os.environ.get("MCP_RATE_LIMIT", "60"))
 DEFAULT_RATE_WINDOW = float(os.environ.get("MCP_RATE_WINDOW", "60"))
 
 
+def build_transport_security(host: str, port: int, origins=()):
+    """Host/Origin allow-list for the SSE transport (SEC-005, inbound half).
+
+    Under mcp 2.x this is a per-app kwarg rather than a global setting. Left
+    unset, the SDK auto-enables protection only for a loopback bind; a 0.0.0.0
+    bind gets nothing, which is exactly how this server is shipped.
+
+    Returns ``None`` when no allow-list can be derived: a non-loopback bind
+    with no ``MCP_ALLOWED_HOSTS``. The server is then reached under a service
+    or public DNS name this process does not know, and a guessed list would
+    reject every real request with HTTP 421. The caller warns instead, and the
+    SDK default (no protection on a non-local bind) applies unchanged.
+    """
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    allowed = [h.strip() for h in os.environ.get("MCP_ALLOWED_HOSTS", "").split(",") if h.strip()]
+    loopback = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+    if allowed:
+        # Loopback stays reachable for container health checks and debugging.
+        hosts = set(allowed) | loopback
+    elif host in ("127.0.0.1", "localhost", "::1"):
+        hosts = loopback | {f"{host}:{port}"}
+    else:
+        return None
+
+    # Configured CORS origins must also pass the transport check, or the server
+    # rejects exactly the browser clients CORS permits. "*" is matched
+    # literally by the SDK (only a trailing ":*" port wildcard exists), so it
+    # is not copied across.
+    allowed_origins = {o for o in origins if o != "*"}
+    allowed_origins |= {f"http://{h}" for h in hosts}
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=sorted(hosts),
+        allowed_origins=sorted(allowed_origins),
+    )
+
+
 def _build_sse_app():
     """Build the SSE Starlette app with auth + rate-limit middleware.
 
@@ -2274,7 +2312,17 @@ def _build_sse_app():
             "Generate a random key (e.g. `openssl rand -hex 32`) and pass it via env."
         )
 
-    app = mcp.sse_app()
+    security = build_transport_security(bind_host(), bind_port(), configured_origins())
+    if security is None:
+        log_event(
+            logging.WARNING,
+            "dns_rebinding_protection_off",
+            host=bind_host(),
+            hint="Set MCP_ALLOWED_HOSTS to the hostnames this server is "
+            "reachable under; on a non-loopback bind the SDK does not check "
+            "the Host header at all.",
+        )
+    app = mcp.sse_app(transport_security=security, host=bind_host())
     # Middleware added later runs first → add rate-limit first, then auth, so
     # the rate-limit bucket key is the authenticated token hash.
     app.add_middleware(RateLimitMiddleware, limit=DEFAULT_RATE_LIMIT, window=DEFAULT_RATE_WINDOW)
