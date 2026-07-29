@@ -95,21 +95,32 @@ pip install -e ".[dev]"
 }
 ```
 
-### Cloud deployment (SSE)
+### Cloud deployment (streamable-http)
 
 ```bash
-export MCP_TRANSPORT=sse
+export MCP_TRANSPORT=streamable-http
 export MCP_API_KEY="$(openssl rand -hex 32)"   # mandatory — fails loud if unset
 export PORT=8000
 amtsblatt-mcp
 ```
 
+The endpoint is **`/mcp`**.
+
+> **Migrating from SSE.** Until 0.18.0 this server spoke SSE only, on
+> `/sse` + `/messages`. MCP spec `2026-07-28` reclassifies HTTP+SSE as
+> deprecated with a twelve-month removal window and removes protocol-level
+> sessions, so streamable-http is now the default. `MCP_TRANSPORT=sse` still
+> works and still carries the full bearer-auth, rate-limit and CORS stack — it
+> logs a warning at startup naming the deadline. **Update the client URL when
+> you switch**: the path change is the part that breaks silently.
+
 | Variable | Default | Purpose |
 |---|---|---|
-| `MCP_TRANSPORT` | `stdio` | `stdio` or `sse` |
-| `MCP_HOST` | `127.0.0.1` | SSE bind address. Defaults to loopback; set `0.0.0.0` to expose on all interfaces (the Docker image does this deliberately). |
-| `MCP_CORS_ORIGINS` | _(unset)_ | Comma-separated origins allowed to call the SSE endpoint from a browser. Unset means no cross-origin browser access at all — stdio and non-browser clients are unaffected. `Mcp-Session-Id` is exposed and accepted for the listed origins, so a browser client can hold a session. `*` is honoured but logs a warning and disables credentials, because browsers reject a wildcard origin together with credentials. |
-| `MCP_API_KEY` | — | Bearer token; **required** for SSE |
+| `MCP_TRANSPORT` | `stdio` | `stdio`, `streamable-http` (alias `http`), or the deprecated `sse` |
+| `MCP_HOST` | `127.0.0.1` | HTTP bind address. Defaults to loopback; set `0.0.0.0` to expose on all interfaces (the Docker image does this deliberately). |
+| `MCP_STATELESS` | _(unset)_ | `1` runs streamable-http with no session tracking at all. Removes session hijacking and session affinity as questions rather than answering them (`SEC-009`, `SCALE-002`). Opt-in, because a stateless server cannot resume an interrupted stream or push server-initiated notifications. Ignored on `sse`, which has no stateless mode. |
+| `MCP_CORS_ORIGINS` | _(unset)_ | Comma-separated origins allowed to call the endpoint from a browser. Unset means no cross-origin browser access at all — stdio and non-browser clients are unaffected. `Mcp-Session-Id` is exposed and accepted for the listed origins, so a browser client can hold a session. `*` is honoured but logs a warning and disables credentials, because browsers reject a wildcard origin together with credentials. |
+| `MCP_API_KEY` | — | Bearer token; **required** on every HTTP transport |
 | `MCP_RATE_LIMIT` / `MCP_RATE_WINDOW` | `60` / `60` | Sliding-window rate limit |
 | `RUBRICS_TTL` | `86400` | Taxonomy cache TTL (seconds) |
 | `LOG_LEVEL` | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR`. Structured JSON, one object per line, always on **stderr** — stdout carries the MCP protocol on a stdio transport. |

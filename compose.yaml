@@ -4,7 +4,7 @@ services:
     image: amtsblatt-mcp:dev
     ports: ["8000:8000"]
     environment:
-      MCP_TRANSPORT: sse
+      MCP_TRANSPORT: streamable-http
       # Bind all interfaces INSIDE the isolated container so the published port
       # is reachable; the server defaults to 127.0.0.1 otherwise (see server.py).
       MCP_HOST: "0.0.0.0"

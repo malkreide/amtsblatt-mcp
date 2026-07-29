@@ -19,7 +19,7 @@ fail — turned out exact. The six remaining fails are unchanged in character:
 none is a code change waiting to be written.
 
 `SDK-004` closed in 0.8.0 and is confirmed by this run. The server is
-cloud-deployed over SSE and carried no CORS layer, so `Mcp-Session-Id` was
+cloud-deployed over HTTP and carried no CORS layer, so `Mcp-Session-Id` was
 neither exposed nor accepted and a browser-based MCP client lost its session
 immediately after initialize. `_cors.py` names the header in both directions and
 is added *last*, so it runs *first* — a browser never sends `Authorization` on a
@@ -117,12 +117,23 @@ toward "controls the protocol no longer defines". They stay `fail` until the
 catalogue catches up, because reclassifying a finding on our own authority is
 exactly the drift these documents exist to prevent.
 
-**This server is more exposed to that than the sister server**, because its only
-HTTP transport is SSE — which spec `2026-07-28` reclassifies as Deprecated with a
-twelve-month removal window. Nothing breaks today: the SDK still ships `sse_app()`,
-and `_cors.py` was re-verified against the `starlette` 1.3.1 that `mcp` 2.0 pulls
-in (preflight 200, `Mcp-Session-Id` allowed and exposed). But migrating off SSE is
-now dated work rather than a preference, and `ROADMAP.md` tracks it.
+**That exposure was larger here than for the sister server, and 0.18.0 reduced
+it.** SSE was this server's only HTTP transport, and spec `2026-07-28`
+reclassifies HTTP+SSE as Deprecated with a twelve-month removal window. The
+server now serves **streamable-http on `/mcp`** by default; `MCP_TRANSPORT=sse`
+still works, still carries the full middleware stack, and logs a warning naming
+the deadline.
+
+Both transports are built through one function, so the bearer gate, the rate
+limit and the CORS layer are identical on each — a control that held on one and
+not the other would look enforced while not being. `tests/test_cors.py` is
+parametrised over both for the same reason. `_cors.py` was re-verified against
+the `starlette` 1.3.1 that `mcp` 2.0 pulls in (preflight 200, `Mcp-Session-Id`
+allowed and exposed, `DELETE` allowed).
+
+What is left is removing SSE, and that is a deployment question rather than a
+code one: every client config pointing at `/sse` has to move to `/mcp` first.
+`ROADMAP.md` tracks it.
 
 None of the five blocking checks is a code change waiting to be written — see
 below and `ROADMAP.md`. The remaining eight `partial` findings are led by
@@ -180,12 +191,25 @@ Two criteria remain unmet, which is why this is not recorded as passing:
   manager, which the server object does not expose as an extension point, plus a Redis
   dependency this server does not have.
 
-The sister server offers `MCP_STATELESS=1`, which removes session affinity as a
-question entirely. **That option is not available here:** this server serves the
-legacy SSE transport (`mcp.sse_app()`), which has no stateless mode. Gaining it
-means migrating to streamable-http — a deliberate change to a cloud-deployed
-service, not a remediation step, and one that would need its own testing round
-against real clients.
+**`MCP_STATELESS=1` is available since 0.18.0**, and this paragraph used to say
+the opposite. It was accurate when written: SSE was the only HTTP transport here
+and has no stateless mode, so gaining the option meant migrating to
+streamable-http — a deliberate change to a cloud-deployed service rather than a
+remediation step. That migration has now happened.
+
+With `MCP_TRANSPORT=streamable-http MCP_STATELESS=1` the server tracks no session
+at all. Session hijacking and session affinity stop being risks to mitigate and
+become states that cannot occur. Neither check flips to `pass`: `SEC-009` asks
+for *binding* and `SCALE-002` for *routing*, and absence is neither. But the
+exposure each describes is gone while it is enabled, which is worth more than the
+score.
+
+It is opt-in rather than the default, because it is not free — a stateless server
+cannot resume an interrupted stream or deliver server-initiated notifications.
+This server keeps no cross-call state, so the trade is usually right; the
+operator decides. On `MCP_TRANSPORT=sse` the flag is ignored, deliberately:
+leaving it apparently in effect would tell an operator they run session-free when
+they do not.
 
 ## Supported Versions
 

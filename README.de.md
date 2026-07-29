@@ -96,21 +96,33 @@ pip install -e ".[dev]"
 }
 ```
 
-### Cloud-Deployment (SSE)
+### Cloud-Deployment (streamable-http)
 
 ```bash
-export MCP_TRANSPORT=sse
+export MCP_TRANSPORT=streamable-http
 export MCP_API_KEY="$(openssl rand -hex 32)"   # Pflicht — Start bricht sonst ab
 export PORT=8000
 amtsblatt-mcp
 ```
 
+Der Endpunkt ist **`/mcp`**.
+
+> **Umstieg von SSE.** Bis 0.18.0 sprach dieser Server ausschliesslich SSE, auf
+> `/sse` + `/messages`. Die MCP-Spec `2026-07-28` stuft HTTP+SSE mit
+> Zwölf-Monats-Frist als deprecated ein und entfernt Sessions aus dem Protokoll;
+> streamable-http ist deshalb jetzt der Standard. `MCP_TRANSPORT=sse` läuft
+> weiter und trägt weiterhin den vollständigen Stack aus Bearer-Auth,
+> Rate-Limit und CORS — beim Start wird eine Warnung mit der Frist geloggt.
+> **Beim Umstellen die Client-URL anpassen**: der Pfadwechsel ist der Teil, der
+> stillschweigend bricht.
+
 | Variable | Standard | Zweck |
 |---|---|---|
-| `MCP_TRANSPORT` | `stdio` | `stdio` oder `sse` |
-| `MCP_HOST` | `127.0.0.1` | SSE-Bind-Adresse. Standard Loopback; `0.0.0.0` exponiert auf allen Interfaces (das Docker-Image setzt das bewusst). |
-| `MCP_CORS_ORIGINS` | _(nicht gesetzt)_ | Kommagetrennte Origins, die den SSE-Endpunkt aus dem Browser aufrufen dürfen. Nicht gesetzt heisst: kein Cross-Origin-Zugriff aus dem Browser — stdio und Nicht-Browser-Clients sind nicht betroffen. Für die gelisteten Origins wird `Mcp-Session-Id` exponiert und akzeptiert, damit ein Browser-Client eine Session halten kann. `*` wird akzeptiert, loggt aber eine Warnung und deaktiviert Credentials, weil Browser eine Wildcard-Origin zusammen mit Credentials ablehnen. |
-| `MCP_API_KEY` | — | Bearer-Token; **Pflicht** bei SSE |
+| `MCP_TRANSPORT` | `stdio` | `stdio`, `streamable-http` (Alias `http`) oder das abgekündigte `sse` |
+| `MCP_HOST` | `127.0.0.1` | HTTP-Bind-Adresse. Standard Loopback; `0.0.0.0` exponiert auf allen Interfaces (das Docker-Image setzt das bewusst). |
+| `MCP_STATELESS` | _(nicht gesetzt)_ | `1` betreibt streamable-http ganz ohne Session-Tracking. Damit entfallen Session-Hijacking und Session-Affinität als Fragen, statt beantwortet zu werden (`SEC-009`, `SCALE-002`). Opt-in, weil ein zustandsloser Server einen unterbrochenen Stream nicht fortsetzen und keine servergetriebenen Notifications senden kann. Auf `sse` wirkungslos — dort gibt es keinen Stateless-Modus. |
+| `MCP_CORS_ORIGINS` | _(nicht gesetzt)_ | Kommagetrennte Origins, die den Endpunkt aus dem Browser aufrufen dürfen. Nicht gesetzt heisst: kein Cross-Origin-Zugriff aus dem Browser — stdio und Nicht-Browser-Clients sind nicht betroffen. Für die gelisteten Origins wird `Mcp-Session-Id` exponiert und akzeptiert, damit ein Browser-Client eine Session halten kann. `*` wird akzeptiert, loggt aber eine Warnung und deaktiviert Credentials, weil Browser eine Wildcard-Origin zusammen mit Credentials ablehnen. |
+| `MCP_API_KEY` | — | Bearer-Token; **Pflicht** auf jedem HTTP-Transport |
 | `MCP_RATE_LIMIT` / `MCP_RATE_WINDOW` | `60` / `60` | Sliding-Window-Rate-Limit |
 | `RUBRICS_TTL` | `86400` | Cache-TTL der Taxonomie (Sekunden) |
 | `LOG_LEVEL` | `INFO` | Strukturierte JSON-Logs auf stderr |
@@ -392,7 +404,7 @@ amtsblatt-mcp/
 │   ├── rubrics.py       # Fail-closed Freigabe-Liste — der Scope-Entscheid
 │   ├── server.py        # MCPServer, 5 Tools, Quirk-Schutz, XML-Parsing
 │   ├── _log.py          # Strukturiertes JSON-Logging + Tool-Call-Events
-│   ├── _middleware.py   # Bearer-Auth + Rate-Limit (nur SSE)
+│   ├── _middleware.py   # Bearer-Auth + Rate-Limit (alle HTTP-Transporte)
 │   └── _otel.py         # Optionale OpenTelemetry-Anbindung
 ├── tests/
 │   ├── test_allowlist.py    # Datenschutz-Invarianten (eigener CI-Job)
