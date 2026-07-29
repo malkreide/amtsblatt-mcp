@@ -26,7 +26,7 @@ the current run lives under `audits/`.
 | Item | Check | State |
 |---|---|---|
 | Split `server.py` (~2200 lines) into a `tools/` package | `ARCH-011` | open — refactor with regression risk, low payoff |
-| Migrate off the deprecated HTTP+SSE transport | — | open, see below — this server's only HTTP transport |
+| Remove the deprecated HTTP+SSE transport entirely | — | open — streamable-http shipped in 0.18.0, SSE kept for the deprecation window |
 | Structured tool returns instead of rendered Markdown | `SDK-002` | **not planned** — deliberate, see below |
 | Progress reporting via `ctx: Context` | `SDK-003` | not planned while every tool returns in milliseconds |
 
@@ -53,12 +53,27 @@ migration to `mcp` 2.x made them fail; they are now assertions that a protocol
 error carries `-32602` / `-32603`. What remains open is not a code change: an
 unknown *tool* is still delivered as a tool result rather than a protocol error.
 
-**Migrating off SSE now has a deadline.** Spec `2026-07-28` reclassifies HTTP+SSE
-as Deprecated under a twelve-month removal window, and removes protocol-level
-sessions and stream resumability outright. SSE is this server's *only* HTTP
-transport, so this weighs heavier here than for the sister server, which also
-offers streamable-http. Nothing breaks today — the SDK still ships `sse_app()` —
-but the open question is when to move, not whether.
+**Streamable-http shipped in 0.18.0; removing SSE is what is left.** Spec
+`2026-07-28` reclassifies HTTP+SSE as Deprecated under a twelve-month removal
+window and removes protocol-level sessions outright. This server now serves
+`/mcp` by default and keeps `/sse` + `/messages` working behind
+`MCP_TRANSPORT=sse`, which logs a warning naming the deadline.
+
+Both transports carry the identical middleware stack — bearer gate, rate limit,
+CORS — built through one function, because a control that holds on one transport
+and not the other is worse than a missing one.
+
+What remains is the removal itself, and it is a deployment question rather than a
+code one: every client config pointing at `/sse` has to move to `/mcp` first.
+The warning in the logs is what makes that visible; the deadline is the spec's,
+not ours.
+
+**`MCP_STATELESS` became reachable in the same release.** It was previously
+recorded here as unavailable, correctly: SSE has no stateless mode. On
+streamable-http it removes session hijacking and session affinity as questions
+rather than answering them, which is the strongest available response to
+`SEC-009` and `SCALE-002`. Neither check flips to `pass` — both ask for binding
+and routing, not absence — but the exposure is gone when it is enabled.
 
 **`SDK-002` is an accepted deviation, not a backlog item.** Tools return `str`
 because the rendered output is composed for a reader and carries provenance,

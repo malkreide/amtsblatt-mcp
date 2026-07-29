@@ -28,13 +28,16 @@ There are exactly two ways out, and a third that removes the question.
 
 ## Option 1 — run stateless (simplest, and usually right here)
 
-**Not available here yet.** This server serves the legacy SSE transport
-(`mcp.sse_app()`), which has no stateless mode; using it would mean migrating to
-streamable-http, which is a deliberate change to a cloud-deployed service rather
-than a remediation step. The sister server offers `MCP_STATELESS=1` with
-`MCP_TRANSPORT=streamable-http`, and the reasoning below applies there.
+**Available since 0.18.0.** This paragraph previously said the opposite, and was
+right at the time: the server served only the legacy SSE transport, which has no
+stateless mode. It now serves streamable-http on `/mcp` by default, so:
 
-When it does apply: The SDK then builds
+```bash
+export MCP_TRANSPORT=streamable-http
+export MCP_STATELESS=1
+```
+
+The SDK then builds
 a fresh transport per request and tracks no session at all. Any instance can
 serve any request; no affinity is needed and no session state exists to lose.
 
@@ -68,7 +71,11 @@ upstream mcp_backend {
 }
 
 server {
-    location /sse {
+    # `/mcp` since 0.18.0. For a deployment still on MCP_TRANSPORT=sse the
+    # paths are `/sse` and `/messages` instead — the rest of the block is
+    # identical, which is why moving is a one-line change here and a
+    # client-config change everywhere else.
+    location /mcp {
         proxy_pass http://mcp_backend;
         proxy_http_version 1.1;
 

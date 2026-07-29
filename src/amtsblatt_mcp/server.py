@@ -2293,11 +2293,38 @@ def build_transport_security(host: str, port: int, origins=()):
     )
 
 
-def _build_sse_app():
-    """Build the SSE Starlette app with auth + rate-limit middleware.
+HTTP_TRANSPORTS = {"streamable-http", "http", "sse"}
+
+
+def _stateless_requested() -> bool:
+    """SEC-009 / SCALE-002: opt into session-free operation.
+
+    Only reachable since the move off SSE. With `stateless_http` the SDK builds
+    a fresh transport per request and tracks no session at all, which removes
+    both findings rather than solving them: there is no session id to bind to a
+    user and none to route consistently to an instance.
+
+    Opt-in rather than default, because it is not free — a stateless server
+    cannot resume an interrupted stream or push server-initiated
+    notifications. For this server, which keeps no cross-call state, it is
+    usually the right trade; the operator decides.
+    """
+    return os.environ.get("MCP_STATELESS", "").strip().lower() in {"1", "true", "yes"}
+
+
+def build_http_app(kind: str = "streamable-http"):
+    """Build the HTTP Starlette app with auth + rate-limit middleware.
+
+    `kind` is either `streamable-http` (default) or the deprecated `sse`.
 
     Requires `MCP_API_KEY`. Fails loud at startup otherwise — no implicit
-    "auth disabled" mode is supported for SSE.
+    "auth disabled" mode is supported on any HTTP transport.
+
+    Both transports get the identical middleware stack. That is the point of
+    building them through one function: the bearer gate, the rate limit and the
+    CORS layer are the controls SEC-002, SEC-008 and SDK-004 are scored on, and
+    a transport that quietly skipped one of them would look enforced while not
+    being. The only difference is which SDK app-builder is called.
     """
     from ._cors import apply_cors, configured_origins
     from ._middleware import BearerAuthMiddleware, RateLimitMiddleware
@@ -2308,7 +2335,7 @@ def _build_sse_app():
     api_key = SecretStr(os.environ.get("MCP_API_KEY", "").strip())
     if not api_key.get_secret_value():
         raise SystemExit(
-            "MCP_API_KEY must be set when MCP_TRANSPORT=sse. "
+            f"MCP_API_KEY must be set when MCP_TRANSPORT={kind}. "
             "Generate a random key (e.g. `openssl rand -hex 32`) and pass it via env."
         )
 
@@ -2322,7 +2349,25 @@ def _build_sse_app():
             "reachable under; on a non-loopback bind the SDK does not check "
             "the Host header at all.",
         )
-    app = mcp.sse_app(transport_security=security, host=bind_host())
+    if kind == "sse":
+        # Deprecated since spec 2026-07-28 (twelve-month removal window), and
+        # the reason this server offers streamable-http at all. Kept working so
+        # a deployed client is not broken by an upgrade; the warning is what
+        # makes the deadline visible to whoever reads the logs.
+        log_event(
+            logging.WARNING,
+            "sse_transport_deprecated",
+            hint="MCP spec 2026-07-28 reclassifies HTTP+SSE as deprecated and "
+            "removes protocol-level sessions. Move to "
+            "MCP_TRANSPORT=streamable-http; the endpoint changes from "
+            "/sse + /messages to /mcp.",
+        )
+        app = mcp.sse_app(transport_security=security, host=bind_host())
+    else:
+        stateless = _stateless_requested()
+        app = mcp.streamable_http_app(
+            transport_security=security, host=bind_host(), stateless_http=stateless
+        )
     # Middleware added later runs first → add rate-limit first, then auth, so
     # the rate-limit bucket key is the authenticated token hash.
     app.add_middleware(RateLimitMiddleware, limit=DEFAULT_RATE_LIMIT, window=DEFAULT_RATE_WINDOW)
@@ -2335,7 +2380,9 @@ def _build_sse_app():
     apply_cors(app)
     log_event(
         logging.INFO,
-        "sse_app_built",
+        "http_app_built",
+        transport=kind,
+        stateless=_stateless_requested() and kind != "sse",
         rate_limit=DEFAULT_RATE_LIMIT,
         rate_window=DEFAULT_RATE_WINDOW,
         cors_origins=len(configured_origins()),
@@ -2356,14 +2403,16 @@ def main() -> None:
         )
         mcp.run(transport="stdio")
         return
-    if transport == "sse":
+    if transport in HTTP_TRANSPORTS:
         import uvicorn
 
-        app = _build_sse_app()
+        kind = "sse" if transport == "sse" else "streamable-http"
+        app = build_http_app(kind)
         log_event(
             logging.INFO,
             "starting",
-            transport="sse",
+            transport=kind,
+            endpoint="/sse + /messages" if kind == "sse" else "/mcp",
             host=bind_host(),
             port=bind_port(),
         )
@@ -2374,7 +2423,10 @@ def main() -> None:
             log_level=mcp.settings.log_level.lower(),
         )
         return
-    raise SystemExit(f"Unsupported MCP_TRANSPORT={transport!r} (expected 'stdio' or 'sse')")
+    raise SystemExit(
+        f"Unsupported MCP_TRANSPORT={transport!r} "
+        "(expected 'stdio', 'streamable-http' or the deprecated 'sse')"
+    )
 
 
 if __name__ == "__main__":

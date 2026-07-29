@@ -21,7 +21,7 @@ FROM python:3.14-slim AS runtime
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH" \
-    MCP_TRANSPORT=sse \
+    MCP_TRANSPORT=streamable-http \
     PORT=8000
 
 # SEC-007: an explicit UID above 10000, not the 100-999 system range that

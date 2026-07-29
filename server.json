@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.malkreide/amtsblatt-mcp",
   "description": "Swiss official gazettes (SHAB + cantonal) — procurement & notices, person-data rubrics excluded",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "repository": {
     "url": "https://github.com/malkreide/amtsblatt-mcp",
     "source": "github"
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "identifier": "amtsblatt-mcp",
-      "version": "0.17.0",
+      "version": "0.18.0",
       "transport": {
         "type": "stdio"
       },

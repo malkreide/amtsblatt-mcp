@@ -103,7 +103,7 @@ jobs:
       - name: Smoke test — image refuses to start without MCP_API_KEY
         run: |
           set +e
-          out=$(docker run --rm -e MCP_TRANSPORT=sse amtsblatt-mcp:ci 2>&1)
+          out=$(docker run --rm -e MCP_TRANSPORT=streamable-http amtsblatt-mcp:ci 2>&1)
           rc=$?
           echo "$out"
           if [ "$rc" -eq 0 ]; then

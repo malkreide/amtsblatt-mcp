@@ -6,6 +6,70 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-07-29
+
+Moves off SSE. The server now serves **streamable-http on `/mcp`** by default;
+`MCP_TRANSPORT=sse` still works, on `/sse` + `/messages`, and logs a warning.
+
+### Why now, and why not a clean cut
+
+Spec `2026-07-28` reclassifies HTTP+SSE as Deprecated with a twelve-month removal
+window and removes protocol-level sessions outright. SSE was this server's *only*
+HTTP transport, which made it the portfolio's most exposed to that clock.
+
+Removing SSE in the same release was the obvious-looking move and the wrong one.
+This service is cloud-deployed and the endpoint path changes — every client
+config pointing at `/sse` would have broken on upgrade, silently, with a symptom
+(connection refused on an unknown path) that points nowhere useful. A deprecation
+window exists precisely so that the transport switch and the client migration do
+not have to happen in the same minute. So both transports ship, streamable-http
+is the default, and the startup warning names the deadline and the new path.
+
+### One builder, two transports
+
+`_build_sse_app()` became `build_http_app(kind)`. Both transports get the
+identical middleware stack — bearer gate, rate limit, CORS, in that order — from
+one function, because a control that holds on one transport and not the other is
+worse than a missing one: it looks enforced.
+
+`tests/test_cors.py` is parametrised over both for the same reason and grew from
+12 tests to 25. It gained `test_the_api_key_is_required_on_every_http_transport`,
+which is the check that matters when a *third* transport is added some day: the
+loud failure on a missing `MCP_API_KEY` has to be a property of building any HTTP
+app, not something the SSE branch happened to do.
+
+### `MCP_STATELESS` became reachable
+
+`SECURITY.md`, `ROADMAP.md` and `docs/load-balancing.md` all recorded this option
+as unavailable here, correctly — SSE has no stateless mode. On streamable-http,
+`MCP_STATELESS=1` runs the server with no session tracking at all: session
+hijacking and session affinity stop being risks to mitigate and become states
+that cannot occur.
+
+Neither `SEC-009` nor `SCALE-002` flips to `pass` — one asks for *binding*, the
+other for *routing*, and absence is neither. The exposure each describes is gone
+while it is enabled, which is worth more than the score. All three documents are
+corrected rather than quietly updated; each says what it used to claim and why
+that was true when written.
+
+The flag is ignored on `sse`, deliberately: leaving it apparently in effect would
+tell an operator they run session-free when they do not.
+
+### Verification
+
+`tests/test_transport.py` is new — 11 tests covering endpoint identity per
+transport, the stateless wiring, the deprecation warning and the dispatch table.
+The warning tests capture structlog's real output through the production
+processor chain rather than `caplog`, which sees nothing here because structlog
+writes to its own stderr factory.
+
+Mutation-tested four ways: defaulting to SSE fails 1, dropping the stateless flag
+fails 2, removing the deprecation warning fails 1, and skipping the `MCP_API_KEY`
+check fails 2.
+
+248 tests pass (up from 215), `ruff check` clean. `Dockerfile`, `compose.yaml`
+and the CI smoke test now set `MCP_TRANSPORT=streamable-http`.
+
 ## [0.17.0] — 2026-07-29
 
 Migrates to **`mcp` 2.x**, which closes the `OBS-001` criterion 0.16.0 had to
