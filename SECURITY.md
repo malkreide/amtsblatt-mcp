@@ -153,6 +153,33 @@ below and `ROADMAP.md`. The remaining eight `partial` findings are led by
 `SDK-002` (deliberate, `str` returns), `ARCH-011` (a `tools/` split with
 regression risk) and `SEC-022` (no tool-hash pinning).
 
+**`SEC-022` — the substantive half closed in 0.19.0, not yet re-measured.**
+`tool-hashes.json` publishes a SHA-256 fingerprint of every tool's name,
+description, schemas and annotations, plus a `surface_sha256` over the whole set
+so adding or removing a tool is visible even when no surviving tool changed.
+
+The threat is a rug pull: harmless descriptions at approval time, rewritten
+afterwards to carry instructions the model follows. The host-side half of the
+defence is not ours to build; publishing a fingerprint a host or reviewer can
+compare against is. `tests/test_tool_hashes.py` fails until the committed
+snapshot matches the live server, so refreshing it is something CI requires
+rather than something a maintainer is meant to remember — a snapshot on the
+honour system drifts, and a stale fingerprint is worse than none because it
+asserts the surface has not moved while it has.
+
+`title`, `icons` and `meta` are excluded deliberately: a fingerprint that churns
+on cosmetic edits trains people to regenerate without reading the diff. There is
+a negative-control test for that, and another asserting that a `read_only_hint`
+flip *does* move the hash — that is a rug pull with no description edit at all.
+
+The namespace criterion asks literally for `<server>__<tool>`; this server uses
+`gazette_`, which is consistent, frozen in code and enforced by
+`test_tool_naming.py`. It already serves the intent — it is what keeps
+`source_status` from colliding with the sister server. Renaming six published
+tools a second time, which the check notes is a breaking change requiring a
+major bump, buys the literal form of a criterion whose purpose is met. Recorded
+as a deliberate deviation rather than done, so the check will stay `partial`.
+
 Full report and per-finding documents: `audits/`.
 
 ## Accepted risks, stated precisely
