@@ -10,6 +10,66 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - (none)
 
+## [0.20.1] — 2026-07-29
+
+Ports `tests/test_security_doc.py` from `swiss-procurement-mcp`, and fixes what
+it found. No behaviour change.
+
+### Why the port was overdue
+
+The sister server has had this guard for a while, and it has earned its place
+twice: once by catching a `SECURITY.md` that cited counts four audit runs stale
+and listed two implemented controls as *accepted risks*, and once by turning the
+suite red mid-audit, so an unfinished audit announces itself instead of lying
+quietly on disk.
+
+This repo had no equivalent, and 0.20.0 made that worse: it added an `ARCH-003`
+section to `SECURITY.md` **and** `SECURITY.de.md` with nothing coupling either to
+`summary.json` or to each other.
+
+### The bilingual invariant, derived rather than listed
+
+`SECURITY.de.md` is a summary, not a translation — it legitimately omits the
+audit bookkeeping. So the rule is structural: every check id heading a section in
+`SECURITY.md`, except those under "Accepted risks", must also head a German
+section. A hand-curated list of "sections that must be bilingual" would rot on
+the first section nobody thought to add to it; this does not.
+
+The reverse direction is asserted too, and is not symmetric: German may omit
+bookkeeping, but it may not discuss a check the English file is silent on.
+
+### What the port found
+
+**The count guard had a hole, and it is in the original too.** Searching the
+whole document for "32 pass" let a *historical* sentence — "the estimate recorded
+at the time — ~32 pass / 8 partial / 6 fail" — satisfy the assertion while the
+actual posture line said something else. Rewriting the posture line to 31 pass
+left the suite green. The counts are now anchored to a window after the run
+citation, because the claim being guarded is that the summary states *this run's*
+numbers. All three counts are checked, not just pass and partial.
+
+**Hardening note 1 was stale in both languages.** It told operators to put a
+gateway in front of "the SSE transport", but streamable-http on `/mcp` has been
+the default since 0.18.0 — so an operator on the default read advice that
+appeared not to apply to them, while the bearer auth and rate limit are
+single-instance on *both* paths. The advice was right and its scope was wrong,
+which is the failure mode that survives review longest. Now scoped to whichever
+HTTP transport is served, with a test that keeps it that way.
+
+### One assertion was too broad and was narrowed
+
+The first version of the gateway test searched the whole document and failed on
+the accepted-risks paragraph, where "the legacy SSE transport" is the correct and
+specific subject. What is wrong is *advice* narrowed to one transport, not any
+mention of SSE. A guard that cannot tell those apart pushes prose toward being
+vaguer than the facts, so it is scoped to the hardening section.
+
+Mutation-tested: a stale count in the posture line fails 1 test (each of the
+three counts independently), dropping the German `ARCH-003` section fails 1,
+re-narrowing the gateway advice fails 1, giving `MatchType` a `fuzzy` member
+while both documents still promise exact-only fails 1, and listing a passing
+check as an accepted risk fails 2.
+
 ## [0.20.0] — 2026-07-29
 
 Closes **`ARCH-003`** — empty search results. Not by adding fuzzy matching, but
