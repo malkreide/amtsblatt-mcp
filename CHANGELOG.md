@@ -10,6 +10,67 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - (none)
 
+## [0.22.0] — 2026-07-30
+
+Closes **`ARCH-003`** properly. The 2026-07-30 re-audit recorded it as still
+`partial` and found that the reason 0.20.0 declined it was factually wrong.
+
+### The correction
+
+0.20.0 declined criterion 1 — no fuzzy or suggestion mechanism — on the grounds
+that all three searches query "bankruptcy notices, debt-collection summonses,
+estate calls, construction objections", with the failure mode of naming the wrong
+company as bankrupt.
+
+**Every rubric in that list is red and unreachable through any tool.** `KK`,
+`SB`, `SR`, `LS`, `NA` (Konkurse, Schuldbetreibungen), `ES` / `TE-*`
+(Erbschaft), `GB-*` / `GE-*` (gerichtliche Vorladungen) and `BP-*` (Baugesuche)
+all sit outside `GREEN_RUBRICS` — an allow-list that exists precisely to exclude
+systematic natural-person data. The searchable set is therefore the
+*non-sensitive* one: the set criterion 1 applies to, not the set criterion 4
+exempts. The exemption being claimed covered rubrics this server refuses to
+serve.
+
+### What survives, and what changes
+
+The narrower concern is real: `HR` / `BH` (Handelsregister) and `OB-*`
+(Beschaffungen) name legal persons, so silently re-running a search with a
+broadened company name would return notices about *different* companies and
+present them as the answer to the original question.
+
+So the server suggests and never executes. On `match_type == "none"` the response
+offers shorter forms of the caller's **own** keyword — `Schulhausneubau` →
+`Schulhaus`, `Schul` — stated explicitly as not queried. The model chooses. No
+request is issued for a suggestion, so no notice can be attributed to a term the
+caller did not pick, and `MatchType` still has no `fuzzy` member because no
+response is ever a fuzzy match.
+
+Only prefixes of what the caller typed: no stemmer and no dictionary, which would
+invent a term they never used. Multi-word queries offer their longest token first
+— "mobile Metallbauten" is asking about Metallbauten. The prefix schedule is
+geometric to a four-character floor, reusing the shape the companion server
+measured against the live API after a fixed 30%-per-step version stopped three
+characters short of the term that works.
+
+### A gap the mutation testing found
+
+Four mutations were run; three bit immediately. Removing the length floor in
+`_add` did not — the prefix schedule already floors at `MIN_TERM_LENGTH`, so that
+guard is only reachable via short *tokens* in a multi-word query. Without it,
+`Muster AG` suggested **`AG`** as a search term across the whole gazette, and
+every test in the file passed. The assertion now exists and the mutation fails.
+
+### Documentation
+
+`SECURITY.md` and `SECURITY.de.md` both carried the wrong justification and are
+corrected in place rather than quietly rewritten — the sections now state what
+was claimed, why it was wrong, and what replaced it. `tests/test_empty_results.py`
+carried it too, in its module docstring.
+
+Mutation-tested four ways: dropping the suggestions from the note fails 1,
+removing the "not queried" wording fails 1, flattening the prefix schedule fails
+1, removing the length floor fails 1.
+
 ## [0.21.0] — 2026-07-30
 
 Closes **`ARCH-011`**: `server.py` was 2477 lines and is now 252. No behaviour

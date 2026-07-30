@@ -1,25 +1,27 @@
-"""ARCH-003: what an empty search says, and the promise that it never widens.
+"""ARCH-003: an empty search suggests terms, and never searches for them.
 
-The check has four criteria. Three of them — a `match_type` on every response,
-an actionable hint when it is `none`, and a documented decision for tools that
-stay exact-only — apply straightforwardly here. The fourth asks for a fuzzy or
-suggestion mechanism on the non-sensitive search tools, and this server has no
-non-sensitive search tool: every one of them queries official gazette
-publications about named legal and natural persons.
+**This file's premise was wrong once, and the correction is the point.** It used
+to state that every search here queries "publications about named legal and
+natural persons" — bankruptcies, debt collection, estate calls, building
+applications — and that criterion 1 therefore did not apply. Every one of those
+rubrics is **red** and unreachable: `KK`, `SB`, `SR`, `LS`, `NA`, `ES`, `TE-*`,
+`GB-*`, `GE-*`, `BP-*` all sit outside `GREEN_RUBRICS`, which exists precisely to
+exclude systematic natural-person data. The searchable set is the *non-sensitive*
+one, so criterion 1 applied all along and the 2026-07-30 re-audit recorded
+`ARCH-003` as still `partial`.
 
-That makes `test_no_search_tool_widens_the_callers_term` the load-bearing test
-in this file. A keyword search broadened from `Muster AG` to `Muster` returns
-notices about *different* companies, and a model that cannot see the term was
-changed under it will present them as the answer. The failure mode is naming
-the wrong company as bankrupt. If any test here is ever dropped, it is not
-that one.
+What survives from that reasoning is narrower and real: `HR` / `BH`
+(Handelsregister) and `OB-*` (Beschaffungen) name legal persons, so silently
+re-running a search with a broadened company name would return notices about
+*different* companies and present them as the answer.
 
-The rest of the file guards the thing that replaces widening: an empty result
-that explains itself. That matters more here than a fuzzy match would, because
-this server searches only the green rubrics — so a keyword that genuinely
-appears in the gazette can come back empty purely because its rubric is
-deliberately not served, and an empty result that does not say so reads as "no
-such publication exists".
+Both halves are now held at once. `suggest_terms` offers shorter forms of the
+caller's own keyword and the server never queries them, so criterion 1 is met
+while no result can be attributed to a term the caller did not choose. The two
+load-bearing tests are therefore a pair:
+`test_an_empty_result_suggests_shorter_terms` (the criterion) and
+`test_suggestions_are_never_searched` (the safety property). Dropping either one
+leaves the other meaningless.
 """
 
 from __future__ import annotations
@@ -33,7 +35,13 @@ import pytest
 import respx
 
 from amtsblatt_mcp import _taxonomy
-from amtsblatt_mcp._matching import MatchType, describe_filters
+from amtsblatt_mcp._matching import (
+    MIN_TERM_LENGTH,
+    MatchType,
+    describe_filters,
+    suggest_terms,
+    suggestion_sentence,
+)
 from amtsblatt_mcp._taxonomy import _reset_rubrics_cache
 from amtsblatt_mcp.constants import GAZETTE_BASE, ResponseFormat
 from amtsblatt_mcp.inputs import DetailedSearchInput, ProcurementInput, SearchInput
@@ -69,11 +77,16 @@ def _empty_route() -> respx.Route:
 
 
 async def test_no_search_tool_widens_the_callers_term() -> None:
-    """Criterion 4, and the reason this server has no fuzzy matching at all.
+    """The server offers terms; it never queries them itself.
 
-    Asserted on the outgoing request rather than on the rendered text, because
-    that is what a widening implementation would change: one request, carrying
-    the caller's keyword unmodified, even though it returned nothing.
+    Kept alongside `test_suggestions_are_never_searched` rather than merged into
+    it, because the two guard different things. That one asserts a *suggestion* is
+    not executed; this one asserts the search path does not widen at all, which is
+    what a well-meaning "just retry with a shorter term" patch would break.
+
+    Asserted on the outgoing request rather than the rendered text, because that
+    is what such a patch would change: one request, carrying the caller's keyword
+    unmodified, even though it returned nothing.
     """
     _seed_rubrics()
     with respx.mock:
@@ -85,12 +98,104 @@ async def test_no_search_tool_widens_the_callers_term() -> None:
 
 
 async def test_the_match_type_has_no_fuzzy_member() -> None:
-    """The exact-only decision, pinned in the type rather than only in prose.
+    """Still no `fuzzy`, and now for the right reason.
 
-    Adding widening means adding the member, which means coming to `_matching`
-    and reading why it is absent. A comment alone would not survive that.
+    The server never *performs* a widened search, so no response is ever a fuzzy
+    match — suggestions ride in the note as candidate terms. Adding the member
+    means switching from offering to executing, which means coming to `_matching`
+    and reading that difference.
     """
     assert set(typing.get_args(MatchType)) == {"exact", "none"}
+
+
+# --- criterion 1: suggestions, offered and never executed -------------------
+
+
+async def test_an_empty_result_suggests_shorter_terms() -> None:
+    """ARCH-003 criterion 1 — the half that was missing until 0.22.0.
+
+    A caller whose compound is one segment too long gets a route to the right
+    term instead of a dead end, which is the case the check was written for.
+    """
+    _seed_rubrics()
+    with respx.mock:
+        _empty_route()
+        out = await gazette_search_publications(SearchInput(keyword="Schulhausneubau"))
+
+    assert "Schulhaus" in out, "no shorter form of the caller's own term offered"
+    assert "Schul" in out
+
+
+async def test_suggestions_are_never_searched() -> None:
+    """The safety property, and the reason suggesting is not widening.
+
+    If the server queried its own suggestions it would be doing exactly what
+    0.20.0 refused: returning notices about a different company under the
+    caller's original question. Asserted on the request count and the outgoing
+    keyword, because that is what executing a suggestion would change.
+    """
+    _seed_rubrics()
+    with respx.mock:
+        route = _empty_route()
+        out = await gazette_search_publications(SearchInput(keyword="Muster AG", rubric="OB-BS"))
+
+    assert route.call_count == 1, "a suggestion must be offered, never queried"
+    assert route.calls[0].request.url.params.get("keyword") == "Muster AG"
+    assert "Muster" in out, "the suggestion itself should still reach the caller"
+
+
+async def test_suggestions_say_they_were_not_queried() -> None:
+    """Otherwise a model reads the terms as searches that already happened.
+
+    Which would turn a suggestion into a false claim about what was tried.
+    """
+    _seed_rubrics()
+    with respx.mock:
+        _empty_route()
+        out = await gazette_search_publications(SearchInput(keyword="Schulhausneubau"))
+
+    assert "nicht** automatisch abgefragt" in out
+
+
+async def test_a_short_keyword_gets_no_suggestions() -> None:
+    """Below the floor a prefix matches half the gazette.
+
+    A suggestions clause that is always present trains the reader to skip it, so
+    an empty one is omitted rather than padded.
+    """
+    assert suggest_terms("Bau") == []
+    assert suggest_terms("") == []
+    assert suggestion_sentence("Bau") == ""
+
+    # The multi-word path needs its own assertion: the prefix schedule already
+    # floors at MIN_TERM_LENGTH, so the length guard in `_add` is only reachable
+    # via short *tokens*. Without this line, removing that guard survived every
+    # test in this file while suggesting "AG" — a legal-form abbreviation — as a
+    # search term across the whole gazette.
+    assert "AG" not in suggest_terms("Muster AG")
+    assert all(len(t) >= MIN_TERM_LENGTH for t in suggest_terms("Bau GmbH Zürich"))
+
+
+async def test_suggestions_are_only_prefixes_of_the_callers_term() -> None:
+    """No stemmer, no dictionary — those invent a term the caller never used.
+
+    The multi-word case picks the longest token first: "mobile Metallbauten" is
+    asking about Metallbauten, not about mobility.
+    """
+    for term in suggest_terms("Schulhausneubau"):
+        assert "Schulhausneubau".lower().startswith(term.lower())
+    assert suggest_terms("mobile Metallbauten")[0] == "Metallbauten"
+
+
+async def test_the_broadest_suggestion_comes_last() -> None:
+    """A fixed per-step ratio was measured wrong on the companion server.
+
+    From "Betonsanierungsarbeiten" it stopped at seven characters, three short of
+    the term that actually returns results. If the last suggestion is not the
+    widest, the last resort is not a last resort.
+    """
+    terms = suggest_terms("Betonsanierungsarbeiten")
+    assert len(terms[-1]) <= MIN_TERM_LENGTH + 1
 
 
 # --- an empty result explains itself ---------------------------------------

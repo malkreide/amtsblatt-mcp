@@ -18,27 +18,18 @@ reading.** `ARCH-011` closed in 0.21.0: `server.py` went from 2477 lines to 252,
 the tool handlers live in `tools/`, and `tool-hashes.json` is byte-identical
 afterwards — the surface a client approves provably did not move.
 
-**`ARCH-003` did not close in 0.20.0, and the justification for closing it was
-wrong.** That release declined criterion 1 — no fuzzy or suggestion mechanism —
-on the grounds that all three searches "query official gazette publications:
-bankruptcy notices, debt-collection summonses, estate calls, construction
-objections", with the stated failure mode of naming the wrong company as
-bankrupt. **Every rubric in that list is red and unreachable through any tool.**
-`KK`, `SB`, `SR`, `LS`, `NA`, `ES`, `TE-*`, `GB-*`, `GE-*`, `BP-*` are all
-outside `GREEN_RUBRICS`, and the green allow-list exists precisely to exclude
-systematic natural-person data. The searchable set is therefore the
-*non-sensitive* one — the set criterion 1 applies to, not the set criterion 4
-exempts.
+**`ARCH-003` — measured `partial` at 0.21.0, closed in 0.22.0, not yet
+re-measured.** The re-audit found that the 0.20.0 decision to decline criterion 1
+was justified with rubrics this server does not serve: it named bankruptcy
+notices, debt-collection summonses, estate calls and construction objections,
+and `KK`, `SB`, `SR`, `LS`, `NA`, `ES`, `TE-*`, `GB-*`, `GE-*` and `BP-*` are all
+red and unreachable. The green allow-list exists to exclude exactly those, so the
+searchable set is the *non-sensitive* one — the set criterion 1 applies to.
 
-Criteria 2 and 3 are genuinely met and stay met: `match_type` on every response,
-and an empty result that names its filters and points at the scope gate and
-`gazette_source_status`. The residual concern is narrower than claimed but real:
-`HR` / `BH` (Handelsregister) and `OB-*` (Beschaffungen) name legal persons, so
-broadening a company name would surface other companies. That is an argument
-about *how* to widen, not a reason to have no mechanism — a suggestion mechanism
-returning candidate *terms* rather than results would satisfy the criterion with
-none of the confusion risk. Recorded as `partial` with that remediation in
-`audits/2026-07-30T105205-Z-amtsblatt-mcp/findings/ARCH-003.md`.
+0.22.0 closes it without taking on the hazard the original decision was reaching
+for. An empty result now offers shorter forms of the caller's own keyword and the
+server never queries them, so the criterion is met while no notice can be
+attributed to a term the caller did not choose. Details in the section below.
 
 **`SEC-022` stays `partial` as expected**, on the namespace criterion alone: the
 prefix is `gazette_`, not `amtsblatt_mcp__<tool>`. Five of six criteria pass, the
@@ -180,9 +171,9 @@ code one: every client config pointing at `/sse` has to move to `/mcp` first.
 
 None of the five blocking checks is a code change waiting to be written — see
 below and `ROADMAP.md`. The remaining seven `partial` findings are led by
-`ARCH-003` (a real gap, see the posture section above), `SDK-002` (deliberate,
-`str` returns) and `SEC-022` (namespace wording only). `ARCH-011` closed in
-0.21.0.
+`SDK-002` (deliberate, `str` returns) and `SEC-022` (namespace wording only).
+`ARCH-011` closed in 0.21.0; `ARCH-003` closed in 0.22.0, so the next run should
+measure 34/6/6 — recorded as an expectation, not as a result.
 
 **`ARCH-011` — closed in 0.21.0, not yet re-measured.** `server.py` was 2477
 lines holding the HTTP plumbing, XML parsing, taxonomy cache, input models and
@@ -304,28 +295,43 @@ operator decides. On `MCP_TRANSPORT=sse` the flag is ignored, deliberately:
 leaving it apparently in effect would tell an operator they run session-free when
 they do not.
 
-### No fuzzy matching, anywhere (ARCH-003)
+### Suggestions, not silent widening (ARCH-003)
 
-`ARCH-003` asks that empty search results trigger a fuzzy or suggestion
+`ARCH-003` asks that empty search results trigger a fuzzy **or suggestion**
 mechanism on the non-sensitive search tools, and that any tool which stays
-exact-only says so. This server has no non-sensitive search tool. All three —
-`gazette_search_publications`, `gazette_search_detailed`,
-`gazette_search_procurement` — query official gazette publications: bankruptcy
-notices, debt-collection summonses, estate calls, construction objections. Every
-one of them is *about* a named legal or natural person.
+exact-only says so.
 
-A keyword search broadened from `Muster AG` to `Muster` returns notices about
-different companies. The server cannot tell the model it changed the question in
-a way the model reliably carries through to the user, so the realistic outcome
-of widening here is naming the wrong company as bankrupt. "No publication
-matched" is a legitimate, actionable answer; an invented one is not. There is no
-widening strategy careful enough to be worth that trade, so none is implemented,
-and `MatchType` has no `fuzzy` member — the decision is pinned in the type, not
-only in this paragraph.
+**This section was wrong until 0.22.0 and the correction matters.** It claimed
+this server has no non-sensitive search tool, because all three searches query
+"bankruptcy notices, debt-collection summonses, estate calls, construction
+objections". Every rubric in that list is **red** and unreachable through any
+tool: `KK`, `SB`, `SR`, `LS`, `NA` (Konkurse, Schuldbetreibungen), `ES` / `TE-*`
+(Erbschaft), `GB-*` / `GE-*` (gerichtliche Vorladungen) and `BP-*` (Baugesuche)
+all sit outside `GREEN_RUBRICS` — an allow-list that exists precisely to exclude
+systematic natural-person data. The searchable set is therefore the
+*non-sensitive* one, and the exemption being claimed covered rubrics this server
+refuses to serve. The 2026-07-30 re-audit recorded `ARCH-003` as still `partial`
+on exactly that basis.
 
-The companion server (`swiss-procurement-mcp`) splits the other way for the same
-reason: its *taxonomy* lookups widen, because a CPV code is a closed set with no
-person attached, while its tender searches do not.
+**What survives from the original reasoning is narrower and real.** `HR` / `BH`
+(Handelsregister) and `OB-*` (Beschaffungen) name legal persons, so silently
+re-running a search with a broadened company name would return notices about
+*different* companies and present them as the answer to the original question.
+
+Both are now held at once. On `match_type == "none"` the response offers shorter
+forms of the caller's *own* keyword — `Schulhausneubau` → `Schulhaus`, `Schul` —
+and the server **never queries them**. The model chooses. No request is issued
+for a suggestion, so no notice can be attributed to a term the caller did not
+pick, and `MatchType` still has no `fuzzy` member because no response is ever a
+fuzzy match. Suggestions below four characters are dropped: a prefix that short
+matches half the gazette, and `AG` is not a search term.
+
+Two tests hold the pair — one that suggestions appear, one that they are never
+searched. Dropping either leaves the other meaningless.
+
+The companion server (`swiss-procurement-mcp`) goes further and actually widens
+its *taxonomy* lookups, because a CPV code is a closed set with no person
+attached; its tender searches stay exact-only.
 
 What replaces widening is an empty result that explains itself. Beyond naming
 the filters that were applied, it points at two things a caller cannot see from
