@@ -7,29 +7,36 @@
 This server is audited against the internal MCP best-practice catalogue (the
 portfolio `mcp-audit` methodology, 68 checks / 8 categories, catalogue hash
 `091f446b…`). The latest measured run
-(`audits/2026-07-30T105205-Z-amtsblatt-mcp/`) scored **33 pass / 7 partial /
+(`audits/2026-07-30T133657-Z-amtsblatt-mcp/`) scored **34 pass / 6 partial /
 6 fail** across 46 applicable checks — **not production-ready**.
 
 Trend against the identical applicable set: 20/18/8 → 21/18/7 → 32/8/6 →
-32/8/6 → **33/7/6**.
+32/8/6 → 33/7/6 → **34/6/6**.
 
 **One check moved across three releases, and the reason is the finding worth
 reading.** `ARCH-011` closed in 0.21.0: `server.py` went from 2477 lines to 252,
 the tool handlers live in `tools/`, and `tool-hashes.json` is byte-identical
 afterwards — the surface a client approves provably did not move.
 
-**`ARCH-003` — measured `partial` at 0.21.0, closed in 0.22.0, not yet
-re-measured.** The re-audit found that the 0.20.0 decision to decline criterion 1
-was justified with rubrics this server does not serve: it named bankruptcy
-notices, debt-collection summonses, estate calls and construction objections,
-and `KK`, `SB`, `SR`, `LS`, `NA`, `ES`, `TE-*`, `GB-*`, `GE-*` and `BP-*` are all
-red and unreachable. The green allow-list exists to exclude exactly those, so the
-searchable set is the *non-sensitive* one — the set criterion 1 applies to.
+**`ARCH-003` — closed in 0.22.0 and measured closed by this run.** The
+2026-07-30T105205-Z run had recorded it `partial` and found that the 0.20.0
+decision to decline criterion 1 was justified with rubrics this server does not
+serve — it named bankruptcy notices, debt-collection summonses, estate calls and
+construction objections, while `KK`, `SB`, `SR`, `LS`, `NA`, `ES`, `TE-*`,
+`GB-*`, `GE-*` and `BP-*` are all red and unreachable.
 
-0.22.0 closes it without taking on the hazard the original decision was reaching
-for. An empty result now offers shorter forms of the caller's own keyword and the
-server never queries them, so the criterion is met while no notice can be
-attributed to a term the caller did not choose. Details in the section below.
+All four criteria are now met: an empty result offers shorter forms of the
+caller's own keyword and the server never queries them, `match_type` rides on
+every response in JSON and in the rendered meta line, the `none` hint names the
+filters plus the scope gate and `gazette_source_status`, and the unreachable
+sensitive rubrics keep the exact-only decision documented in both languages.
+
+One thing recorded rather than glossed: the suggestions are derived from the
+caller's input by prefix, not from corpus term frequencies as the check's example
+sketches. Criterion 1 says "fuzzy match **or** suggestion mechanism" and what
+comes back are concrete alternative terms a caller can act on, so it is graded
+`pass` — with the stricter reading noted in the run's evaluator notes instead of
+left unsaid.
 
 **`SEC-022` stays `partial` as expected**, on the namespace criterion alone: the
 prefix is `gazette_`, not `amtsblatt_mcp__<tool>`. Five of six criteria pass, the
@@ -170,10 +177,11 @@ code one: every client config pointing at `/sse` has to move to `/mcp` first.
 `ROADMAP.md` tracks it.
 
 None of the five blocking checks is a code change waiting to be written — see
-below and `ROADMAP.md`. The remaining seven `partial` findings are led by
+below and `ROADMAP.md`. The remaining six `partial` findings are led by
 `SDK-002` (deliberate, `str` returns) and `SEC-022` (namespace wording only).
-`ARCH-011` closed in 0.21.0; `ARCH-003` closed in 0.22.0, so the next run should
-measure 34/6/6 — recorded as an expectation, not as a result.
+`ARCH-011` closed in 0.21.0 and `ARCH-003` in 0.22.0; both are now measured
+closed. The expectation recorded before this run was 34/6/6 and it matched —
+worth noting only because the two derivations before it did not.
 
 **`ARCH-011` — closed in 0.21.0, not yet re-measured.** `server.py` was 2477
 lines holding the HTTP plumbing, XML parsing, taxonomy cache, input models and
@@ -295,7 +303,7 @@ operator decides. On `MCP_TRANSPORT=sse` the flag is ignored, deliberately:
 leaving it apparently in effect would tell an operator they run session-free when
 they do not.
 
-### Suggestions, not silent widening (ARCH-003)
+## Suggestions, not silent widening (ARCH-003)
 
 `ARCH-003` asks that empty search results trigger a fuzzy **or suggestion**
 mechanism on the non-sensitive search tools, and that any tool which stays
