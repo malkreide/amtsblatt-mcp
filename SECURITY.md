@@ -337,9 +337,13 @@ Please use the private advisory channel for it. Concretely, report any of:
 
 ## Hardening Notes for Operators
 
-1. **Put a gateway in front of the SSE transport.** The built-in bearer auth and
-   rate limit are single-instance only; the rate-limit buckets are held in
-   process memory and are not shared or garbage-collected across instances.
+1. **Put a gateway in front of whichever HTTP transport you serve.** This
+   applies to streamable-http on `/mcp` (the default since 0.18.0) exactly as
+   much as to the legacy `/sse` path: the built-in bearer auth and rate limit
+   are single-instance only on both, and the rate-limit buckets are held in
+   process memory and are not shared or garbage-collected across instances. The
+   advice used to name only SSE, which read as though it did not apply to
+   operators on the default transport.
 2. **Restrict egress at the network layer too.** `ALLOWED_HOSTS` is a
    defence-in-depth measure inside the process, not a substitute for an egress
    firewall. It is a literal `frozenset` in `server.py` with no environment

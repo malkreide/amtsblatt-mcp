@@ -69,9 +69,13 @@ Person hängt, die Ausschreibungssuche dagegen nicht.
 
 ## Härtungshinweise für Betreiber
 
-1. **Ein Gateway vor den SSE-Transport setzen.** Die eingebaute Bearer-Auth und
-   das Rate-Limit gelten nur pro Instanz; die Rate-Limit-Buckets liegen im
-   Prozessspeicher und werden nicht instanzübergreifend geteilt oder aufgeräumt.
+1. **Ein Gateway vor den HTTP-Transport setzen — welchen auch immer du
+   servierst.** Das gilt für streamable-http auf `/mcp` (Standard seit 0.18.0)
+   genauso wie für den alten `/sse`-Pfad: die eingebaute Bearer-Auth und das
+   Rate-Limit gelten auf beiden nur pro Instanz, und die Rate-Limit-Buckets
+   liegen im Prozessspeicher und werden nicht instanzübergreifend geteilt oder
+   aufgeräumt. Der Hinweis nannte früher nur SSE und las sich damit, als
+   betreffe er Betreiber auf dem Standard-Transport nicht.
 2. **Egress auch auf Netzwerkebene beschränken.** `ALLOWED_HOSTS` ist eine
    Defense-in-Depth-Massnahme im Prozess, kein Ersatz für eine Egress-Firewall.
    Es ist ein literales `frozenset` in `server.py` ohne Environment-Override
