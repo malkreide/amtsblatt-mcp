@@ -1,0 +1,506 @@
+{
+  "audit_meta": {
+    "server_name": "amtsblatt-mcp",
+    "run_id": "2026-07-30T105205-Z-amtsblatt-mcp",
+    "started_at": "2026-07-30T10:52:05.195657+00:00",
+    "timezone_offset": "Z",
+    "skill_version": "1.0.0",
+    "output_dir": "/home/user/amtsblatt-mcp/audits/2026-07-30T105205-Z-amtsblatt-mcp",
+    "catalog_hash": "091f446b27965044ce658a1d5f4b2cabe2b0ab5661dcc1a53b6be8f1f2e093c0",
+    "catalog_dir": "/root/.claude/skills/mcp-audit/checks"
+  },
+  "results": {
+    "ARCH-001": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "medium",
+      "evidence": [
+        "6 Tools, alle mit fuehrendem gazette_-Praefix, list_tools() verifiziert",
+        "test_tool_naming.py erzwingt das Schema (9 Assertions)"
+      ],
+      "gaps": []
+    },
+    "ARCH-002": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "medium",
+      "evidence": [
+        "<use_case> auf 6/6 Tools"
+      ],
+      "gaps": []
+    },
+    "ARCH-003": {
+      "status": "partial",
+      "category": "architecture",
+      "severity": "medium",
+      "evidence": [
+        "match_type ('exact'/'none') in every search response, JSON and Markdown meta line",
+        "empty_note() names applied filters and points at gazette_list_rubrics + gazette_source_status",
+        "_render_results takes the note as a required argument (no default)",
+        "13 tests in tests/test_empty_results.py"
+      ],
+      "gaps": [
+        "No fuzzy or suggestion mechanism on the searches, and the sensitive-data exception does NOT cover them: the searchable set is the GREEN rubrics, which are by construction the ones without systematic natural-person data (Konkurse KK/SB/SR/LS/NA, Erbschaft ES/TE-*, Vorladungen GB-*/GE-*, Baugesuche BP-* are all RED and unreachable). The 0.20.0 exact-only decision was justified with rubrics this server does not serve.",
+        "Residual legal-person risk in HR/BH (Handelsregister) and OB-* (Beschaffungen) is real but is not the ARCH-003 sensitive-data exception."
+      ]
+    },
+    "ARCH-004": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "high",
+      "evidence": [
+        "stdio + sse ueber MCP_TRANSPORT",
+        "Tool-Handler greifen nicht auf request/Session zu"
+      ],
+      "gaps": []
+    },
+    "ARCH-005": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "critical",
+      "evidence": [
+        ".env.example, gitleaks-Workflow, docs/secret-management.md"
+      ],
+      "gaps": []
+    },
+    "ARCH-006": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "high",
+      "evidence": [
+        "6 Tools",
+        "gazette_search_detailed beantwortet die Anchor-Query in einem Call"
+      ],
+      "gaps": []
+    },
+    "ARCH-007": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "medium",
+      "evidence": [
+        "gazette_search_detailed mit gebuendeltem, parallelem Detail-Fetch (asyncio.gather)"
+      ],
+      "gaps": []
+    },
+    "ARCH-008": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "medium",
+      "evidence": [
+        "Tools-only-Begruendung dokumentiert: README.md:365, README.de.md:347"
+      ],
+      "gaps": []
+    },
+    "ARCH-009": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "high",
+      "evidence": [
+        "readOnlyHint/destructiveHint/openWorldHint auf 6/6 Tools"
+      ],
+      "gaps": []
+    },
+    "ARCH-011": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "medium",
+      "evidence": [
+        "tools/ package with file-per-group split (search, publication, rubrics, status) — 6 tools > 5",
+        "server.py reduced 2477 -> 252 lines; largest module 635",
+        "src-layout, README.md + README.de.md (20 top-level sections each), CHANGELOG, LICENSE, pyproject",
+        "ci.yml + publish.yml + security.yml present",
+        "tool-hashes.json byte-identical after the move — tool surface provably unchanged"
+      ],
+      "gaps": []
+    },
+    "ARCH-012": {
+      "status": "pass",
+      "category": "architecture",
+      "severity": "medium",
+      "evidence": [
+        "MCP_PROTOCOL_VERSION = '2026-07-28' explizit gepinnt (server.py:1048)",
+        "CHANGELOG Keep-a-Changelog, 0.17.0 nennt den Spec-Bump",
+        "README-Sektion in beiden Sprachen",
+        "dependabot.yml aktiv"
+      ],
+      "gaps": []
+    },
+    "CH-004": {
+      "status": "pass",
+      "category": "compliance",
+      "severity": "medium",
+      "evidence": [
+        "ATTRIBUTION nennt SECO/Bund, Lizenzlage und Nutzungsgrundlage (server.py:65)"
+      ],
+      "gaps": []
+    },
+    "OBS-001": {
+      "status": "partial",
+      "category": "observability",
+      "severity": "high",
+      "evidence": [
+        "Protokollfehler tragen echte JSON-RPC-Codes: -32602 / -32603, an mcp 2.0.0 gemessen",
+        "tests/test_error_paths.py deckt beide Pfade ueber einen echten Client ab (13 Tests)",
+        "Alle drei Ausgaenge tragen provenance: live_api / refused / degraded"
+      ],
+      "gaps": [
+        "Upstream-Ausfall und Policy-Ablehnung kommen als normales Ergebnis statt is_error=true — dokumentierte Abweichung",
+        "Unbekanntes Tool wird als tool-result geliefert (SDK-Verhalten)"
+      ]
+    },
+    "OBS-002": {
+      "status": "partial",
+      "category": "observability",
+      "severity": "high",
+      "evidence": [
+        "Keine Tracebacks/Pfade in Tool-Results, per Test abgesichert",
+        "_handle_error liefert kuratierte Meldungen statt roher Exceptions"
+      ],
+      "gaps": [
+        "mask_error_details existiert in mcp 2.0.0 nicht — an 2.0.0 erneut geprueft"
+      ]
+    },
+    "OBS-003": {
+      "status": "pass",
+      "category": "observability",
+      "severity": "medium",
+      "evidence": [
+        "_log.py mit structlog, JSON auf stderr, correlation_id pro Aufruf"
+      ],
+      "gaps": []
+    },
+    "OBS-004": {
+      "status": "pass",
+      "category": "observability",
+      "severity": "critical",
+      "evidence": [
+        "0 print()-Statements in src/",
+        "stdout bleibt dem JSON-RPC-Stream vorbehalten"
+      ],
+      "gaps": []
+    },
+    "OBS-006": {
+      "status": "pass",
+      "category": "observability",
+      "severity": "medium",
+      "evidence": [
+        "_otel.py mit OTLP-Exporter, aktiviert ueber OTEL_EXPORTER_OTLP_ENDPOINT",
+        "Root-Span pro Tool-Call mit mcp.tool.name und mcp.tool.result.is_error",
+        "httpx-Auto-Instrumentierung im otel-Extra",
+        "tests/test_otel.py mit Guard gegen stilles Skippen"
+      ],
+      "gaps": []
+    },
+    "OPS-001": {
+      "status": "pass",
+      "category": "operations",
+      "severity": "high",
+      "evidence": [
+        "248 Tests gruen ueber 16 Testdateien (von 215 im Vorlauf)",
+        "tests/test_live.py mit 7 Live-Tests, naechtlicher CI-Job",
+        "tests/test_transport.py neu; test_cors.py von 12 auf 25 Tests durch Parametrisierung",
+        "respx fuer HTTP-Mocking"
+      ],
+      "gaps": []
+    },
+    "OPS-002": {
+      "status": "pass",
+      "category": "operations",
+      "severity": "medium",
+      "evidence": [
+        "README.md und README.de.md je 20 Top-Level-Sektionen (Paritaet)"
+      ],
+      "gaps": []
+    },
+    "OPS-003": {
+      "status": "pass",
+      "category": "operations",
+      "severity": "high",
+      "evidence": [
+        "Phase 1 read-only in beiden READMEs deklariert",
+        "ROADMAP.md mit Phasenmodell, offener Arbeit und Infrastruktur-Blockern getrennt"
+      ],
+      "gaps": []
+    },
+    "SCALE-001": {
+      "status": "pass",
+      "category": "scalability",
+      "severity": "high",
+      "evidence": [
+        "ENV-basierte Transport-Selektion ueber MCP_TRANSPORT (stdio / streamable-http / sse)",
+        "Cloud-Deployment nutzt seit 0.18.0 streamable-http auf /mcp; Dockerfile und compose.yaml setzen es als Default",
+        "Keine WebSocket-Implementierung",
+        "tests/test_transport.py prueft Endpunkt-Identitaet je Transport (11 Tests)"
+      ],
+      "gaps": []
+    },
+    "SCALE-002": {
+      "status": "fail",
+      "category": "scalability",
+      "severity": "high",
+      "evidence": [
+        "docs/load-balancing.md mit nginx- und K8s-Ingress-Konfiguration, seit 0.18.0 auf /mcp",
+        "MCP_STATELESS=1 ist seit 0.18.0 hier verfuegbar und nimmt Session-Affinitaet als Frage heraus"
+      ],
+      "gaps": [
+        "Der Check verlangt Sticky-LB ODER Shared-State-Session-Manager — Stateless ist keins von beidem",
+        "Kein expliziter Session-TTL setzbar",
+        "Kein Edge-LB deployed"
+      ]
+    },
+    "SCALE-003": {
+      "status": "fail",
+      "category": "scalability",
+      "severity": "high",
+      "evidence": [
+        "Konfigurationsvorlage in docs/load-balancing.md vorhanden"
+      ],
+      "gaps": [
+        "Kein Edge-LB deployed, keine Stick-Table, kein TTL"
+      ]
+    },
+    "SCALE-004": {
+      "status": "pass",
+      "category": "scalability",
+      "severity": "medium",
+      "evidence": [
+        "Dockerfile mit 2 benannten Stages (builder/runtime), python:3.14-slim",
+        "HEALTHCHECK ueber TCP-Connect"
+      ],
+      "gaps": []
+    },
+    "SCALE-006": {
+      "status": "pass",
+      "category": "scalability",
+      "severity": "medium",
+      "evidence": [
+        "compose.yaml mit memory- und cpu-Limits, requests kleiner als limits",
+        "nofile-Limit angehoben"
+      ],
+      "gaps": []
+    },
+    "SDK-001": {
+      "status": "pass",
+      "category": "sdk",
+      "severity": "high",
+      "evidence": [
+        "@asynccontextmanager _lifespan an MCPServer(lifespan=_lifespan) (server.py:1063)",
+        "Ein gepoolter httpx.AsyncClient statt einer Instanz pro Tool-Call",
+        "test_the_pooled_client_has_a_shutdown_hook, mutationsgeprueft"
+      ],
+      "gaps": []
+    },
+    "SDK-002": {
+      "status": "partial",
+      "category": "sdk",
+      "severity": "medium",
+      "evidence": [
+        "pydantic>=2.0, strikte Inputmodelle mit extra='forbid'",
+        "Envelope mit attribution und provenance in jeder Antwort"
+      ],
+      "gaps": [
+        "Alle 6 Tools geben str zurueck statt Pydantic-Modelle — bewusste, in ROADMAP.md begruendete Abweichung; JSON-Format deckt maschinenlesbare Aufrufer ab"
+      ]
+    },
+    "SDK-003": {
+      "status": "partial",
+      "category": "sdk",
+      "severity": "medium",
+      "evidence": [
+        "Kein Tool laeuft laenger als Millisekunden"
+      ],
+      "gaps": [
+        "Kein ctx: Context-Parameter — bewusst nicht geplant"
+      ]
+    },
+    "SDK-004": {
+      "status": "pass",
+      "category": "sdk",
+      "severity": "high",
+      "evidence": [
+        "_cors.py: expose_headers und allow_headers enthalten Mcp-Session-Id",
+        "CORS wird zuletzt hinzugefuegt und laeuft damit vor dem Bearer-Gate; GET/POST ohne Key bleiben 401",
+        "tests/test_cors.py ist ueber BEIDE HTTP-Transporte parametrisiert (25 Tests): die Garantie ist transportunabhaengig, nicht nur auf dem Pfad geprueft, den es zufaellig gab",
+        "Gegen starlette 1.3.1 aus mcp 2.0 verifiziert: Preflight 200, DELETE erlaubt"
+      ],
+      "gaps": []
+    },
+    "SEC-002": {
+      "status": "fail",
+      "category": "security",
+      "severity": "critical",
+      "evidence": [
+        "Bearer-Gate in _middleware.py schuetzt den SSE-Transport"
+      ],
+      "gaps": [
+        "Ein einziger statischer Shared-Key, kein OAuth-Token — aud-Claim existiert nicht und kann nicht validiert werden"
+      ]
+    },
+    "SEC-003": {
+      "status": "fail",
+      "category": "security",
+      "severity": "high",
+      "evidence": [
+        "Alle Tools sind read-only, der Schaden eines zu weiten Scopes ist begrenzt"
+      ],
+      "gaps": [
+        "Keine Scope-Hierarchie; ein Shared-Key laesst keine Per-Tool-Scopes zu"
+      ]
+    },
+    "SEC-004": {
+      "status": "pass",
+      "category": "security",
+      "severity": "critical",
+      "evidence": [
+        "_net.py mit Blockliste, resolve_checked() lehnt gemischte Antworten ab",
+        "HTTPS wird vor Egress erzwungen",
+        "12 Tests in tests/test_ssrf.py"
+      ],
+      "gaps": []
+    },
+    "SEC-005": {
+      "status": "pass",
+      "category": "security",
+      "severity": "high",
+      "evidence": [
+        "DNS-Pinning im Network-Backend; Host-Header und TLS-SNI bleiben der Name"
+      ],
+      "gaps": []
+    },
+    "SEC-006": {
+      "status": "pass",
+      "category": "security",
+      "severity": "high",
+      "evidence": [
+        "Default-Transport stdio; SSE nur ueber MCP_TRANSPORT"
+      ],
+      "gaps": []
+    },
+    "SEC-007": {
+      "status": "pass",
+      "category": "security",
+      "severity": "high",
+      "evidence": [
+        "Multi-stage Dockerfile mit non-root USER",
+        "compose.yaml mit read_only, cap_drop, no-new-privileges"
+      ],
+      "gaps": []
+    },
+    "SEC-008": {
+      "status": "pass",
+      "category": "security",
+      "severity": "medium",
+      "evidence": [
+        "Keine pre/postinstall-Hooks; README zeigt den vollen Installationsbefehl"
+      ],
+      "gaps": []
+    },
+    "SEC-009": {
+      "status": "fail",
+      "category": "security",
+      "severity": "critical",
+      "evidence": [
+        "Bearer-Gate vor jedem HTTP-Pfad, auf beiden Transporten identisch gebaut",
+        "Serverseitige Invalidierung ist seit 0.18.0 vorhanden: DELETE /mcp wird vom streamable-http-Transport behandelt (gemessen: 400 'Missing session ID' statt 405). Auf /sse weiterhin 405 bei nur GET/HEAD — das war die Luecke im Vorlauf",
+        "MCP_STATELESS=1 entfernt Session-Tracking vollstaendig und macht Hijacking strukturell unmoeglich"
+      ],
+      "gaps": [
+        "Shared-Key identifiziert das Deployment, nicht einen Nutzer — kein sub-Claim zum Binden",
+        "Kein Session-TTL setzbar: session_idle_timeout wird von MCPServer nicht durchgereicht",
+        "SDK-Session-IDs tragen 122 statt der geforderten 128 Zufallsbits",
+        "Von sechs Kriterien ist eines erfuellt — Abwesenheit von Sessions ist keine Bindung"
+      ]
+    },
+    "SEC-013": {
+      "status": "pass",
+      "category": "security",
+      "severity": "high",
+      "evidence": [
+        "docs/secret-management.md; Bearer-Key ausschliesslich ueber ENV"
+      ],
+      "gaps": []
+    },
+    "SEC-014": {
+      "status": "partial",
+      "category": "security",
+      "severity": "medium",
+      "evidence": [
+        "Alle 6 Tools sind read-only und tragen ein konsistentes Praefix"
+      ],
+      "gaps": [
+        "Kein Gateway mit Tool-Allow-Listing deployed"
+      ]
+    },
+    "SEC-015": {
+      "status": "fail",
+      "category": "security",
+      "severity": "medium",
+      "evidence": [],
+      "gaps": [
+        "Kein Pre-Flight-Poisoning-Detection-Layer — setzt ein Gateway voraus, das nicht existiert"
+      ]
+    },
+    "SEC-016": {
+      "status": "pass",
+      "category": "security",
+      "severity": "critical",
+      "evidence": [
+        "Bind an 127.0.0.1 per Default (server.py:1096), 0.0.0.0 nur explizit"
+      ],
+      "gaps": []
+    },
+    "SEC-018": {
+      "status": "pass",
+      "category": "security",
+      "severity": "high",
+      "evidence": [
+        "5 Inputmodelle mit extra='forbid', Laengen- und Bereichsgrenzen",
+        "Rubrik-Codes gegen Taxonomie UND Freigabeliste validiert"
+      ],
+      "gaps": []
+    },
+    "SEC-019": {
+      "status": "pass",
+      "category": "security",
+      "severity": "critical",
+      "evidence": [
+        "Lethal-Trifecta-Bewertung in SECURITY.md; Exfiltrations-Zweig fehlt"
+      ],
+      "gaps": []
+    },
+    "SEC-020": {
+      "status": "pass",
+      "category": "security",
+      "severity": "critical",
+      "evidence": [
+        "0 Treffer fuer os.system, shell=True, eval(, exec( in src/"
+      ],
+      "gaps": []
+    },
+    "SEC-021": {
+      "status": "pass",
+      "category": "security",
+      "severity": "high",
+      "evidence": [
+        "ALLOWED_HOSTS als literales frozenset ohne ENV-Override",
+        "_enforce_egress_allowlist prueft HTTPS vor Host",
+        "docs/network-egress.md"
+      ],
+      "gaps": []
+    },
+    "SEC-022": {
+      "status": "partial",
+      "category": "security",
+      "severity": "high",
+      "evidence": [
+        "tool-hashes.json: per-tool SHA-256 over name/description/schemas/annotations + surface_sha256",
+        "tests/test_tool_hashes.py fails on drift; snapshot_version 2 (interpreter-stable)",
+        "CHANGELOG has a 'Tool Definition Changes' section with the re-approval policy stated",
+        "gazette_ prefix consistent across all 6 tools, enforced by test_tool_naming.py"
+      ],
+      "gaps": [
+        "Namespace criterion asks literally for <server>__<tool>; this server uses gazette_ — recorded as a deliberate deviation (renaming 6 published tools is breaking, needs a major bump)"
+      ]
+    }
+  }
+}

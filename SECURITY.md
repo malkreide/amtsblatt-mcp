@@ -7,11 +7,42 @@
 This server is audited against the internal MCP best-practice catalogue (the
 portfolio `mcp-audit` methodology, 68 checks / 8 categories, catalogue hash
 `091f446b…`). The latest measured run
-(`audits/2026-07-29T135616-Z-amtsblatt-mcp/`) scored **32 pass / 8 partial /
+(`audits/2026-07-30T105205-Z-amtsblatt-mcp/`) scored **33 pass / 7 partial /
 6 fail** across 46 applicable checks — **not production-ready**.
 
 Trend against the identical applicable set: 20/18/8 → 21/18/7 → 32/8/6 →
-**32/8/6**.
+32/8/6 → **33/7/6**.
+
+**One check moved across three releases, and the reason is the finding worth
+reading.** `ARCH-011` closed in 0.21.0: `server.py` went from 2477 lines to 252,
+the tool handlers live in `tools/`, and `tool-hashes.json` is byte-identical
+afterwards — the surface a client approves provably did not move.
+
+**`ARCH-003` did not close in 0.20.0, and the justification for closing it was
+wrong.** That release declined criterion 1 — no fuzzy or suggestion mechanism —
+on the grounds that all three searches "query official gazette publications:
+bankruptcy notices, debt-collection summonses, estate calls, construction
+objections", with the stated failure mode of naming the wrong company as
+bankrupt. **Every rubric in that list is red and unreachable through any tool.**
+`KK`, `SB`, `SR`, `LS`, `NA`, `ES`, `TE-*`, `GB-*`, `GE-*`, `BP-*` are all
+outside `GREEN_RUBRICS`, and the green allow-list exists precisely to exclude
+systematic natural-person data. The searchable set is therefore the
+*non-sensitive* one — the set criterion 1 applies to, not the set criterion 4
+exempts.
+
+Criteria 2 and 3 are genuinely met and stay met: `match_type` on every response,
+and an empty result that names its filters and points at the scope gate and
+`gazette_source_status`. The residual concern is narrower than claimed but real:
+`HR` / `BH` (Handelsregister) and `OB-*` (Beschaffungen) name legal persons, so
+broadening a company name would surface other companies. That is an argument
+about *how* to widen, not a reason to have no mechanism — a suggestion mechanism
+returning candidate *terms* rather than results would satisfy the criterion with
+none of the confusion risk. Recorded as `partial` with that remediation in
+`audits/2026-07-30T105205-Z-amtsblatt-mcp/findings/ARCH-003.md`.
+
+**`SEC-022` stays `partial` as expected**, on the namespace criterion alone: the
+prefix is `gazette_`, not `amtsblatt_mcp__<tool>`. Five of six criteria pass, the
+deviation is deliberate, and renaming six published tools is a breaking change.
 
 **The 0.18.0 transport work moved no check, and that is the honest result.**
 Serving streamable-http on `/mcp` improved the posture — `SEC-009` gained
@@ -41,16 +72,15 @@ answered 401. CORS short-circuits preflights only; GET and POST without the key
 still return 401, and a test asserts it. Origins are fail-closed:
 `MCP_CORS_ORIGINS` is unset by default.
 
-**Five checks block production, measured on 2026-07-29:** `SCALE-002`,
+**Five checks block production, measured on 2026-07-30:** `SCALE-002`,
 `SCALE-003`, `SEC-002`, `SEC-003` and `SEC-009`. `SCALE-002` and `SEC-009` are
 accepted risks (see below) but stay recorded as `fail`, because an accepted risk
 is a decision, not a passing check. `SEC-002` and `SEC-003` need an identity
 provider; `SCALE-003` needs an edge load balancer.
 
-`OPS-001` and `OPS-003` were in the blocking set at the previous run and are now
-confirmed closed. Everything below that this document described as "closed, not
-yet re-measured" has been measured: the 2026-07-29 run is the first that scores
-the code as it actually stands.
+`OPS-001` and `OPS-003` were in the blocking set two runs ago and are confirmed
+closed. Everything below that this document described as "closed, not yet
+re-measured" has been measured since the 2026-07-29 run.
 
 `SEC-021` was the third at the time of the run and is **closed in 0.9.0, not
 yet re-measured.** `ALLOWED_HOSTS` was overridable at runtime through
@@ -149,9 +179,10 @@ code one: every client config pointing at `/sse` has to move to `/mcp` first.
 `ROADMAP.md` tracks it.
 
 None of the five blocking checks is a code change waiting to be written — see
-below and `ROADMAP.md`. The remaining eight `partial` findings are led by
-`SDK-002` (deliberate, `str` returns), `ARCH-011` (closed in 0.21.0, see below)
-and `SEC-022` (closed in 0.19.0).
+below and `ROADMAP.md`. The remaining seven `partial` findings are led by
+`ARCH-003` (a real gap, see the posture section above), `SDK-002` (deliberate,
+`str` returns) and `SEC-022` (namespace wording only). `ARCH-011` closed in
+0.21.0.
 
 **`ARCH-011` — closed in 0.21.0, not yet re-measured.** `server.py` was 2477
 lines holding the HTTP plumbing, XML parsing, taxonomy cache, input models and
