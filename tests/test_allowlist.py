@@ -13,7 +13,16 @@ import httpx
 import pytest
 import respx
 
-from amtsblatt_mcp import server
+from amtsblatt_mcp import _taxonomy, inputs
+from amtsblatt_mcp._http import _assert_green_params, _search
+from amtsblatt_mcp._taxonomy import _reset_rubrics_cache
+from amtsblatt_mcp.constants import (
+    ALLOWED_GAZETTE_PARAMS,
+    FORBIDDEN_GAZETTE_PARAMS,
+    GAZETTE_BASE,
+    RubricBlocked,
+)
+from amtsblatt_mcp.inputs import PublicationInput, RubricsInput, SearchInput
 from amtsblatt_mcp.rubrics import (
     GREEN_RUBRICS,
     GREEN_SUB_RUBRICS,
@@ -24,16 +33,6 @@ from amtsblatt_mcp.rubrics import (
     is_green,
 )
 from amtsblatt_mcp.server import (
-    ALLOWED_GAZETTE_PARAMS,
-    FORBIDDEN_GAZETTE_PARAMS,
-    GAZETTE_BASE,
-    PublicationInput,
-    RubricBlocked,
-    RubricsInput,
-    SearchInput,
-    _assert_green_params,
-    _reset_rubrics_cache,
-    _search,
     gazette_get_publication,
     gazette_list_rubrics,
     gazette_search_publications,
@@ -51,7 +50,7 @@ def _clear_caches():
 
 def _seed_rubrics():
     """Populate the taxonomy cache so validation makes no HTTP call."""
-    server._rubrics_cache = (monotonic(), MOCK_RUBRICS)
+    _taxonomy._rubrics_cache = (monotonic(), MOCK_RUBRICS)
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +134,7 @@ def test_person_parameters_are_not_allow_listed():
 
 def test_no_tool_exposes_a_person_search_field():
     """No input model may offer a name-like parameter."""
-    for model in (server.SearchInput, server.ProcurementInput):
+    for model in (inputs.SearchInput, inputs.ProcurementInput):
         for field in model.model_fields:
             assert field not in ("name", "person", "surname", "birth_date", "address")
 
@@ -318,7 +317,8 @@ async def test_invalid_code_suggestions_never_name_a_blocked_rubric():
         server_result = await gazette_search_publications(SearchInput(rubric="HR"))
     assert "Fehler" not in server_result  # sanity: HR is valid and green
 
-    from amtsblatt_mcp.server import GazetteInvalidCode, _validate_rubric_code
+    from amtsblatt_mcp._taxonomy import _validate_rubric_code
+    from amtsblatt_mcp.constants import GazetteInvalidCode
 
     with pytest.raises(GazetteInvalidCode) as exc:
         await _validate_rubric_code("HRXX", "rubric")

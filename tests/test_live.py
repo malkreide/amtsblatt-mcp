@@ -17,13 +17,16 @@ from __future__ import annotations
 
 import pytest
 
-from amtsblatt_mcp.server import (
+from amtsblatt_mcp._taxonomy import _reset_rubrics_cache as _reset
+from amtsblatt_mcp.inputs import (
     DetailedSearchInput,
     ProcurementInput,
     PublicationInput,
     RubricsInput,
     SearchInput,
     StatusInput,
+)
+from amtsblatt_mcp.server import (
     gazette_get_publication,
     gazette_list_rubrics,
     gazette_search_detailed,
@@ -31,7 +34,6 @@ from amtsblatt_mcp.server import (
     gazette_search_publications,
     gazette_source_status,
 )
-from amtsblatt_mcp.server import _reset_rubrics_cache as _reset
 
 pytestmark = [pytest.mark.live, pytest.mark.asyncio]
 

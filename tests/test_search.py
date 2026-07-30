@@ -3,24 +3,25 @@
 from __future__ import annotations
 
 import json
+import re
 from time import monotonic
 
 import httpx
 import pytest
 import respx
 
-from amtsblatt_mcp import server
+from amtsblatt_mcp import _http, _taxonomy
+from amtsblatt_mcp._normalise import _to_bool
+from amtsblatt_mcp._taxonomy import _reset_rubrics_cache
+from amtsblatt_mcp.constants import GAZETTE_BASE
+from amtsblatt_mcp.inputs import ProcurementInput, SearchInput, StatusInput
 from amtsblatt_mcp.rubrics import is_green
 from amtsblatt_mcp.server import (
-    GAZETTE_BASE,
-    ProcurementInput,
-    SearchInput,
-    _procurement_scope,
-    _reset_rubrics_cache,
-    _to_bool,
     gazette_search_procurement,
     gazette_search_publications,
+    gazette_source_status,
 )
+from amtsblatt_mcp.tools.search import _procurement_scope
 
 from .fixtures import (
     MOCK_RUBRICS,
@@ -40,7 +41,7 @@ def _clear_caches():
 
 
 def _seed_rubrics():
-    server._rubrics_cache = (monotonic(), MOCK_RUBRICS)
+    _taxonomy._rubrics_cache = (monotonic(), MOCK_RUBRICS)
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +190,7 @@ async def test_only_language_returns_a_single_language_view():
 @pytest.mark.asyncio
 async def test_unknown_form_prefix_is_never_collapsed():
     """Fail-closed: a prefix outside the literal map must not merge records."""
-    from amtsblatt_mcp.server import _collapse_language_variants
+    from amtsblatt_mcp._normalise import _collapse_language_variants
 
     rows = [
         {
@@ -496,7 +497,9 @@ async def test_timeout_is_reported_as_a_timeout():
 @pytest.mark.asyncio
 async def test_transient_5xx_is_retried_then_succeeds():
     _seed_rubrics()
-    server.GAZETTE_RETRY_BACKOFF = 0.0
+    # Set on `_http`, the module that reads it: `_http` binds the value at
+    # import, so setting it on `constants` would change nothing here.
+    _http.GAZETTE_RETRY_BACKOFF = 0.0
     with respx.mock:
         route = respx.get(f"{GAZETTE_BASE}/publications").mock(
             side_effect=[
@@ -538,3 +541,38 @@ async def test_silently_ignored_filter_is_detected_by_the_plausibility_guard():
 # ---------------------------------------------------------------------------
 # Live tests (excluded from CI with -m "not live")
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_source_status_reports_a_live_taxonomy_cache_age():
+    """ARCH-011 regression guard: the cache must be read live, not at import.
+
+    Found while splitting `server.py` into modules, and found by reading rather
+    than by a failing test — which is the reason this test exists. The extracted
+    `tools/status.py` did `from .._taxonomy import _rubrics_cache`, binding the
+    value `None` once at import time. Seeding or resetting the cache afterwards
+    was invisible to it, so the status tool reported the taxonomy as never
+    cached no matter what, and the whole suite stayed green: every other test
+    that seeds the cache seeds it for the *search* path, which reads the global
+    through its own module.
+
+    Asserting on a freshly seeded cache is what makes a value-import fail here.
+    `_taxonomy.rubrics_cache_state()` is a function precisely so it cannot be
+    captured that way, but a function is only a convention until something
+    checks.
+    """
+    _seed_rubrics()
+    with respx.mock:
+        respx.get(f"{GAZETTE_BASE}/publications").mock(
+            return_value=httpx.Response(200, json=MOCK_SEARCH)
+        )
+        respx.get(f"{GAZETTE_BASE}/rubrics").mock(
+            return_value=httpx.Response(200, json=MOCK_RUBRICS)
+        )
+        result = await gazette_source_status(StatusInput())
+
+    assert "nicht geladen" not in result, (
+        "the taxonomy cache was seeded, so the status tool must not report it as unloaded — "
+        "a value-import of the cache global would produce exactly this"
+    )
+    assert re.search(r"\d+(s|min|h)", result), "no cache age rendered at all"

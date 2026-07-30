@@ -75,9 +75,7 @@ def test_preflight_succeeds_without_the_bearer_key(
     assert resp.headers["access-control-allow-origin"] == ORIGIN
 
 
-def test_preflight_allows_the_session_header(
-    monkeypatch: pytest.MonkeyPatch, kind: str
-) -> None:
+def test_preflight_allows_the_session_header(monkeypatch: pytest.MonkeyPatch, kind: str) -> None:
     resp = _preflight(_client(monkeypatch, ORIGIN, kind), ENDPOINTS[kind][0])
     assert "mcp-session-id" in resp.headers["access-control-allow-headers"].lower()
 
@@ -138,13 +136,9 @@ def test_explicit_origin_keeps_credentials(monkeypatch: pytest.MonkeyPatch, kind
     assert resp.headers.get("access-control-allow-credentials") == "true"
 
 
-def test_second_origin_in_the_list_also_works(
-    monkeypatch: pytest.MonkeyPatch, kind: str
-) -> None:
+def test_second_origin_in_the_list_also_works(monkeypatch: pytest.MonkeyPatch, kind: str) -> None:
     """A list honouring only its first entry would pass every test above."""
-    resp = _preflight(
-        _client(monkeypatch, f"https://a.example,{ORIGIN}", kind), ENDPOINTS[kind][0]
-    )
+    resp = _preflight(_client(monkeypatch, f"https://a.example,{ORIGIN}", kind), ENDPOINTS[kind][0])
     assert resp.headers["access-control-allow-origin"] == ORIGIN
 
 

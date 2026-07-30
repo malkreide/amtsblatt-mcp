@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from amtsblatt_mcp import server as _server
+from amtsblatt_mcp import _http as _server
 
 
 @pytest.fixture(autouse=True)

@@ -17,7 +17,7 @@ import re
 
 from mcp.types import LATEST_PROTOCOL_VERSION
 
-from amtsblatt_mcp.server import MCP_PROTOCOL_VERSION
+from amtsblatt_mcp._app import MCP_PROTOCOL_VERSION
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 

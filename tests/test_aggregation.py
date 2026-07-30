@@ -21,14 +21,11 @@ import pytest
 import respx
 from pydantic import ValidationError
 
-from amtsblatt_mcp import server
-from amtsblatt_mcp.server import (
-    GAZETTE_BASE,
-    GAZETTE_MAX_DETAIL_N,
-    DetailedSearchInput,
-    _reset_rubrics_cache,
-    gazette_search_detailed,
-)
+from amtsblatt_mcp import _taxonomy
+from amtsblatt_mcp._taxonomy import _reset_rubrics_cache
+from amtsblatt_mcp.constants import GAZETTE_BASE, GAZETTE_MAX_DETAIL_N
+from amtsblatt_mcp.inputs import DetailedSearchInput
+from amtsblatt_mcp.server import gazette_search_detailed
 
 from .fixtures import (
     MOCK_RUBRICS,
@@ -50,7 +47,7 @@ def _clear_caches():
 
 
 def _seed_rubrics():
-    server._rubrics_cache = (monotonic(), MOCK_RUBRICS)
+    _taxonomy._rubrics_cache = (monotonic(), MOCK_RUBRICS)
 
 
 def _mock_search_and_xml(xml_by_id: dict[str, str]):

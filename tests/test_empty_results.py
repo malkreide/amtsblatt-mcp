@@ -32,15 +32,12 @@ import httpx
 import pytest
 import respx
 
-from amtsblatt_mcp import server
+from amtsblatt_mcp import _taxonomy
 from amtsblatt_mcp._matching import MatchType, describe_filters
+from amtsblatt_mcp._taxonomy import _reset_rubrics_cache
+from amtsblatt_mcp.constants import GAZETTE_BASE, ResponseFormat
+from amtsblatt_mcp.inputs import DetailedSearchInput, ProcurementInput, SearchInput
 from amtsblatt_mcp.server import (
-    GAZETTE_BASE,
-    DetailedSearchInput,
-    ProcurementInput,
-    ResponseFormat,
-    SearchInput,
-    _reset_rubrics_cache,
     gazette_search_detailed,
     gazette_search_procurement,
     gazette_search_publications,
@@ -59,7 +56,7 @@ def _clear_caches():
 
 
 def _seed_rubrics() -> None:
-    server._rubrics_cache = (monotonic(), MOCK_RUBRICS)
+    _taxonomy._rubrics_cache = (monotonic(), MOCK_RUBRICS)
 
 
 def _empty_route() -> respx.Route:

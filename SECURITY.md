@@ -150,8 +150,30 @@ code one: every client config pointing at `/sse` has to move to `/mcp` first.
 
 None of the five blocking checks is a code change waiting to be written — see
 below and `ROADMAP.md`. The remaining eight `partial` findings are led by
-`SDK-002` (deliberate, `str` returns), `ARCH-011` (a `tools/` split with
-regression risk) and `SEC-022` (no tool-hash pinning).
+`SDK-002` (deliberate, `str` returns), `ARCH-011` (closed in 0.21.0, see below)
+and `SEC-022` (closed in 0.19.0).
+
+**`ARCH-011` — closed in 0.21.0, not yet re-measured.** `server.py` was 2477
+lines holding the HTTP plumbing, XML parsing, taxonomy cache, input models and
+all six tool handlers. It is now 252 lines and does one thing: import `tools` so
+the handlers register, then own transport selection and the entrypoint. The
+domain code lives in `constants`, `_http`, `_taxonomy`, `_normalise`, `_xml`,
+`_envelope`, `inputs` and `tools/`.
+
+The refactor is claimed to be behaviour-preserving and there is real evidence
+for that rather than an assurance: **`tool-hashes.json` did not change.** All six
+tool fingerprints are byte-identical afterwards, so the surface a client approves
+— names, descriptions, schemas, annotations — provably did not move. That is the
+`SEC-022` guard from 0.19.0 doing work it was not built for.
+
+It did introduce one bug, worth recording because of how it hid. `tools/status.py`
+was extracted with `from .._taxonomy import _rubrics_cache`, which binds the
+value once at import, so the status tool would have reported the taxonomy cache
+as never loaded regardless of state. The entire suite stayed green: every test
+that seeds that cache seeds it for the *search* path, which reads the global
+through its own module. It was found by reading the extracted code, not by a
+failing test. The cache is now reached through a function, and a test asserts a
+seeded cache renders an age — restoring the value-import fails exactly that test.
 
 **`SEC-022` — the substantive half closed in 0.19.0, not yet re-measured.**
 `tool-hashes.json` publishes a SHA-256 fingerprint of every tool's name,
