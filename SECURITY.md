@@ -7,11 +7,33 @@
 This server is audited against the internal MCP best-practice catalogue (the
 portfolio `mcp-audit` methodology, 68 checks / 8 categories, catalogue hash
 `091f446b…`). The latest measured run
-(`audits/2026-07-29T135616-Z-amtsblatt-mcp/`) scored **32 pass / 8 partial /
+(`audits/2026-07-30T105205-Z-amtsblatt-mcp/`) scored **33 pass / 7 partial /
 6 fail** across 46 applicable checks — **not production-ready**.
 
 Trend against the identical applicable set: 20/18/8 → 21/18/7 → 32/8/6 →
-**32/8/6**.
+32/8/6 → **33/7/6**.
+
+**One check moved across three releases, and the reason is the finding worth
+reading.** `ARCH-011` closed in 0.21.0: `server.py` went from 2477 lines to 252,
+the tool handlers live in `tools/`, and `tool-hashes.json` is byte-identical
+afterwards — the surface a client approves provably did not move.
+
+**`ARCH-003` — measured `partial` at 0.21.0, closed in 0.22.0, not yet
+re-measured.** The re-audit found that the 0.20.0 decision to decline criterion 1
+was justified with rubrics this server does not serve: it named bankruptcy
+notices, debt-collection summonses, estate calls and construction objections,
+and `KK`, `SB`, `SR`, `LS`, `NA`, `ES`, `TE-*`, `GB-*`, `GE-*` and `BP-*` are all
+red and unreachable. The green allow-list exists to exclude exactly those, so the
+searchable set is the *non-sensitive* one — the set criterion 1 applies to.
+
+0.22.0 closes it without taking on the hazard the original decision was reaching
+for. An empty result now offers shorter forms of the caller's own keyword and the
+server never queries them, so the criterion is met while no notice can be
+attributed to a term the caller did not choose. Details in the section below.
+
+**`SEC-022` stays `partial` as expected**, on the namespace criterion alone: the
+prefix is `gazette_`, not `amtsblatt_mcp__<tool>`. Five of six criteria pass, the
+deviation is deliberate, and renaming six published tools is a breaking change.
 
 **The 0.18.0 transport work moved no check, and that is the honest result.**
 Serving streamable-http on `/mcp` improved the posture — `SEC-009` gained
@@ -41,16 +63,15 @@ answered 401. CORS short-circuits preflights only; GET and POST without the key
 still return 401, and a test asserts it. Origins are fail-closed:
 `MCP_CORS_ORIGINS` is unset by default.
 
-**Five checks block production, measured on 2026-07-29:** `SCALE-002`,
+**Five checks block production, measured on 2026-07-30:** `SCALE-002`,
 `SCALE-003`, `SEC-002`, `SEC-003` and `SEC-009`. `SCALE-002` and `SEC-009` are
 accepted risks (see below) but stay recorded as `fail`, because an accepted risk
 is a decision, not a passing check. `SEC-002` and `SEC-003` need an identity
 provider; `SCALE-003` needs an edge load balancer.
 
-`OPS-001` and `OPS-003` were in the blocking set at the previous run and are now
-confirmed closed. Everything below that this document described as "closed, not
-yet re-measured" has been measured: the 2026-07-29 run is the first that scores
-the code as it actually stands.
+`OPS-001` and `OPS-003` were in the blocking set two runs ago and are confirmed
+closed. Everything below that this document described as "closed, not yet
+re-measured" has been measured since the 2026-07-29 run.
 
 `SEC-021` was the third at the time of the run and is **closed in 0.9.0, not
 yet re-measured.** `ALLOWED_HOSTS` was overridable at runtime through
@@ -149,9 +170,10 @@ code one: every client config pointing at `/sse` has to move to `/mcp` first.
 `ROADMAP.md` tracks it.
 
 None of the five blocking checks is a code change waiting to be written — see
-below and `ROADMAP.md`. The remaining eight `partial` findings are led by
-`SDK-002` (deliberate, `str` returns), `ARCH-011` (closed in 0.21.0, see below)
-and `SEC-022` (closed in 0.19.0).
+below and `ROADMAP.md`. The remaining seven `partial` findings are led by
+`SDK-002` (deliberate, `str` returns) and `SEC-022` (namespace wording only).
+`ARCH-011` closed in 0.21.0; `ARCH-003` closed in 0.22.0, so the next run should
+measure 34/6/6 — recorded as an expectation, not as a result.
 
 **`ARCH-011` — closed in 0.21.0, not yet re-measured.** `server.py` was 2477
 lines holding the HTTP plumbing, XML parsing, taxonomy cache, input models and
@@ -273,28 +295,43 @@ operator decides. On `MCP_TRANSPORT=sse` the flag is ignored, deliberately:
 leaving it apparently in effect would tell an operator they run session-free when
 they do not.
 
-### No fuzzy matching, anywhere (ARCH-003)
+### Suggestions, not silent widening (ARCH-003)
 
-`ARCH-003` asks that empty search results trigger a fuzzy or suggestion
+`ARCH-003` asks that empty search results trigger a fuzzy **or suggestion**
 mechanism on the non-sensitive search tools, and that any tool which stays
-exact-only says so. This server has no non-sensitive search tool. All three —
-`gazette_search_publications`, `gazette_search_detailed`,
-`gazette_search_procurement` — query official gazette publications: bankruptcy
-notices, debt-collection summonses, estate calls, construction objections. Every
-one of them is *about* a named legal or natural person.
+exact-only says so.
 
-A keyword search broadened from `Muster AG` to `Muster` returns notices about
-different companies. The server cannot tell the model it changed the question in
-a way the model reliably carries through to the user, so the realistic outcome
-of widening here is naming the wrong company as bankrupt. "No publication
-matched" is a legitimate, actionable answer; an invented one is not. There is no
-widening strategy careful enough to be worth that trade, so none is implemented,
-and `MatchType` has no `fuzzy` member — the decision is pinned in the type, not
-only in this paragraph.
+**This section was wrong until 0.22.0 and the correction matters.** It claimed
+this server has no non-sensitive search tool, because all three searches query
+"bankruptcy notices, debt-collection summonses, estate calls, construction
+objections". Every rubric in that list is **red** and unreachable through any
+tool: `KK`, `SB`, `SR`, `LS`, `NA` (Konkurse, Schuldbetreibungen), `ES` / `TE-*`
+(Erbschaft), `GB-*` / `GE-*` (gerichtliche Vorladungen) and `BP-*` (Baugesuche)
+all sit outside `GREEN_RUBRICS` — an allow-list that exists precisely to exclude
+systematic natural-person data. The searchable set is therefore the
+*non-sensitive* one, and the exemption being claimed covered rubrics this server
+refuses to serve. The 2026-07-30 re-audit recorded `ARCH-003` as still `partial`
+on exactly that basis.
 
-The companion server (`swiss-procurement-mcp`) splits the other way for the same
-reason: its *taxonomy* lookups widen, because a CPV code is a closed set with no
-person attached, while its tender searches do not.
+**What survives from the original reasoning is narrower and real.** `HR` / `BH`
+(Handelsregister) and `OB-*` (Beschaffungen) name legal persons, so silently
+re-running a search with a broadened company name would return notices about
+*different* companies and present them as the answer to the original question.
+
+Both are now held at once. On `match_type == "none"` the response offers shorter
+forms of the caller's *own* keyword — `Schulhausneubau` → `Schulhaus`, `Schul` —
+and the server **never queries them**. The model chooses. No request is issued
+for a suggestion, so no notice can be attributed to a term the caller did not
+pick, and `MatchType` still has no `fuzzy` member because no response is ever a
+fuzzy match. Suggestions below four characters are dropped: a prefix that short
+matches half the gazette, and `AG` is not a search term.
+
+Two tests hold the pair — one that suggestions appear, one that they are never
+searched. Dropping either leaves the other meaningless.
+
+The companion server (`swiss-procurement-mcp`) goes further and actually widens
+its *taxonomy* lookups, because a CPV code is a closed set with no person
+attached; its tender searches stay exact-only.
 
 What replaces widening is an empty result that explains itself. Beyond naming
 the filters that were applied, it points at two things a caller cannot see from

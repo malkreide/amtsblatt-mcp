@@ -47,25 +47,41 @@ der folgenden melden:
 - Eine Tool-Signatur, die einen personenidentifizierenden Parameter akzeptiert.
 - Eine Absage-Meldung, die eine Umgehung offenlegt.
 
-## Keine unscharfe Suche — bewusst (ARCH-003)
+## Vorschläge statt stiller Erweiterung (ARCH-003)
 
-Keines der drei Such-Tools erweitert einen Suchbegriff automatisch. Alle drei
-durchsuchen amtliche Publikationen über namentlich genannte Personen und Firmen:
-Konkurse, Betreibungen, Erbenrufe, Baueinsprachen. Eine von `Muster AG` auf
-`Muster` verbreiterte Suche liefert Meldungen über *andere* Firmen, und das
-realistische Ergebnis ist, dass die falsche Firma als konkursit benannt wird.
-«Keine Publikation gefunden» ist eine belastbare Antwort; eine erfundene nicht.
+**Dieser Abschnitt war bis 0.22.0 falsch, und die Korrektur ist der Punkt.** Er
+behauptete, alle drei Such-Tools durchsuchten Publikationen über namentlich
+genannte Personen — Konkurse, Betreibungen, Erbenrufe, Baueinsprachen — und
+deshalb sei unscharfe Suche hier grundsätzlich unzulässig. Jede dieser Rubriken
+ist **rot** und über kein Tool erreichbar: `KK`, `SB`, `SR`, `LS`, `NA`, `ES`,
+`TE-*`, `GB-*`, `GE-*` und `BP-*` liegen alle ausserhalb `GREEN_RUBRICS` — einer
+Freigabeliste, die genau dazu existiert, systematische Personendaten
+auszuschliessen. Die durchsuchbare Menge ist also die *nicht-sensible*, und die
+angerufene Ausnahme deckte Rubriken, die dieser Server verweigert.
 
-Stattdessen erklärt sich ein leeres Ergebnis selbst: es nennt die verwendeten
-Filter und verweist auf zwei Dinge, die von aussen nicht sichtbar sind — die
-Rubriken-Freigabe (`gazette_list_rubrics(rubric_class='all')` zeigt, ob die
-passende Rubrik hier bewusst nicht erschlossen ist) und den Zustand der Quelle
+**Was von der Begründung bleibt, ist schmaler und real:** `HR` / `BH`
+(Handelsregister) und `OB-*` (Beschaffungen) nennen juristische Personen. Eine
+still auf `Muster` verbreiterte Suche nach `Muster AG` liefert Meldungen über
+*andere* Firmen und präsentiert sie als Antwort auf die ursprüngliche Frage.
+
+Beides gilt jetzt gleichzeitig. Bei `match_type == "none"` bietet die Antwort
+kürzere Varianten des *eigenen* Suchbegriffs an — `Schulhausneubau` →
+`Schulhaus`, `Schul` — und der Server **fragt sie nie ab**. Die Auswahl bleibt
+beim Modell. Für einen Vorschlag geht keine Anfrage raus, also kann keine Meldung
+einem Begriff zugeschrieben werden, den der Aufrufer nicht gewählt hat, und
+`match_type` kennt weiterhin kein `fuzzy`, weil keine Antwort je ein Fuzzy-Match
+ist. Vorschläge unter vier Zeichen fallen weg: ein so kurzes Präfix trifft die
+halbe Sammlung, und `AG` ist kein Suchbegriff.
+
+Ein leeres Ergebnis nennt zusätzlich die verwendeten Filter und verweist auf zwei
+von aussen unsichtbare Dinge — die Rubriken-Freigabe
+(`gazette_list_rubrics(rubric_class='all')`) und den Zustand der Quelle
 (`gazette_source_status`; eine Störung sieht von hier aus gleich aus wie ein
-leeres Ergebnis). Jede Antwort trägt `match_type` — `exact` oder `none`.
+leeres Ergebnis).
 
-Der Schwesterserver (`swiss-procurement-mcp`) entscheidet aus demselben Grund
-umgekehrt: dort erweitern die *Taxonomie*-Abfragen, weil an einem CPV-Code keine
-Person hängt, die Ausschreibungssuche dagegen nicht.
+Der Schwesterserver (`swiss-procurement-mcp`) geht weiter und erweitert seine
+*Taxonomie*-Abfragen tatsächlich, weil an einem CPV-Code keine Person hängt; die
+Ausschreibungssuche dort bleibt exakt.
 
 ## Härtungshinweise für Betreiber
 
