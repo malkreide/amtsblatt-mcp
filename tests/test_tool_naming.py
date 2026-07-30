@@ -156,10 +156,7 @@ def _tool_descriptions() -> dict[str, str]:
 
     import amtsblatt_mcp.server as srv
 
-    return {
-        name: inspect.getdoc(getattr(srv, name)) or ""
-        for name in EXPECTED_TOOLS
-    }
+    return {name: inspect.getdoc(getattr(srv, name)) or "" for name in EXPECTED_TOOLS}
 
 
 def test_tools_carry_a_use_case_tag() -> None:

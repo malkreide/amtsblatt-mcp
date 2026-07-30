@@ -10,6 +10,86 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - (none)
 
+## [0.21.0] — 2026-07-30
+
+Closes **`ARCH-011`**: `server.py` was 2477 lines and is now 252. No behaviour
+change, and there is unusually strong evidence for that claim — see below.
+
+### What moved where
+
+`server.py` is now the composition root and nothing else: it imports `tools`,
+which registers the six handlers, and owns transport selection plus the
+entrypoint.
+
+| module | lines | what it owns |
+|---|---|---|
+| `constants.py` | 329 | source constants, the egress allow-list, error types |
+| `inputs.py` | 258 | the six strict input models |
+| `_http.py` | 228 | the pooled client and the two pre-request gates |
+| `_normalise.py` | 208 | shaping records, language collapsing, deadlines |
+| `_xml.py` | 163 | publication full-text parsing |
+| `_envelope.py` | 114 | the response envelope and provenance marker |
+| `_taxonomy.py` | ~110 | the rubric cache and code validation |
+| `_app.py` | 106 | the `MCPServer` instance, alone |
+| `tools/search.py` | 635 | the three search tools and shared rendering |
+| `tools/publication.py` | 192 | full text, and the post-fetch scope gate |
+| `tools/rubrics.py` | 130 | the taxonomy tool |
+| `tools/status.py` | 119 | source health |
+| `server.py` | 252 | composition root, transports, entrypoint |
+
+`_app.py` exists so the tool modules can reach `@mcp.tool` while `server.py`
+imports those modules to register them. Without it that relationship depends on
+statement order inside `server.py` — and isort reorders imports, so it is exactly
+the kind of coupling that breaks silently later.
+
+### The tool surface is provably unchanged
+
+`tool-hashes.json` did not change. All six fingerprints — name, description,
+input and output schema, annotations — are byte-identical after moving 2477
+lines. That is a stronger statement than "the tests pass": the `SEC-022` guard
+from 0.19.0 hashes the exact surface a client approves, so an unchanged snapshot
+means no client sees any difference at the protocol boundary.
+
+### A bug the split introduced, and the test that now catches it
+
+`tools/status.py` was extracted with `from .._taxonomy import _rubrics_cache`,
+which binds the value `None` once at import. Seeding or resetting the cache
+afterwards was invisible to it, so the status tool would have reported the
+taxonomy as never cached no matter what.
+
+**The whole suite stayed green.** Every other test that seeds the cache seeds it
+for the *search* path, which reads the global through its own module — so nothing
+covered the one path that broke. It was found by reading, not by testing, which
+is the part worth recording.
+
+The cache is now reached through `rubrics_cache_state()`, a function, because a
+function cannot be captured by value. And a function is only a convention until
+something checks, so `test_source_status_reports_a_live_taxonomy_cache_age`
+asserts a freshly seeded cache renders an age — restoring the value-import fails
+exactly that test and nothing else.
+
+### Two other things the move surfaced
+
+`transport = os.environ.get("MCP_TRANSPORT", …)` sat next to the server instance
+only because everything used to live in one file. It moved to `server.py` with
+the rest of the transport handling, still read once at import.
+
+`server.__version__` is re-exported deliberately. Dropping it during a refactor
+would have been an unannounced API change, and it is what `test_version.py`
+checks against `pyproject.toml`.
+
+### On the mutation testing
+
+Four mutations were run against the split. Two bit, one did not, and one turned
+out to test nothing:
+
+- Reintroducing the cache value-import fails 1 test (after the new guard; before
+  it, **zero**).
+- Pointing a tool module at `..server` instead of `.._app` for `mcp` **passed**.
+  That import happens to work today because `server.py` binds `mcp` before it
+  imports `tools` — so `_app.py` is justified by fragility, not by a cycle that
+  currently exists. Recorded rather than dressed up as a stronger result.
+
 ## [0.20.1] — 2026-07-29
 
 Ports `tests/test_security_doc.py` from `swiss-procurement-mcp`, and fixes what

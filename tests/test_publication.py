@@ -10,24 +10,12 @@ import httpx
 import pytest
 import respx
 
-from amtsblatt_mcp.server import (
-    ALLOWED_HOSTS,
-    ATTRIBUTION,
-    GAZETTE_BASE,
-    EgressDenied,
-    PublicationInput,
-    StatusInput,
-    _clean_text,
-    _days_remaining,
-    _format_deadline,
-    _get_client,
-    _make_client,
-    _parse_publication_xml,
-    _pick_language,
-    _reset_client,
-    gazette_get_publication,
-    gazette_source_status,
-)
+from amtsblatt_mcp._http import _get_client, _make_client, _reset_client
+from amtsblatt_mcp._normalise import _days_remaining, _format_deadline, _pick_language
+from amtsblatt_mcp._xml import _clean_text, _parse_publication_xml
+from amtsblatt_mcp.constants import ALLOWED_HOSTS, ATTRIBUTION, GAZETTE_BASE, EgressDenied
+from amtsblatt_mcp.inputs import PublicationInput, StatusInput
+from amtsblatt_mcp.server import gazette_get_publication, gazette_source_status
 
 from .fixtures import (
     MOCK_XML_HR03,
@@ -146,7 +134,7 @@ def test_deadline_uses_zurich_time_not_utc():
     """
     from datetime import datetime
 
-    from amtsblatt_mcp.server import TZ_ZURICH
+    from amtsblatt_mcp.constants import TZ_ZURICH
 
     # 2026-07-20 00:30 Zurich == 2026-07-19 22:30 UTC.
     zurich_now = datetime(2026, 7, 20, 0, 30, tzinfo=TZ_ZURICH)
@@ -215,7 +203,7 @@ class TestEgressAllowlist:
             [
                 sys.executable,
                 "-c",
-                "import json;from amtsblatt_mcp.server import ALLOWED_HOSTS;"
+                "import json;from amtsblatt_mcp.constants import ALLOWED_HOSTS;"
                 "print(json.dumps(sorted(ALLOWED_HOSTS)))",
             ],
             capture_output=True,

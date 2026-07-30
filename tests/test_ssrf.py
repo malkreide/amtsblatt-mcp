@@ -160,7 +160,7 @@ def test_transport_installs_the_pinned_backend() -> None:
 
 def test_the_shared_client_uses_the_pinned_transport() -> None:
     """A control installed on a transport nobody uses is not a control."""
-    from amtsblatt_mcp.server import _make_client
+    from amtsblatt_mcp._http import _make_client
 
     client = _make_client()
     assert isinstance(client._transport, PinnedResolverTransport)
@@ -173,7 +173,7 @@ def test_the_egress_hook_is_still_installed() -> None:
     answers "is this the name we meant?" and enforces HTTPS. Replacing the
     transport must not have displaced the hook.
     """
-    from amtsblatt_mcp.server import _enforce_egress_allowlist, _make_client
+    from amtsblatt_mcp._http import _enforce_egress_allowlist, _make_client
 
     client = _make_client()
     assert _enforce_egress_allowlist in client.event_hooks["request"]

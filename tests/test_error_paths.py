@@ -40,7 +40,8 @@ import pytest
 import respx
 from mcp import Client, MCPError
 
-from amtsblatt_mcp.server import GAZETTE_BASE, mcp
+from amtsblatt_mcp.constants import GAZETTE_BASE
+from amtsblatt_mcp.server import mcp
 
 from .fixtures import MOCK_RUBRICS, MOCK_SEARCH_EMPTY
 
@@ -308,6 +309,6 @@ async def test_the_pooled_client_has_a_shutdown_hook() -> None:
     is set" — 2.0 installs a default one, so the weaker check would pass with
     ours removed.
     """
-    from amtsblatt_mcp.server import _lifespan
+    from amtsblatt_mcp._app import _lifespan
 
     assert mcp.settings.lifespan is _lifespan, "the pooled client has no shutdown hook"
