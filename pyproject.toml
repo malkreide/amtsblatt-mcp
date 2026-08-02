@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name        = "amtsblatt-mcp"
-version     = "0.22.0"
+version     = "0.22.1"
 description = "MCP server for amtsblattportal.ch (SHAB + cantonal gazettes) — procurement and official notices, person-data rubrics excluded by design"
 readme      = "README.md"
 license     = { file = "LICENSE" }
@@ -29,7 +29,7 @@ classifiers = [
 
 dependencies = [
     # OBS-003: structured logging with contextvars-bound correlation ids.
-    "structlog>=24.1",
+    "structlog>=24.1,<27",
     # Bounded to the 2.x line. The upper bound stays on principle: `mcp` 2.0.0
     # removed `mcp.server.fastmcp` outright with no deprecation shim, and an
     # unbounded requirement turned every CI run red the day it was published.
@@ -41,7 +41,7 @@ dependencies = [
     # SDK-004: _cors.py imports Starlette directly. It arrives transitively via
     # `mcp`, but an undeclared import is one upstream dependency change away
     # from an ImportError at startup.
-    "starlette>=0.37",
+    "starlette>=0.37,<2",
     # Windows ships no system tz database; Europe/Zurich is required for the
     # legally relevant submission-deadline arithmetic.
     "tzdata>=2024.1; sys_platform == 'win32'",
