@@ -186,6 +186,16 @@ Der vollständige Audit-Trail — inklusive drei dokumentierter Erweiterungen
 gegenüber der Ausgangsspezifikation — steht in
 [`docs/rubric-classification.md`](docs/rubric-classification.md).
 
+**Wie viel hinter jedem Entscheid steht, ist gemessen und nicht geschätzt.**
+[`docs/coverage-matrix.md`](docs/coverage-matrix.md) enumeriert die Rubrikenachse
+der Quelle und markiert die Reichweite dieses Servers hinein: **84,2 % von
+2 804 063 Publikationen sind erreichbar, 12,6 % bewusst gesperrt, 3,3 % noch
+unklassifiziert**. Allein die Insolvenz-Gruppe umfasst 321 704 Publikationen —
+in der Quelle vorhanden, hier absichtlich ausserhalb der Reichweite. Ohne diese
+Zahl lesen sich «ausserhalb des Scopes» und «nicht in der Quelle» in einem
+Review gleich, und genau dieser Fehler ist diesem Repo einmal passiert (siehe
+`ARCH-003` in [`SECURITY.md`](SECURITY.md)).
+
 ### Die Grenze zu `register-mcp`
 
 Für Publikationen zu einer bestimmten **Firma** gibt es
@@ -414,9 +424,11 @@ amtsblatt-mcp/
 ├── docs/
 │   ├── rubric-classification.md   # Warum jede der 152 Rubriken offen/zu ist
 │   ├── procurement-coverage.md    # Gemessene OB-*-Volumina; warum `active` gemessen wird
+│   ├── coverage-matrix.md         # Gemessene Reichweite: welcher Teil des Bestands erreichbar ist
 │   └── simap-overlap.md           # Spiegel vs. Original, Join über simapPublicationNumber
 ├── scripts/
-│   └── measure_procurement_coverage.py
+│   ├── measure_procurement_coverage.py
+│   └── measure_coverage_matrix.py
 ├── Dockerfile · compose.yaml      # Gehärteter Container, non-root, read-only
 └── server.json                    # MCP-Registry-Manifest
 ```

@@ -208,6 +208,15 @@ and the general catch-all rubrics.
 The full audit trail — including three documented extensions to the source
 specification — is in [`docs/rubric-classification.md`](docs/rubric-classification.md).
 
+**How much each decision covers is measured, not estimated.**
+[`docs/coverage-matrix.md`](docs/coverage-matrix.md) enumerates the source's own
+rubric axis and marks this server's reach into it: **84.2 % of 2 804 063
+publications are reachable, 12.6 % blocked by decision, 3.3 % still
+unclassified**. The insolvency group alone is 321 704 publications — present in
+the source, out of reach here on purpose. Without that figure, "out of scope"
+and "not in the source" read the same in a review, and this repository made
+exactly that mistake once (see `ARCH-003` in [`SECURITY.md`](SECURITY.md)).
+
 ### The boundary with `register-mcp`
 
 For publications about a specific **company**, use
@@ -460,9 +469,11 @@ amtsblatt-mcp/
 ├── docs/
 │   ├── rubric-classification.md   # Why each of the 152 rubrics is open/closed
 │   ├── procurement-coverage.md    # Measured OB-* volume; why `active` is measured
+│   ├── coverage-matrix.md         # Measured reach: which part of the corpus the tools cover
 │   └── simap-overlap.md           # Mirror vs. original, joined on simapPublicationNumber
 ├── scripts/
-│   └── measure_procurement_coverage.py
+│   ├── measure_procurement_coverage.py
+│   └── measure_coverage_matrix.py
 ├── Dockerfile · compose.yaml      # Hardened, non-root, read-only container
 └── server.json                    # MCP registry manifest
 ```
