@@ -41,6 +41,33 @@ BASE = "https://amtsblattportal.ch/api/v1"
 # code sees zero hits and takes them for a statement about the corpus.
 REQUIRED_STATE = "PUBLISHED"
 
+SNAPSHOT = Path(__file__).resolve().parents[1] / "docs" / "coverage-matrix.json"
+
+# Sub-rubric names that mark systematic natural-person data. Used ONLY to sort
+# unclassified rubrics into "look here first" and "probably harmless" — never to
+# grant or deny access. Absence of a marker is not a clearance: the decision is
+# made on the content of a publication, not on the wording of a label, exactly
+# as `PROCUREMENT_RUBRICS["active"]` is measured rather than read off the label.
+PERSON_DATA_MARKERS = (
+    "baugesuch",
+    "betreibung",
+    "bürgerrecht",
+    "einbürgerung",
+    "erbschaft",
+    "erben",
+    "grundbuch",
+    "handänderung",
+    "konkurs",
+    "nachlass",
+    "schuldenruf",
+    "testament",
+    "todesfall",
+    "vorladung",
+    "zivilstand",
+    "ableben",
+    "ausländerrecht",
+)
+
 
 def _taxonomy(client: httpx.Client) -> list[dict]:
     r = client.get(f"{BASE}/rubrics")
@@ -78,9 +105,64 @@ def _classify(code: str) -> str:
     return "unclassified"
 
 
+def _sub_names(row: dict) -> list[str]:
+    out = []
+    for sub in row.get("subRubrics") or []:
+        name = sub.get("name")
+        out.append(name.get("de", "") if isinstance(name, dict) else str(name or ""))
+    return [n for n in out if n]
+
+
+def _markers(sub_names: list[str]) -> list[str]:
+    """Sub-rubric names carrying a person-data marker. Evidence, not a verdict."""
+    return [n for n in sub_names if any(mark in n.lower() for mark in PERSON_DATA_MARKERS)]
+
+
+def _triage(rows: list[dict], counts: dict[str, int]) -> int:
+    """Sort the unclassified rubrics by whether their sub-rubrics mention persons."""
+    unclassified = [r for r in rows if _classify(r["code"]) == "unclassified"]
+    unclassified.sort(key=lambda r: -counts[r["code"]])
+    flagged, clear = [], []
+    for row in unclassified:
+        hits = _markers(_sub_names(row))
+        (flagged if hits else clear).append((row, hits))
+
+    print(
+        f"{len(unclassified)} unklassifizierte Rubriken, {sum(counts[r['code']] for r in unclassified):,} Publikationen\n"
+    )
+    print(f"## Personendaten-Marker in einer Sub-Rubrik — {len(flagged)} Rubriken\n")
+    for row, hits in flagged:
+        code = row["code"]
+        print(f"  {code:<8} {counts[code]:>8,}  {hits[0][:52]}")
+    print(f"\n## Kein Marker — {len(clear)} Rubriken, Kandidaten für eine Prüfung\n")
+    for row, _ in clear[:15]:
+        code = row["code"]
+        subs = ", ".join(_sub_names(row)[:3])
+        print(f"  {code:<8} {counts[code]:>8,}  {subs[:60]}")
+    if len(clear) > 15:
+        rest = sum(counts[r["code"]] for r, _ in clear[15:])
+        print(f"  … {len(clear) - 15} weitere, zusammen {rest:,} Publikationen")
+    print(
+        "\nDas ist Evidenz, kein Urteil. Ein fehlender Marker ist keine Freigabe: "
+        "Entschieden wird am Inhalt einer Publikation, nicht am Wortlaut eines Labels. "
+        "Die Freigabe bleibt eine Änderung an GREEN_RUBRICS mit Review."
+    )
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument(
+        "--triage",
+        action="store_true",
+        help="sort the unclassified rubrics by person-data markers in their sub-rubrics",
+    )
+    ap.add_argument(
+        "--write-snapshot",
+        action="store_true",
+        help=f"refresh {SNAPSHOT.name} — the axis the live drift test compares against",
+    )
     args = ap.parse_args()
 
     with httpx.Client(timeout=30.0, headers={"Accept": "application/json"}) as client:
@@ -95,12 +177,38 @@ def main() -> int:
             for row in rows
         }
 
+    if args.triage:
+        return _triage(rows, counts)
+
     by_class: dict[str, list[str]] = {"green": [], "red": [], "unclassified": []}
     for code in counts:
         by_class[_classify(code)].append(code)
     totals = {k: sum(counts[c] for c in v) for k, v in by_class.items()}
     reachable = totals["green"] + sum(subs.values())
     summed = sum(counts.values())
+
+    if args.write_snapshot:
+        # Codes and classes only — no counts. Counts move every day; the axis
+        # does not, and it is the axis whose drift makes the matrix stale.
+        SNAPSHOT.write_text(
+            json.dumps(
+                {
+                    "measured_at": date.today().isoformat(),
+                    "note": (
+                        "Axis snapshot for tests/test_live.py. Refresh with "
+                        "scripts/measure_coverage_matrix.py --write-snapshot and "
+                        "update docs/coverage-matrix.md in the same commit."
+                    ),
+                    "rubrics": {code: _classify(code) for code in sorted(counts)},
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        print(f"{SNAPSHOT.relative_to(SNAPSHOT.parents[1])} geschrieben: {len(counts)} Rubriken")
+        return 0
 
     result = {
         "measured_at": date.today().isoformat(),

@@ -99,3 +99,49 @@ async def test_live_blocked_rubric_still_refuses() -> None:
     _reset()
     result = await gazette_search_publications(SearchInput(rubric="KK", keyword="Muster"))
     assert "fail-closed" in result
+
+
+async def test_live_taxonomy_matches_the_coverage_snapshot() -> None:
+    """`docs/coverage-matrix.md` is a measurement, and a measurement goes stale.
+
+    The matrix says 84.2 % of the corpus is reachable and names three reasons
+    for the rest. That statement is true of the taxonomy as it stood on the
+    measuring day. A rubric added upstream is blocked automatically — the
+    allow-list sees to that — but it is also *unclassified*, and nothing in the
+    repository would say so: `rubrics.py` stays valid, every test stays green,
+    and the document keeps claiming a share it no longer has.
+
+    This test is the only place that notices. It compares the live axis against
+    `docs/coverage-matrix.json` and fails on any code appearing or disappearing.
+    Counts deliberately are not asserted: they grow daily and would make the
+    test a nuisance, and a nuisance test gets deleted. The axis is what makes
+    the document stale.
+
+    On failure: run `scripts/measure_coverage_matrix.py --triage` for the new
+    rubric, classify it in `rubrics.py`, then refresh both the snapshot
+    (`--write-snapshot`) and the document in the same commit.
+    """
+    import json
+    from pathlib import Path
+
+    from amtsblatt_mcp._taxonomy import _fetch_rubrics
+
+    snapshot_path = Path(__file__).resolve().parents[1] / "docs" / "coverage-matrix.json"
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))["rubrics"]
+
+    _reset()
+    rubrics, _ = await _fetch_rubrics()
+    live = {row["code"] for row in rubrics if row.get("code")}
+    assert live, "empty taxonomy — a shape change, not an empty upstream"
+
+    added = sorted(live - set(snapshot))
+    removed = sorted(set(snapshot) - live)
+    assert not added, (
+        f"{len(added)} new upstream rubric(s) since {snapshot_path.name}: {added}. "
+        "They are blocked fail-closed, but unclassified and uncounted — "
+        "classify them and refresh the snapshot and docs/coverage-matrix.md."
+    )
+    assert not removed, (
+        f"{len(removed)} rubric(s) gone from upstream: {removed}. "
+        "The coverage figures include them; refresh the snapshot and the document."
+    )
