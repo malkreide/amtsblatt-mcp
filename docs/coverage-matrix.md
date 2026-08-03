@@ -96,10 +96,77 @@ erledigter Punkt.
 | `BA-SH` | 1 684 | Bau, Raum, Verkehr und Energie |
 | … 41 weitere | 7 553 | |
 
-Die drei grössten — `AW`, `EK`, `AB` — betreffen dem Namen nach keine
-natürlichen Personen und wären Kandidaten für eine Prüfung. Ob sie grün werden
-können, entscheidet der Inhalt, nicht das Label: Dieselbe Lehre wie bei den
-`OB-*`-Rubriken in [`procurement-coverage.md`](procurement-coverage.md).
+### Triage der 47 — wo zuerst hinsehen
+
+Ein undifferenzierter Block von 47 Zeilen wird nie abgearbeitet. Die Triage
+sortiert ihn nach einem einzigen, prüfbaren Signal: **Trägt eine Sub-Rubrik
+einen Personendaten-Marker?** (`Baugesuch`, `Konkurs`, `Schuldenruf`,
+`Testament`, `Zivilstand`, `Grundbuch`, `Vorladung`, … — die Liste steht als
+`PERSON_DATA_MARKERS` im Skript.)
+
+```bash
+python scripts/measure_coverage_matrix.py --triage
+```
+
+**12 Rubriken mit Marker — hier ist die Antwort absehbar rot:**
+
+| Rubrik | Publikationen | Marker in der Sub-Rubrik |
+|---|---:|---|
+| `BA-VS` | 11 260 | Baugesuch |
+| `AM-DA` | 8 010 | Ausländerrechtliche Bekanntmachung (inaktiv) |
+| `BA-SH` | 1 684 | Baugesuch |
+| `FM` | 830 | FINMA-Konkurs |
+| `WB-BL` | 725 | Liquidationsschuldenruf einer Stiftung |
+| `BA-SZ`, `BA-SO`, `BA-OW`, `BA-NW` | 1 810 | Baugesuch |
+| `AL-OW`, `AR-NW`, `AR-SO` | 55 | Testamentseröffnung, Liquidationsschuldenruf |
+
+Die `BA-*`-Gruppe ist dabei kein Sonderfall, sondern die bekannte Form: `BA-SH`
+ist gesperrt, während die Sub-Rubrik `BA-SH40` (Beschaffung) freigegeben ist —
+dasselbe Muster wie bei `AR-NW40`, `AR-OW40` und `AR-VS40`.
+
+**35 Rubriken ohne Marker — Kandidaten für eine Prüfung, 67 777 Publikationen:**
+
+| Rubrik | Publikationen | Sub-Rubriken (Auszug) |
+|---|---:|---|
+| `AW` | 26 246 | Abhandengekommene Wertpapiere, Kraftloserklärung |
+| `EK` | 19 472 | Registrierung / Erneuerung / Löschung einer Marke |
+| `AB` | 17 926 | Gesuch und Erteilung von Arbeitszeitbewilligungen |
+| `UP` | 853 | Kapitalerhöhung, Anleihe, Dividende |
+| `BW-BS` | 798 | Promotion, Ernennung, Studienabschluss |
+| `BB` | 277 | Schiffsregister |
+| … 29 weitere | 2 205 | |
+
+**Das ist Evidenz, kein Urteil.** Ein fehlender Marker ist keine Freigabe: Ob
+eine Rubrik grün werden kann, entscheidet der Inhalt einer Publikation, nicht
+der Wortlaut eines Labels — dieselbe Lehre wie bei den `OB-*`-Rubriken in
+[`procurement-coverage.md`](procurement-coverage.md), wo drei Labels ihre eigene
+Stilllegung ankündigen und eines nicht. Die Freigabe bleibt eine Änderung an
+`GREEN_RUBRICS` mit Review; die Triage sagt nur, wo das Lesen anfangen sollte.
+
+## Wann diese Zahlen veralten
+
+Eine Messung mit Datum veraltet still: Eine neue Rubrik upstream ist durch die
+Allow-List automatisch gesperrt — aber eben auch **unklassifiziert und
+ungezählt**, und nichts im Repo würde das sagen. `rubrics.py` bliebe gültig,
+alle Tests grün, und dieses Dokument behauptete weiter einen Anteil, den es
+nicht mehr hat.
+
+`tests/test_live.py::test_live_taxonomy_matches_the_coverage_snapshot` ist die
+Stelle, die es merkt. Der Test vergleicht die Live-Achse gegen
+[`coverage-matrix.json`](coverage-matrix.json) — Codes und Klassen, **keine
+Mengen**: Mengen wachsen täglich und würden den Test zum Störgeräusch machen,
+und ein störender Test wird abgeschaltet. Er läuft im nächtlichen Live-Job.
+
+Wird er rot:
+
+```bash
+python scripts/measure_coverage_matrix.py --triage          # was ist das für eine Rubrik?
+# rubrics.py: klassifizieren (grün mit Begründung, oder rot mit Begründung)
+python scripts/measure_coverage_matrix.py --write-snapshot  # Achse nachführen
+python scripts/measure_coverage_matrix.py                   # neue Zahlen für dieses Dokument
+```
+
+Snapshot und Dokument gehören in denselben Commit wie die Klassifikation.
 
 ## Grund 2 kommt nicht vor
 
