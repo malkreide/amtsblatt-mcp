@@ -6,6 +6,55 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Behoben
+
+- **Die Retry-Schleife fing keine Netzwerkfehler (`ARCH-014`).** `_get_json`
+  und `_get_text` prüften ausschliesslich `r.status_code`. Ein
+  `httpx.ConnectError` aus `client.get` verliess die Schleife beim **ersten**
+  Versuch — ein 503 bekam drei Versuche, eine abgelehnte Verbindung aus
+  demselben Ausfall keinen einzigen. Der Retry sah vorhanden aus und liess den
+  häufigsten Fall ungedeckt.
+
+### Geändert
+
+- **Retry-Politik gegenüber der Quelle: begrenzt, gestreut, gehorsam
+  (`ARCH-014`).** Ein Portfolio-Durchlauf des Audit-Katalogs am 2026-08-07 las
+  beide Funktionen von Hand.
+
+  | Eigenschaft | Vorher | Jetzt |
+  |---|---|---|
+  | Netzwerkfehler | **gar nicht gefangen** | `httpx.RequestError` wird wiederholt |
+  | Wiederholbare Status | `{502, 503, 504}` | `{429, 500, 502, 503, 504}` |
+  | Jitter | keiner — linear `BACKOFF * attempt` | gestreut in `[0.5x, 1.5x]` |
+  | `Retry-After` | nicht gelesen | gelesen (beide RFC-9110-Formen), schlägt die eigene Kurve |
+  | Deckel | keiner | `GAZETTE_MAX_DELAY`, **nach** dem Jitter |
+  | Zeitbudget | keines | `GAZETTE_TOTAL_BUDGET = 25.0` an `asyncio.timeout` |
+  | Codepfade | zwei identische Schleifen | eine, `_get_with_retry` |
+
+  **500 und 429 fehlten.** Ein überlastetes Gateway antwortet nicht immer mit
+  502, und ein 429 ist die Bitte um eine Pause, keine Ablehnung der Anfrage.
+  Beide fielen bisher beim ersten Versuch in `raise_for_status()`.
+
+  **`REQUEST_TIMEOUT` war nie ein Budget.** httpx begrenzt pro Operation, und
+  sein Read-Timeout beginnt mit jedem Chunk von vorn. Die 25 s hängen jetzt an
+  `asyncio.timeout` und liegen unter dem 30-s-Default des MCP-SDK — der Server
+  hört auf zu arbeiten, bevor der Aufrufer aufhört zuzuhören.
+
+  **`EgressDenied` wird ausdrücklich nicht wiederholt.** Es ist eine
+  Policy-Entscheidung, keine transiente Störung; sie zu wiederholen hämmerte
+  den Guard und verstecke den Grund hinter einer Verzögerung.
+
+  Die beiden Schleifen waren dieselbe, zweimal geschrieben. Sie teilen jetzt
+  `_get_with_retry` — sonst hätte die nächste Korrektur wieder die Chance,
+  nur eine der beiden zu erreichen.
+
+### Hinzugefügt
+
+- **`tests/test_retry_policy.py`** — der Retry-Pfad hatte keine eigenen Tests.
+  Jede Eigenschaft mit Gegenprobe, einschliesslich eines Tests, der festhält,
+  dass der Text-Pfad nicht auf der alten Schleife zurückbleibt.
+
+
 ### Tool Definition Changes
 
 - (none)

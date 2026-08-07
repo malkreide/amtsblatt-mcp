@@ -195,9 +195,37 @@ _FORM_CLASSES: dict[str, str] = {
     "revocation": "revocation",
 }
 
-_TRANSIENT_STATUS = frozenset({502, 503, 504})
+# 500 and 429 belong here (ARCH-014). A gateway under load does not always
+# answer 502, and a 429 is the source asking for a pause rather than refusing
+# the request. Both used to fall through to `raise_for_status()` on the first
+# attempt.
+_TRANSIENT_STATUS = frozenset({429, 500, 502, 503, 504})
 GAZETTE_MAX_RETRIES = int(os.environ.get("GAZETTE_MAX_RETRIES", "3"))
 GAZETTE_RETRY_BACKOFF = float(os.environ.get("GAZETTE_RETRY_BACKOFF", "0.5"))
+
+# Ceiling on the WHOLE call — every attempt and every wait together. An attempt
+# count is not a bound: three attempts against a source that takes the full
+# REQUEST_TIMEOUT (15s) to give up is three quarters of a minute inside one
+# tool call, and GAZETTE_MAX_RETRIES never says so. The anchor is measured: the
+# Python MCP SDK ships MCP_DEFAULT_TIMEOUT = 30.0, so 25s leaves headroom for
+# framing and parsing. Past the caller's timeout nobody is listening — the work
+# continues, the load lands on the source, and the result goes nowhere.
+GAZETTE_TOTAL_BUDGET = float(os.environ.get("GAZETTE_TOTAL_BUDGET", "25.0"))
+
+# Ceiling for a single wait. Bounds the linear ladder and bounds a `Retry-After`
+# the source may send but we are not obliged to sit through.
+GAZETTE_MAX_DELAY = float(os.environ.get("GAZETTE_MAX_DELAY", "10.0"))
+
+# Jitter spread. Without it every client that hit the same outage retries in
+# lockstep, and the load returns as a wave exactly when the source recovers.
+GAZETTE_JITTER_SPREAD = 0.5  # linear delays land in [0.5x, 1.5x]
+
+# Applied on top of a `Retry-After`, deliberately one-sided: the source said
+# when to come back, so later is polite and earlier ignores the value read.
+GAZETTE_RETRY_AFTER_JITTER = 0.25  # lands in [1.0x, 1.25x]
+
+# Statuses that carry a meaningful `Retry-After` (RFC 9110 section 10.2.3).
+RETRY_AFTER_STATUSES = frozenset({429, 503})
 
 RUBRICS_TTL_SECONDS = float(os.environ.get("RUBRICS_TTL", "86400"))
 
