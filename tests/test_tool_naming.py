@@ -126,20 +126,69 @@ def test_live_tests_are_all_in_one_file() -> None:
     assert not stray, f"live markers outside tests/test_live.py: {stray}"
 
 
+def _dev_extra() -> list[str]:
+    """The `dev` extra, as pyproject actually declares it.
+
+    Parsed with `tomllib` rather than sliced out of the raw text. The earlier
+    version cut the block at the first `]`, so a comment or a specifier
+    containing one truncated the list silently and every assertion below it
+    then ran against an arbitrary prefix — which is exactly how a comment
+    mentioning the extra by name once turned this test red.
+    """
+    import pathlib
+    import tomllib
+
+    pyproject = pathlib.Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with pyproject.open("rb") as fh:
+        return tomllib.load(fh)["project"]["optional-dependencies"]["dev"]
+
+
+def _requirement_names(requirements: list[str]) -> set[str]:
+    """Distribution names only, normalised per PEP 503.
+
+    Name-based rather than substring-based: `"opentelemetry-sdk" in text` also
+    matches a hypothetical `opentelemetry-sdk-fork`, so it can pass while the
+    package the tests import is absent.
+    """
+    import re
+
+    return {
+        re.split(r"[<>=!~;\[\s]", requirement, maxsplit=1)[0].strip().lower().replace("_", "-")
+        for requirement in requirements
+    }
+
+
 def test_otel_tests_are_not_silently_skipped() -> None:
     """OBS-006's tests use `importorskip`.
 
     Without opentelemetry in the dev extra they skip in CI, and a test that
     always skips is not a test — it is a green tick with nothing behind it.
     """
-    import pathlib
+    assert "opentelemetry-sdk" in _requirement_names(_dev_extra()), (
+        "tests/test_otel.py would skip in CI: add opentelemetry-sdk to the dev extra"
+    )
 
-    pyproject = (pathlib.Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
+
+def test_ruff_pin_matches_ci() -> None:
+    """The lint gate has to mean the same thing locally and in CI.
+
+    Two pins, two files: a floating requirement here (or a bump on one side
+    only) makes `ruff check` report findings CI never sees, or miss the ones it
+    does — an argument nobody can settle by reading the diff.
+    """
+    import pathlib
+    import re
+
+    ci = (pathlib.Path(__file__).resolve().parents[1] / ".github/workflows/ci.yml").read_text(
         encoding="utf-8"
     )
-    dev = pyproject.split("dev = [", 1)[1].split("]", 1)[0]
-    assert "opentelemetry-sdk" in dev, (
-        "tests/test_otel.py would skip in CI: add opentelemetry-sdk to the dev extra"
+    ci_pins = set(re.findall(r"pip install ruff==(\S+)", ci))
+    assert len(ci_pins) == 1, f"expected exactly one pinned ruff in ci.yml, found {ci_pins or '{}'}"
+
+    declared = [r for r in _dev_extra() if _requirement_names([r]) == {"ruff"}]
+    assert declared, "no ruff in the dev extra"
+    assert {r.removeprefix("ruff==") for r in declared} == ci_pins, (
+        f"ruff pin drift: ci.yml installs {ci_pins}, the dev extra declares {declared}"
     )
 
 

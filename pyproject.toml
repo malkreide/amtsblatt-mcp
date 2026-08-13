@@ -56,9 +56,8 @@ dev = [
     # Pinned to the exact version CI installs (.github/workflows/ci.yml). A
     # floating requirement here means a fresh install of this extra resolves to
     # whatever ruff shipped most recently, so the local lint gate reports
-    # findings CI never sees — or misses the ones it does. Bump both together.
-    # Keep the closing square bracket out of these comments: the parser in
-    # test_otel_tests_are_not_silently_skipped cuts this block at the first one.
+    # findings CI never sees — or misses the ones it does. Bump both together;
+    # test_ruff_pin_matches_ci fails if only one side moves.
     "ruff==0.16.1",
     # OBS-006: tests/test_otel.py uses importorskip, so without these installed
     # it would skip silently in CI — and a test that always skips is not a test.
