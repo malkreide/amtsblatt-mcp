@@ -53,7 +53,13 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=5.0.0",
     "respx>=0.21.0",
-    "ruff>=0.4.0",
+    # Pinned to the exact version CI installs (.github/workflows/ci.yml). A
+    # floating requirement here means a fresh install of this extra resolves to
+    # whatever ruff shipped most recently, so the local lint gate reports
+    # findings CI never sees — or misses the ones it does. Bump both together.
+    # Keep the closing square bracket out of these comments: the parser in
+    # test_otel_tests_are_not_silently_skipped cuts this block at the first one.
+    "ruff==0.16.1",
     # OBS-006: tests/test_otel.py uses importorskip, so without these installed
     # it would skip silently in CI — and a test that always skips is not a test.
     "opentelemetry-api>=1.27.0",

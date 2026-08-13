@@ -441,8 +441,13 @@ specifically, not a wholesale change of what every tool returns.
 pip install -e ".[dev]"
 PYTHONPATH=src pytest tests/ -m "not live"   # 75 tests, no network
 PYTHONPATH=src pytest tests/ -m live         # hits the real API
-ruff check src/ tests/
+ruff check src/ tests/ scripts/
+ruff format --check src/ tests/ scripts/
+python scripts/check_version_sync.py
 ```
+
+These are the same gates CI runs, over the same directories. The `dev` extra
+pins ruff to the version CI installs, so a local run and a CI run agree.
 
 The suite covers the mandatory portfolio set: green-rubric search with source
 URL, **blocked rubric → explanation with zero HTTP calls**, canton filtering,

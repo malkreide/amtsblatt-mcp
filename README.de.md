@@ -396,8 +396,14 @@ duplizieren.
 pip install -e ".[dev]"
 PYTHONPATH=src pytest tests/ -m "not live"   # 75 Tests, ohne Netzwerk
 PYTHONPATH=src pytest tests/ -m live         # gegen die echte API
-ruff check src/ tests/
+ruff check src/ tests/ scripts/
+ruff format --check src/ tests/ scripts/
+python scripts/check_version_sync.py
 ```
+
+Das sind dieselben Gates wie in der CI, über dieselben Verzeichnisse. Das
+`dev`-Extra pinnt ruff auf die Version, die auch die CI installiert — ein
+lokaler Lauf und ein CI-Lauf stimmen damit überein.
 
 Die Suite deckt den verbindlichen Portfolio-Satz ab: Suche in grüner Rubrik mit
 Quell-URL, **gesperrte Rubrik → Erklärung mit null HTTP-Calls**, Kantonsfilter,

@@ -16,8 +16,11 @@ For anything touching the rubric allow-list, read
 2. `pip install -e ".[dev]"`
 3. Make the change.
 4. `PYTHONPATH=src pytest tests/ -m "not live"` — all green.
-5. `ruff check src/ tests/` — clean.
-6. Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`,
+5. `ruff check src/ tests/ scripts/` and `ruff format --check src/ tests/ scripts/`
+   — clean. Both run over the same three directories CI does; the pinned ruff
+   comes from the `dev` extra in step 2.
+6. `python scripts/check_version_sync.py` — passes.
+7. Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`,
    `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
 
 ## Changing the rubric allow-list
