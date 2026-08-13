@@ -45,17 +45,17 @@ Ein Codex-Review auf einem PR wird beantwortet oder behoben, nie ignoriert.
 
 ## Teil 2 — Dieses Repo
 
-**ruff:** CI pinnt `ruff==0.16.1` (`.github/workflows/ci.yml`). Eine
-`.pre-commit-config.yaml` existiert nicht; die einzige zweite Quelle ist
-`pyproject.toml` → `[project.optional-dependencies].dev` mit `ruff>=0.4.0`,
-also ungepinnt. `pip install -e ".[dev]"` installiert lokal daher eine
-beliebige neuere Version — **lokal vor dem Gate `pip install ruff==0.16.1`
-nachziehen.** (Befund, siehe unten.)
+**ruff:** `0.16.1`, an zwei Stellen gepinnt und identisch —
+`.github/workflows/ci.yml` und `pyproject.toml` →
+`[project.optional-dependencies].dev`. Eine `.pre-commit-config.yaml` gibt es
+nicht; `pip install -e ".[dev]"` liefert daher die CI-Version. **Beim Bump
+beide Stellen zusammen anfassen** — divergieren sie, meldet der lokale Lauf
+Abweichungen, die die CI nie sieht (oder umgekehrt).
 
 **Gates, wörtlich aus `ci.yml`** — Python 3.11/3.12/3.13:
 
 ```bash
-pip install -e ".[dev]" && pip install ruff==0.16.1
+pip install -e ".[dev]"
 PYTHONPATH=src pytest tests/ -m "not live"
 ruff check src/ tests/ scripts/
 ruff format --check src/ tests/ scripts/
@@ -71,11 +71,14 @@ Start-Verweigerung ohne `MCP_API_KEY`, UID löst auf `mcp` auf.
 nur bei `schedule`/`workflow_dispatch`). DRIFT-005 ist damit erfüllt; PR-Läufe
 schliessen Live-Tests über `-m "not live"` aus, ohne sie fallen zu lassen.
 
-### Befunde
+### Wo dieselbe Angabe mehrfach steht
 
-1. **ruff-Version divergiert.** CI: `0.16.1` gepinnt. `pyproject.toml` dev-Extra:
-   `ruff>=0.4.0`. Keine `.pre-commit-config.yaml`, die den Pin lokal erzwingt.
-2. **Gate-Umfang divergiert.** `README.md`, `README.de.md`, `CONTRIBUTING.md`,
-   `CONTRIBUTING.de.md` nennen `ruff check src/ tests/`; die CI prüft zusätzlich
-   `scripts/` und fährt `ruff format --check`. Wer der Doku folgt, ist lokal
-   grün und in der CI rot.
+Diese Stellen müssen zusammen geändert werden — sie sind schon einmal
+auseinandergelaufen:
+
+- **ruff-Version:** `.github/workflows/ci.yml` und `pyproject.toml` (dev-Extra).
+- **Gate-Befehle:** `README.md`, `README.de.md`, `CONTRIBUTING.md`,
+  `CONTRIBUTING.de.md` — alle vier nennen dieselben Befehle wie `ci.yml`.
+  Nennt die Doku weniger als die CI prüft, ist man lokal grün und in der CI rot.
+- **Version:** `pyproject.toml` ↔ `server.json` / README / `src` — dafür gibt es
+  ein Gate (`scripts/check_version_sync.py`), das die Divergenz selbst findet.

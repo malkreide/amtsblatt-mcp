@@ -16,8 +16,11 @@ Ergebnis. Für alles, was die Rubrik-Allow-List betrifft, zuerst
 2. `pip install -e ".[dev]"`
 3. Die Änderung vornehmen.
 4. `PYTHONPATH=src pytest tests/ -m "not live"` — alles grün.
-5. `ruff check src/ tests/` — sauber.
-6. [Conventional Commits](https://www.conventionalcommits.org/) verwenden (`feat:`,
+5. `ruff check src/ tests/ scripts/` und `ruff format --check src/ tests/ scripts/`
+   — sauber. Beide laufen über dieselben drei Verzeichnisse wie in der CI; die
+   gepinnte ruff-Version kommt aus dem `dev`-Extra in Schritt 2.
+6. `python scripts/check_version_sync.py` — besteht.
+7. [Conventional Commits](https://www.conventionalcommits.org/) verwenden (`feat:`,
    `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
 
 ## Änderungen an der Rubrik-Allow-List
