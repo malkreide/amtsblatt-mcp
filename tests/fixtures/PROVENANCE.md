@@ -73,7 +73,7 @@ steht wie geliefert — die Quelle meint damit die Gesamtzahl der Treffer.
 
 - **Werkzeuge:** `gazette_search_publications`
 - **Schluessel:** `https://amtsblattportal.ch/api/v1/publications?publicationStates=PUBLISHED&rubrics=HR&publicationDate.start=2026-08-01&publicationDate.end=2026-08-14&pageRequest.size=5`
-- **Auswahl:** ungekuerzt
+- **Auswahl:** 6 von 8 Listeneintraegen (je Liste die ersten 3), aus 6116 Bytes Rohantwort
 - **Groesse:** 5192 Bytes
 - **SHA-256:** `e5eb6884de1d3796bebeabec25f0d14b28cc448d228d99b353b15490f6f5d97c`
 
@@ -81,14 +81,14 @@ steht wie geliefert — die Quelle meint damit die Gesamtzahl der Treffer.
 
 - **Werkzeuge:** `gazette_search_publications`
 - **Schluessel:** `https://amtsblattportal.ch/api/v1/publications?publicationStates=PUBLISHED&keyword=Informatik&rubrics=BH&rubrics=HR&rubrics=KA-AR&rubrics=KA-BE&rubrics=KA-BS&rubrics=KA-TI&rubrics=KA-ZG&rubrics=KA-ZH&rubrics=KO-AR&rubrics=KO-BE&rubrics=KO-BS&rubrics=KO-TI&rubrics=KO-ZG&rubrics=KO-ZH&rubrics=OB-AR&rubrics=OB-BL&rubrics=OB-BS&rubrics=OB-TI&rubrics=OB-VS&rubrics=OB-ZG&rubrics=PL-BL&rubrics=PR-BS&rubrics=PR-TI&rubrics=RE-NW&rubrics=RE-OW&rubrics=RE-SH&rubrics=RE-SO&rubrics=RE-SZ&rubrics=RE-VS&rubrics=RP-AR&rubrics=RP-BE&rubrics=RP-BL&rubrics=RP-BS&rubrics=RP-TI&rubrics=RP-ZG&rubrics=RP-ZH&rubrics=RS-AR&rubrics=RS-BE&rubrics=RS-BL&rubrics=RS-BS&rubrics=RS-DA&rubrics=RS-ZG&rubrics=RS-ZH&rubrics=VE-AR&rubrics=VE-BE&rubrics=VE-BS&rubrics=VE-TI&rubrics=VE-ZG&rubrics=VE-ZH&publicationDate.start=2026-08-01&publicationDate.end=2026-08-14&pageRequest.size=5`
-- **Auswahl:** ungekuerzt
+- **Auswahl:** 8 von 10 Listeneintraegen (je Liste die ersten 3), aus 6876 Bytes Rohantwort
 - **Groesse:** 5777 Bytes
-- **SHA-256:** `d7929b99cc6f188b1380cf03982952009eb7814a8e5759506addd38fa2e028ff`
+- **SHA-256:** `1969a5db3d00287d7ca5f36b15417d541c721903881ab60c849c21c625dff498`
 
 ## `search_procurement_1.json`
 
 - **Werkzeuge:** `gazette_search_procurement`
 - **Schluessel:** `https://amtsblattportal.ch/api/v1/publications?publicationStates=PUBLISHED&rubrics=OB-TI&publicationDate.start=2026-08-01&publicationDate.end=2026-08-14&pageRequest.size=5`
-- **Auswahl:** ungekuerzt
+- **Auswahl:** 6 von 8 Listeneintraegen (je Liste die ersten 3), aus 6735 Bytes Rohantwort
 - **Groesse:** 5655 Bytes
 - **SHA-256:** `66d311f27116d9ae2e0262e9017a630a91232a5248784a5d830d260bbb601ea8`

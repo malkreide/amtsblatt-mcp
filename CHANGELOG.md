@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Behoben
+
+- **Der Fixture-Nachweis wies jede gekürzte Aufzeichnung als vollständig aus.**
+  `_kuerze` gab seine Zähler als `return vorher, nachher, geh(daten)` zurück.
+  Python wertet von links nach rechts aus und liest die beiden Zahlen, **bevor**
+  `geh` sie hochzählt — sie waren immer `(0, 0)`. Über jeder gekürzten Datei
+  stand «ungekuerzt»; drei der sieben Aufzeichnungen sind es. Die Fixtures sind
+  neu aufgezeichnet, damit die Zahlen aus einem echten Lauf stammen, und
+  `test_der_nachweis_meldet_was_gekuerzt_wurde` fällt, wenn die Zähler wieder
+  blind werden.
+
 ### Hinzugefügt
 
 - **Aufgezeichnete Fixtures** in `tests/fixtures/` — sieben echte Antworten, eine
