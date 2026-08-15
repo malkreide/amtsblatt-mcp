@@ -6,6 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- **Aufgezeichnete Fixtures** in `tests/fixtures/` — sieben echte Antworten, eine
+  je Abfrageform (Suche nach Rubrik, nach Stichwort, nach Beschaffungskanton;
+  Volltext; Taxonomie; Erreichbarkeitsprobe). Abgegriffen über einen
+  httpx-Response-Hook auf dem geteilten Client, ausgelöst von den Werkzeugen
+  selbst — und damit durch das Green-Gate. Herkunft, Datum, Auswahlregel und
+  SHA-256 je Datei in `tests/fixtures/PROVENANCE.md`, neu aufzeichnen mit
+  `scripts/record_fixtures.py`, geladen über `tests/fixture_data.py`.
+  Portfolio-Konvention, gleich wie in `meteoswiss-mcp` und
+  `swiss-statistics-mcp`.
+
+  `tests/fixtures.py` bleibt daneben bestehen: es trägt die Fehlerpfade und die
+  gesperrten Rubriken — beides lässt sich nicht aufzeichnen, weil der Server sie
+  gerade nicht abholt, und beides ist als Erfindung in Ordnung.
+
+  **Personendaten:** das Korpus enthält welche, dieser Ordner nicht.
+  Aufgezeichnet wurde ausschliesslich durch die Werkzeuge, also durch die
+  Freigabeliste; die Volltexte stammen zusätzlich bewusst aus einer
+  Beschaffungsrubrik, weil ein HR-Detaileintrag die Organe mit Namen nennt.
+  `test_keine_aufzeichnung_traegt_eine_gesperrte_rubrik` prüft das Ergebnis,
+  statt dem Verfahren zu vertrauen.
+
+- **`tests/test_recorded_fixtures.py`** — 21 Zusicherungen. Darunter
+  `test_jede_freigegebene_rubrik_gibt_es_in_der_taxonomie`: die Freigabeliste ist
+  ein Literal, die Quelle ist es nicht. Verschwindet ein Code upstream oder wird
+  er umbenannt, fragt der Server weiter danach und bekommt eine leere Antwort —
+  einen Negativbefund, den die Quelle nie gegeben hat. Genau dafür liegt die
+  Taxonomie ungekürzt im Ordner (152 Rubriken, 825 Subrubriken). Stand
+  15.08.2026: alle 49 grünen Codes vorhanden.
+
 ### Behoben
 
 - **Die Retry-Schleife fing keine Netzwerkfehler (`ARCH-014`).** `_get_json`
