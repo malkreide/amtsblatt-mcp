@@ -1,0 +1,157 @@
+{
+  "content": [
+    {
+      "meta": {
+        "id": "43c64030-697b-44f6-a15f-98133daba05e",
+        "creationDate": "2026-08-13T21:35:14.171Z",
+        "updateDate": "2026-08-13T22:35:41.701Z",
+        "rubric": "OB-TI",
+        "subRubric": "OB-TI10",
+        "language": "de",
+        "registrationOffice": {
+          "id": "9baf6439-53de-11eb-9eb2-0050569de354",
+          "displayName": "Repubblica e Cantone del Ticino",
+          "street": "Piazza Governo",
+          "streetNumber": "6",
+          "swissZipCode": "6501",
+          "town": "Bellinzona",
+          "containsPostOfficeBox": false,
+          "postOfficeBox": null,
+          "municipalityId": null,
+          "uid": null
+        },
+        "publicationOriginator": null,
+        "publicationNumber": "OB-TI10-0000002916",
+        "publicationState": "PUBLISHED",
+        "publicationDate": "2026-08-14T00:00:00.000Z",
+        "expirationDate": "2031-08-14T00:00:00.000Z",
+        "primaryTenantCode": "kabti",
+        "onBehalfOf": "Patriziato di Bodio",
+        "invoiceAddressId": null,
+        "legalRemedy": null,
+        "cantons": [
+          "TI"
+        ],
+        "secondaryTenants": null,
+        "repeatedPublications": null,
+        "customsStampImages": [],
+        "title": {
+          "de": "Ausschreibung - Erneuerung der Steuerungseinrichtung der Luftseilbahn Ronco – Pinezzo – Tenciarolo (TI–BO)",
+          "en": "Ausschreibung - Erneuerung der Steuerungseinrichtung der Luftseilbahn Ronco – Pinezzo – Tenciarolo (TI–BO)",
+          "it": "Ausschreibung - Erneuerung der Steuerungseinrichtung der Luftseilbahn Ronco – Pinezzo – Tenciarolo (TI–BO)",
+          "fr": "Ausschreibung - Erneuerung der Steuerungseinrichtung der Luftseilbahn Ronco – Pinezzo – Tenciarolo (TI–BO)"
+        },
+        "dossierReference": null,
+        "copyDeadline": null
+      },
+      "links": [],
+      "attachments": [],
+      "content": null,
+      "commented": false
+    },
+    {
+      "meta": {
+        "id": "9d8bb880-120a-4262-a8f3-55ef6334bb31",
+        "creationDate": "2026-08-13T21:35:11.275Z",
+        "updateDate": "2026-08-13T22:35:41.897Z",
+        "rubric": "OB-TI",
+        "subRubric": "OB-TI10",
+        "language": "it",
+        "registrationOffice": {
+          "id": "9baf6439-53de-11eb-9eb2-0050569de354",
+          "displayName": "Repubblica e Cantone del Ticino",
+          "street": "Piazza Governo",
+          "streetNumber": "6",
+          "swissZipCode": "6501",
+          "town": "Bellinzona",
+          "containsPostOfficeBox": false,
+          "postOfficeBox": null,
+          "municipalityId": null,
+          "uid": null
+        },
+        "publicationOriginator": null,
+        "publicationNumber": "OB-TI10-0000002915",
+        "publicationState": "PUBLISHED",
+        "publicationDate": "2026-08-14T00:00:00.000Z",
+        "expirationDate": "2031-08-14T00:00:00.000Z",
+        "primaryTenantCode": "kabti",
+        "onBehalfOf": "Patriziato di Bodio",
+        "invoiceAddressId": null,
+        "legalRemedy": null,
+        "cantons": [
+          "TI"
+        ],
+        "secondaryTenants": null,
+        "repeatedPublications": null,
+        "customsStampImages": [],
+        "title": {
+          "de": "Bando - Rinnovo dispositivo di comando Funivia Ronco 􀂱 Pinezzo 􀂱 Tenciarolo TI 􀂱 BO - 1",
+          "en": "Bando - Rinnovo dispositivo di comando Funivia Ronco 􀂱 Pinezzo 􀂱 Tenciarolo TI 􀂱 BO - 1",
+          "it": "Bando - Rinnovo dispositivo di comando Funivia Ronco 􀂱 Pinezzo 􀂱 Tenciarolo TI 􀂱 BO - 1",
+          "fr": "Bando - Rinnovo dispositivo di comando Funivia Ronco 􀂱 Pinezzo 􀂱 Tenciarolo TI 􀂱 BO - 1"
+        },
+        "dossierReference": null,
+        "copyDeadline": null
+      },
+      "links": [],
+      "attachments": [],
+      "content": null,
+      "commented": false
+    },
+    {
+      "meta": {
+        "id": "34eb53e1-8d00-4c80-aba5-0413b90c1e11",
+        "creationDate": "2026-08-12T21:35:14.498Z",
+        "updateDate": "2026-08-12T22:36:44.551Z",
+        "rubric": "OB-TI",
+        "subRubric": "OB-TI10",
+        "language": "fr",
+        "registrationOffice": {
+          "id": "9baf6439-53de-11eb-9eb2-0050569de354",
+          "displayName": "Repubblica e Cantone del Ticino",
+          "street": "Piazza Governo",
+          "streetNumber": "6",
+          "swissZipCode": "6501",
+          "town": "Bellinzona",
+          "containsPostOfficeBox": false,
+          "postOfficeBox": null,
+          "municipalityId": null,
+          "uid": null
+        },
+        "publicationOriginator": null,
+        "publicationNumber": "OB-TI10-0000002914",
+        "publicationState": "PUBLISHED",
+        "publicationDate": "2026-08-13T00:00:00.000Z",
+        "expirationDate": "2031-08-13T00:00:00.000Z",
+        "primaryTenantCode": "kabti",
+        "onBehalfOf": "Commune de Minusio - Bureau technique",
+        "invoiceAddressId": null,
+        "legalRemedy": null,
+        "cantons": [
+          "TI"
+        ],
+        "secondaryTenants": null,
+        "repeatedPublications": null,
+        "customsStampImages": [],
+        "title": {
+          "de": "Appel d’offres - Fourniture de véhicules",
+          "en": "Appel d’offres - Fourniture de véhicules",
+          "it": "Appel d’offres - Fourniture de véhicules",
+          "fr": "Appel d’offres - Fourniture de véhicules"
+        },
+        "dossierReference": null,
+        "copyDeadline": null
+      },
+      "links": [],
+      "attachments": [],
+      "content": null,
+      "commented": false
+    }
+  ],
+  "total": 15,
+  "pageRequest": {
+    "sortOrders": [],
+    "page": 0,
+    "size": 5
+  }
+}
