@@ -2,6 +2,55 @@
   "content": [
     {
       "meta": {
+        "id": "ee0407f6-cb33-4d84-85bf-4189532ada01",
+        "creationDate": "2026-08-12T09:57:03.701Z",
+        "updateDate": "2026-08-13T22:36:50.501Z",
+        "rubric": "HR",
+        "subRubric": "HR01",
+        "language": "de",
+        "registrationOffice": {
+          "id": "e15a629a-a08d-11e8-aa11-0050569d3c43",
+          "displayName": "Bundesamt für Justiz (BJ), Eidgenössisches Amt für das Handelsregister",
+          "street": "Bundesrain",
+          "streetNumber": "20",
+          "swissZipCode": "3003",
+          "town": "Bern",
+          "containsPostOfficeBox": false,
+          "postOfficeBox": null,
+          "municipalityId": null,
+          "uid": null
+        },
+        "publicationOriginator": null,
+        "publicationNumber": "HR01-1006731203",
+        "publicationState": "PUBLISHED",
+        "publicationDate": "2026-08-14T00:00:00.000Z",
+        "expirationDate": null,
+        "primaryTenantCode": "shab",
+        "onBehalfOf": null,
+        "invoiceAddressId": null,
+        "legalRemedy": "Die aufgeführte Rechtseinheit wurde ins Handelsregister aufgenommen und ist rechtsfähig. <br />Publikation nach HRegV Art. 9 und Art. 35.",
+        "cantons": [
+          "BE"
+        ],
+        "secondaryTenants": null,
+        "repeatedPublications": null,
+        "customsStampImages": [],
+        "title": {
+          "de": "Neueintragung Alpine Swiss Marketplace GmbH, Bern",
+          "en": "New entries Alpine Swiss Marketplace GmbH, Bern",
+          "it": "Nuove registrazioni Alpine Swiss Marketplace GmbH, Bern",
+          "fr": "Nouvelles entrées Alpine Swiss Marketplace GmbH, Bern"
+        },
+        "dossierReference": null,
+        "copyDeadline": null
+      },
+      "links": [],
+      "attachments": [],
+      "content": null,
+      "commented": false
+    },
+    {
+      "meta": {
         "id": "f4c2e057-b912-45a5-983c-199825a762cb",
         "creationDate": "2026-08-12T10:00:46.024Z",
         "updateDate": "2026-08-13T22:36:48.211Z",
@@ -45,55 +94,6 @@
           "en": "New entries Boralin AG, Baar",
           "it": "Nuove registrazioni Boralin AG, Baar",
           "fr": "Nouvelles entrées Boralin AG, Baar"
-        },
-        "dossierReference": null,
-        "copyDeadline": null
-      },
-      "links": [],
-      "attachments": [],
-      "content": null,
-      "commented": false
-    },
-    {
-      "meta": {
-        "id": "ee0407f6-cb33-4d84-85bf-4189532ada01",
-        "creationDate": "2026-08-12T09:57:03.701Z",
-        "updateDate": "2026-08-13T22:36:50.501Z",
-        "rubric": "HR",
-        "subRubric": "HR01",
-        "language": "de",
-        "registrationOffice": {
-          "id": "e15a629a-a08d-11e8-aa11-0050569d3c43",
-          "displayName": "Bundesamt für Justiz (BJ), Eidgenössisches Amt für das Handelsregister",
-          "street": "Bundesrain",
-          "streetNumber": "20",
-          "swissZipCode": "3003",
-          "town": "Bern",
-          "containsPostOfficeBox": false,
-          "postOfficeBox": null,
-          "municipalityId": null,
-          "uid": null
-        },
-        "publicationOriginator": null,
-        "publicationNumber": "HR01-1006731203",
-        "publicationState": "PUBLISHED",
-        "publicationDate": "2026-08-14T00:00:00.000Z",
-        "expirationDate": null,
-        "primaryTenantCode": "shab",
-        "onBehalfOf": null,
-        "invoiceAddressId": null,
-        "legalRemedy": "Die aufgeführte Rechtseinheit wurde ins Handelsregister aufgenommen und ist rechtsfähig. <br />Publikation nach HRegV Art. 9 und Art. 35.",
-        "cantons": [
-          "BE"
-        ],
-        "secondaryTenants": null,
-        "repeatedPublications": null,
-        "customsStampImages": [],
-        "title": {
-          "de": "Neueintragung Alpine Swiss Marketplace GmbH, Bern",
-          "en": "New entries Alpine Swiss Marketplace GmbH, Bern",
-          "it": "Nuove registrazioni Alpine Swiss Marketplace GmbH, Bern",
-          "fr": "Nouvelles entrées Alpine Swiss Marketplace GmbH, Bern"
         },
         "dossierReference": null,
         "copyDeadline": null
