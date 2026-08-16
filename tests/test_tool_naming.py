@@ -169,12 +169,18 @@ def test_otel_tests_are_not_silently_skipped() -> None:
     )
 
 
-def test_ruff_pin_matches_ci() -> None:
+def test_ruff_pin_lives_only_in_the_dev_extra() -> None:
     """The lint gate has to mean the same thing locally and in CI.
 
-    Two pins, two files: a floating requirement here (or a bump on one side
-    only) makes `ruff check` report findings CI never sees, or miss the ones it
-    does — an argument nobody can settle by reading the diff.
+    This used to compare two pins in two files and assert they matched. That
+    check could only ever fail *after* they had already drifted, and it could
+    not fail at all in CI: the workflow installed its own ruff after the dev
+    extra, so the extra's version never reached the linter there. A floating
+    requirement would have gone unnoticed until someone ran the gate locally.
+
+    So the invariant is now the stronger one — there is only one pin. CI gets
+    ruff from `pip install -e ".[dev]"` like everyone else, which makes a
+    mismatch unrepresentable rather than merely detectable.
     """
     import pathlib
     import re
@@ -182,13 +188,18 @@ def test_ruff_pin_matches_ci() -> None:
     ci = (pathlib.Path(__file__).resolve().parents[1] / ".github/workflows/ci.yml").read_text(
         encoding="utf-8"
     )
-    ci_pins = set(re.findall(r"pip install ruff==(\S+)", ci))
-    assert len(ci_pins) == 1, f"expected exactly one pinned ruff in ci.yml, found {ci_pins or '{}'}"
+    stray = re.findall(r"pip install\s+['\"]?ruff==(\S+?)['\"]?\s*$", ci, re.M)
+    assert not stray, (
+        f"ci.yml installs its own ruff ({stray}); the pin belongs in the dev extra alone, "
+        "otherwise the workflow overwrites what pyproject.toml declares"
+    )
 
     declared = [r for r in _dev_extra() if _requirement_names([r]) == {"ruff"}]
-    assert declared, "no ruff in the dev extra"
-    assert {r.removeprefix("ruff==") for r in declared} == ci_pins, (
-        f"ruff pin drift: ci.yml installs {ci_pins}, the dev extra declares {declared}"
+    assert len(declared) == 1, (
+        f"expected exactly one ruff requirement in the dev extra, got {declared}"
+    )
+    assert declared[0].startswith("ruff=="), (
+        f"ruff must be pinned exactly, not ranged: {declared[0]}"
     )
 
 
