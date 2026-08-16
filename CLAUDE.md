@@ -79,6 +79,14 @@ python scripts/check_version_sync.py
 PYTHONPATH=src pytest tests/test_allowlist.py -m "not live" -v   # eigener Job
 ```
 
+Der Job `allowlist` läuft auf **3.12**, ohne Matrix — die letzte Zeile oben
+gehört ihm. Der Rest fährt 3.11/3.12/3.13; ein `fail-fast: false` steht nicht
+da.
+
+**Ein vierter Gate hängt an jedem PR, ausserhalb von `ci.yml`:**
+`security.yml` fährt gitleaks. Er stand in keiner Liste und lässt sich lokal
+nicht nebenbei nachfahren — ein roter PR bei grünen Tests ist meistens er.
+
 Dazu Job `docker`: Image bauen und UID ≥ 10000, seccomp-Modus 2, Read-only-Root,
 Start-Verweigerung ohne `MCP_API_KEY`, UID löst auf `mcp` auf.
 
