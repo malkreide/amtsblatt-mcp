@@ -58,7 +58,7 @@ dev = [
     # whatever ruff shipped most recently, so the local lint gate reports
     # findings CI never sees — or misses the ones it does. Bump both together;
     # test_ruff_pin_matches_ci fails if only one side moves.
-    "ruff==0.16.1",
+    "ruff==0.16.3",
     # OBS-006: tests/test_otel.py uses importorskip, so without these installed
     # it would skip silently in CI — and a test that always skips is not a test.
     "opentelemetry-api>=1.27.0",
