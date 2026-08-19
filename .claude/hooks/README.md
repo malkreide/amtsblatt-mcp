@@ -117,3 +117,39 @@ Die Meldung nennt den Zustand aber ausdrücklich und schlägt einen anderen
 Befehl vor. `git pull --ff-only` lässt den Stand detached; wer den Rückstand
 sieht, ohne zu wissen, dass er auf keinem Branch steht, sucht den nächsten
 Fehler an der falschen Stelle.
+
+## Windows: Zeilenenden
+
+Der Hook ist ein `#!/bin/sh`-Skript. Wird er mit **CRLF** ausgecheckt, ist er
+tot — `$'\r': command not found`, Zeile für Zeile. Auf Windows ist genau das
+der Standard (`core.autocrlf=true`), und am 19.08.2026 ist es auf einem
+frischen Klon passiert.
+
+Das ist die gefährlichste Ausfallart, die dieser Hook hat: er blockiert nie
+und schweigt, wenn nichts zu melden ist. Ein Hook, der wegen CRLF gar nicht
+startet, sieht deshalb **exakt aus wie ein aktueller Klon**. Man verlässt sich
+auf eine Prüfung, die nicht läuft.
+
+Abgesichert ist das über `.gitattributes` (`* text=auto eol=lf`) und
+`tests/test_line_endings.py` — der Test schlägt auf einem CRLF-Klon fehl,
+bevor jemand dem Schweigen glaubt.
+
+Ein bereits falsch ausgecheckter Klon lässt sich renormalisieren:
+
+```bash
+git rm --cached -r .
+git reset --hard
+```
+
+## Von Hand prüfen, richtig
+
+`git checkout <alter-commit>` ist als Test **ungeeignet**: liegt der Commit vor
+der Einführung des Hooks, verschwindet dabei die Datei selbst. Stattdessen eine
+Kopie ausserhalb des Repos verwenden:
+
+```bash
+cp .claude/hooks/session-start.sh /tmp/hook.sh && chmod +x /tmp/hook.sh
+git checkout --detach HEAD~3
+CLAUDE_PROJECT_DIR="$PWD" /tmp/hook.sh    # erwartet: "3 Commits hinter ..."
+git checkout -
+```

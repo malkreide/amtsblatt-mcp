@@ -1,0 +1,23 @@
+# Zeilenenden im Arbeitsbaum festnageln.
+#
+# WARUM (19.08.2026): auf einem frisch geklonten Windows-Rechner war der
+# SessionStart-Hook tot. Git checkt dort standardmaessig mit CRLF aus
+# (`core.autocrlf=true`), und ein `#!/bin/sh`-Skript mit CRLF scheitert an
+# jeder Zeile:
+#
+#     .claude/hooks/session-start.sh: line 21: $'\r': command not found
+#
+# Besonders unangenehm ist das bei genau diesem Skript: es ist so gebaut,
+# dass es die Session nie blockiert und bei nichts zu melden schweigt. Ein
+# Hook, der wegen CRLF gar nicht erst startet, sieht deshalb exakt aus wie
+# «alles aktuell» — die Pruefung faellt still aus, und niemand merkt es.
+#
+# `text=auto` laesst git Binaerdateien in Ruhe (Fixtures bleiben unberuehrt);
+# `eol=lf` erzwingt LF im Arbeitsbaum auf jeder Plattform. Das Repo enthaelt
+# keine Windows-eigenen Skripte (.bat/.cmd/.ps1), denen CRLF fehlen wuerde.
+* text=auto eol=lf
+
+# Ausdruecklich, damit die Absicht bei einer spaeteren Aenderung oben nicht
+# verlorengeht: alles mit Shebang muss LF behalten.
+*.sh text eol=lf
+*.py text eol=lf
