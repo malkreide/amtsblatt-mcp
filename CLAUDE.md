@@ -26,7 +26,8 @@ das Gate einführten, an dem der Branch scheiterte.
 Seit dem SessionStart-Hook (`.claude/hooks/session-start.sh`) läuft diese
 Prüfung automatisch beim Sessionstart und meldet den Rückstand ungefragt. Der
 Hook blockiert nie und schweigt, wenn nichts fehlt — Schweigen heisst also
-nicht, dass er nicht lief. Details und die Gegenprobe: `.claude/hooks/README.md`.
+nicht, dass er nicht lief. Bei detached HEAD zählt er mit und sagt dazu,
+dass HEAD detached ist. Details und die Gegenprobe: `.claude/hooks/README.md`.
 
 Gates lokal fahren, mit der GEPINNTEN ruff-Version aus der CI. Eine andere
 Version meldet Abweichungen, die niemand verursacht hat.

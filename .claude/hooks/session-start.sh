@@ -9,7 +9,7 @@
 # falschen Dateien.
 #
 # OBERSTE REGEL: dieser Hook blockiert die Session nie. Kein Netz, kein
-# Remote, detached HEAD, flatterndes DNS, kaputte Credentials — jeder Fall
+# Remote, flatterndes DNS, kaputte Credentials, fehlendes git — jeder Fall
 # geht still durch (Exit 0, keine Ausgabe). Ein Hook, der bei Netzproblemen
 # die Arbeit anhaelt, wird nach dem zweiten Mal abgeschaltet und schuetzt
 # danach gar nichts. Ausgabe gibt es nur, wenn wirklich Commits fehlen;
@@ -93,10 +93,6 @@ check() {
   command -v git >/dev/null 2>&1 || return 0
   [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" = "true" ] || return 0
 
-  # Detached HEAD: kein Branch, den man aktualisieren wuerde (Tag, alter
-  # Commit, Bisect). Still durchgehen statt Rauschen erzeugen.
-  git symbolic-ref --quiet HEAD >/dev/null 2>&1 || return 0
-
   git config --get remote.origin.url >/dev/null 2>&1 || return 0
 
   # Leerer Wert darf nicht durchfallen: `git fetch origin ""` faellt sonst
@@ -124,7 +120,15 @@ check() {
     commits="$behind Commits"
   fi
   printf '%s\n' "Klon-Aktualitaet: dieser Stand liegt $commits hinter origin/$default_branch."
-  printf '%s\n' "Vor der Arbeit aktualisieren, z. B.: git pull --ff-only origin $default_branch"
+  # Bei detached HEAD wird bewusst mitgezaehlt. Der Hinweis darauf gehoert
+  # aber dazu: `git pull` laesst den Stand dort detached, und wer den
+  # Rueckstand sieht, ohne zu wissen, dass er auf keinem Branch steht, sucht
+  # den naechsten Fehler an der falschen Stelle.
+  if git symbolic-ref --quiet HEAD >/dev/null 2>&1; then
+    printf '%s\n' "Vor der Arbeit aktualisieren, z. B.: git pull --ff-only origin $default_branch"
+  else
+    printf '%s\n' "HEAD ist detached (kein Branch). Zum Aufholen z. B.: git checkout $default_branch && git pull --ff-only origin $default_branch"
+  fi
   printf '%s\n' "Grund: ein veralteter Klon erzeugt eine rote CI, deren Ursache nicht im Diff steht (Vorfall 3.8.2026) — die fehlenden Commits sind oft genau die, die das Gate einfuehren, an dem der Branch scheitert."
 }
 

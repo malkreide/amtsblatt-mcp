@@ -18,8 +18,8 @@ Der Hook ist die automatische Fassung des ersten Absatzes von `CLAUDE.md`
 
 ## Verhalten
 
-Der Hook **blockiert die Session nie.** Kein Netz, kein Remote, detached
-HEAD, flatterndes DNS, abgelaufene Credentials — jeder dieser Fälle endet
+Der Hook **blockiert die Session nie.** Kein Netz, kein Remote, flatterndes
+DNS, abgelaufene Credentials, fehlendes `git` — jeder dieser Fälle endet
 mit Exit 0 und ohne Ausgabe. Das ist keine Kosmetik: ein Hook, der bei
 Netzproblemen die Arbeit anhält, wird nach dem zweiten Mal abgeschaltet und
 schützt danach gar nichts.
@@ -32,7 +32,7 @@ Ausgabe gibt es **nur, wenn wirklich Commits fehlen.** Bei 0 schweigt er.
 | aktuell (0 Commits hinter) | still |
 | kein Git-Repository, `git` nicht im `PATH` | still |
 | kein Remote `origin` | still |
-| detached HEAD | still — kein Branch, den man aktualisieren würde (Tag, alter Commit, Bisect) |
+| detached HEAD, n > 0 zurück | Meldung mit Anzahl **und** dem Hinweis, dass HEAD detached ist |
 | Netz weg, DNS flattert, Remote weg, Auth kaputt | still, nach Timeout |
 | Default-Branch nicht ermittelbar | still — es wird **nicht** auf `main` geraten |
 
@@ -86,7 +86,7 @@ zugehörigen Tests:
 | Default-Branch ermitteln (fest `main`) | `…default_branch_statt_main…[master]`, `[trunk]`, `…raet_nicht_auf_main…` |
 | Schweigen bei 0 | `…klon_aktuell_ist`, `…commits_voraus…` |
 | Timeouts auf ls-remote/fetch | `…haengendes_remote…` |
-| detached-HEAD-Wache | `…detached_head…` |
+| detached-HEAD-Hinweis in der Meldung | `…detached_head_wird_als_solcher_benannt` |
 | Leer-Prüfung des Branchnamens | `…leerer_branchname_faellt_nicht_durch` |
 | Einzahl-Behandlung | `…einzahl_bei_genau_einem…` |
 | Begründung in der Meldung | `…nennt_den_grund…` |
@@ -104,3 +104,16 @@ einer Eigenschaft, die im Fehlerfall niemand mehr prüft.
 Die Leer-Prüfung stand anfangs doppelt (in `resolve_default_branch` **und** in
 `check`) und war damit toter Code, den keine Gegenprobe widerlegen konnte. Sie
 steht jetzt an genau einer Stelle.
+
+## Detached HEAD
+
+Ursprünglich schwieg der Hook hier. Auf Wunsch zählt er jetzt mit: ein
+detached HEAD ist gerade die Lage, in der man unbemerkt alt wird — er
+entsteht beim Auschecken eines Tags oder eines alten Commits, und nichts
+erinnert danach daran. `git rev-list --count HEAD..origin/<branch>` ist dort
+ohnehin wohldefiniert.
+
+Die Meldung nennt den Zustand aber ausdrücklich und schlägt einen anderen
+Befehl vor. `git pull --ff-only` lässt den Stand detached; wer den Rückstand
+sieht, ohne zu wissen, dass er auf keinem Branch steht, sucht den nächsten
+Fehler an der falschen Stelle.
