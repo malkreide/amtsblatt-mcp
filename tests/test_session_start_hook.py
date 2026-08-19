@@ -203,15 +203,44 @@ def test_eigene_commits_voraus_sind_kein_rueckstand(tmp_path: Path) -> None:
     assert run.silent, f"unerwartete Ausgabe: {run.stdout!r}"
 
 
-# --- Oberste Regel: blockiert nie --------------------------------------------
+# --- Detached HEAD: zaehlt mit -----------------------------------------------
 
 
-def test_detached_head_geht_still_durch(tmp_path: Path) -> None:
+def test_detached_head_wird_mitgezaehlt(tmp_path: Path) -> None:
+    """Auch ohne Branch ist ein Rueckstand ein Rueckstand.
+
+    Frueher schwieg der Hook hier. Ein detached HEAD ist aber genau die Lage,
+    in der man am ehesten unbemerkt alt wird — er entsteht beim Auschecken
+    eines Tags oder eines alten Commits, und nichts erinnert danach daran.
+    """
     clone = _world(tmp_path, behind=3)
     _git(clone, "checkout", "-q", "--detach", "HEAD")
     run = _run_hook(clone)
     assert run.returncode == 0
-    assert run.silent, f"unerwartete Ausgabe: {run.stdout!r}"
+    assert "3 Commits" in run.stdout
+    assert "origin/main" in run.stdout
+
+
+def test_detached_head_wird_als_solcher_benannt(tmp_path: Path) -> None:
+    """Der Update-Befehl fuer einen Branch waere hier irrefuehrend: `git pull`
+    laesst den Stand detached. Wer den Rueckstand sieht, ohne zu wissen, dass
+    er auf keinem Branch steht, sucht den naechsten Fehler an der falschen
+    Stelle."""
+    clone = _world(tmp_path, behind=3)
+    _git(clone, "checkout", "-q", "--detach", "HEAD")
+    run = _run_hook(clone)
+    assert "detached" in run.stdout
+    assert "git checkout main" in run.stdout
+
+
+def test_auf_einem_branch_bleibt_der_hinweis_weg(tmp_path: Path) -> None:
+    """Gegenprobe zum vorigen Test: der Normalfall darf nicht plaudern."""
+    run = _run_hook(_world(tmp_path, behind=3))
+    assert "detached" not in run.stdout
+    assert "git pull --ff-only origin main" in run.stdout
+
+
+# --- Oberste Regel: blockiert nie --------------------------------------------
 
 
 def test_ohne_remote_geht_still_durch(tmp_path: Path) -> None:
