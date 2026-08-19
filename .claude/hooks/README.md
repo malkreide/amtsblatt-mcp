@@ -153,3 +153,33 @@ git checkout --detach HEAD~3
 CLAUDE_PROJECT_DIR="$PWD" /tmp/hook.sh    # erwartet: "3 Commits hinter ..."
 git checkout -
 ```
+
+## Windows: die Tests
+
+Die Tests rufen den Hook **immer über eine ausdrücklich aufgelöste Shell** auf,
+nie direkt. Ein `subprocess.run([".../session-start.sh"])` endet auf Windows mit
+`WinError 193: keine zulässige Win32-Anwendung` — einen Shebang kennt Windows
+nicht, und mit LF-Zeilenenden hat das nichts zu tun.
+
+Gewählt wird `sh`, dann `bash`, dann Git for Windows. Das `bash.exe` in
+`System32` wird **übergangen**: es startet WSL, sieht ein anderes Dateisystem
+und macht aus `C:\Users\…` nichts Brauchbares (`C:UsershayalAppData…`). Findet
+sich keine brauchbare Shell, überspringt das Modul mit einem Grund, der sagt,
+was fehlt — es fällt nicht rot aus.
+
+Die Auswahl steckt in `_waehle_shell()` und ist mit erfundenen Pfaden geprüft,
+damit der WSL-Ausschluss auch auf Linux eine Gegenprobe hat. Sonst liefe genau
+dieser Zweig nur auf Windows, also dort, wo hier niemand testet. Ein
+Wächter-Test stellt sicher, dass das Modul nicht unbemerkt komplett
+übersprungen wird.
+
+Vier Tests legen Shell-Stubs an, die *git selbst* über `PATH` oder
+`core.sshCommand` startet, und brauchen `sleep`. Ob das unter Git Bash trägt,
+ist ungeprüft; sie überspringen ausserhalb von POSIX mit Begründung.
+
+### Das Ausführungsbit
+
+`os.access(HOOK, os.X_OK)` beantwortet die Frage auf Windows nicht — dort gibt
+es kein Exec-Bit, und der Aufruf meldet für jede vorhandene Datei Erfolg. Der
+Test war dort grün, ohne etwas zu prüfen. Geprüft wird deshalb der Modus im
+git-Index (`100755`); den tragen alle Klone.

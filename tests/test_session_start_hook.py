@@ -28,6 +28,78 @@ HOOK = REPO_ROOT / ".claude" / "hooks" / "session-start.sh"
 SETTINGS = REPO_ROOT / ".claude" / "settings.json"
 HOOK_README = REPO_ROOT / ".claude" / "hooks" / "README.md"
 
+
+def _posix_shell() -> str | None:
+    """Eine Shell, die das Skript ausfuehren kann — oder None.
+
+    Der Hook direkt als Programm zu starten geht nur auf POSIX. Auf Windows
+    endet `subprocess.run([".../session-start.sh"])` mit
+    `WinError 193: keine zulaessige Win32-Anwendung`; einen Shebang kennt
+    Windows nicht. Also wird immer ausdruecklich eine Shell davorgesetzt.
+
+    Auf Windows ist das `bash.exe` in System32 der WSL-Starter. Das ist die
+    falsche Wahl: es sieht ein anderes Dateisystem und macht aus
+    `C:\\Users\\...` nichts Brauchbares. Git for Windows bringt dagegen ein
+    `sh.exe` mit, das mit Windows-Pfaden umgeht.
+    """
+    if os.name == "posix":
+        return shutil.which("sh") or shutil.which("bash")
+
+    return _waehle_shell(
+        [
+            shutil.which("sh"),
+            shutil.which("bash"),
+            r"C:\Program Files\Git\bin\sh.exe",
+            r"C:\Program Files\Git\usr\bin\sh.exe",
+        ],
+        Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32",
+    )
+
+
+def _waehle_shell(kandidaten: list[str | None], system32: Path) -> str | None:
+    """Den ersten brauchbaren Kandidaten waehlen, System32 uebergehen.
+
+    Als eigene Funktion, damit die Auswahl auch auf Linux pruefbar ist. Sonst
+    liefe der Zweig, der den WSL-Starter aussortiert, nur auf Windows — also
+    genau dort, wo hier niemand testet.
+    """
+    for kandidat in kandidaten:
+        if not kandidat:
+            continue
+        pfad = Path(kandidat)
+        if not pfad.is_file():
+            continue
+        try:
+            if pfad.parent.resolve() == system32.resolve():
+                continue  # WSL-Starter, kein brauchbares sh
+        except OSError:  # pragma: no cover - Pfadauflösung schlaegt selten fehl
+            pass
+        return str(pfad)
+    return None
+
+
+SHELL = _posix_shell()
+
+# Kein blosses `skipif(os.name != "posix")`: mit Git for Windows laufen diese
+# Tests dort sehr wohl. Uebersprungen wird nur, wenn wirklich keine Shell da
+# ist — und dann mit einem Grund, der sagt, was fehlt.
+pytestmark = pytest.mark.skipif(
+    SHELL is None,
+    reason=(
+        "der Hook ist ein POSIX-Shell-Skript und braucht eine Shell zum "
+        "Ausfuehren; keine gefunden (auf Windows: Git for Windows installieren)"
+    ),
+)
+
+# Diese Tests legen zusaetzlich Shell-Skripte an, die *git selbst* ueber den
+# PATH oder core.sshCommand startet, und brauchen `sleep`. Ob das unter Git
+# Bash traegt, ist ungeprueft — ein ehrliches Skip ist besser als ein roter
+# Test, den niemand einordnen kann.
+braucht_posix = pytest.mark.skipif(
+    os.name != "posix",
+    reason="setzt Shell-Stubs voraus, die git selbst ausfuehrt (nur auf POSIX geprueft)",
+)
+
 # Der Hook raeumt sich selbst zwei Netz-Timeouts ein (ls-remote 3 s, fetch 5 s).
 # Ein haengendes Remote darf also rund 8 s kosten und keine Sekunde mehr.
 TIMEOUT_BUDGET_S = 20.0
@@ -83,7 +155,7 @@ def _run_hook(cwd: Path) -> HookRun:
     env["CLAUDE_PROJECT_DIR"] = str(cwd)
     started = time.monotonic()
     done = subprocess.run(
-        [str(HOOK)],
+        [SHELL, str(HOOK)],
         cwd=cwd,
         env=env,
         capture_output=True,
@@ -267,6 +339,7 @@ def test_verschwundenes_remote_geht_still_durch(tmp_path: Path) -> None:
     assert run.silent, f"unerwartete Ausgabe: {run.stdout!r}"
 
 
+@braucht_posix
 def test_haengendes_remote_wird_nach_wenigen_sekunden_abgebrochen(tmp_path: Path) -> None:
     """Flatterndes DNS ist der Fall, der den Hook sonst zum Blocker macht.
 
@@ -287,6 +360,7 @@ def test_haengendes_remote_wird_nach_wenigen_sekunden_abgebrochen(tmp_path: Path
     assert run.seconds < TIMEOUT_BUDGET_S, f"Sessionstart {run.seconds:.1f}s aufgehalten"
 
 
+@braucht_posix
 def test_kaputtes_git_erzeugt_nicht_einmal_stderr(tmp_path: Path) -> None:
     """Still heisst auch: keine Fehlerzeilen.
 
@@ -305,20 +379,21 @@ def test_kaputtes_git_erzeugt_nicht_einmal_stderr(tmp_path: Path) -> None:
     env["PATH"] = f"{stubdir}{os.pathsep}{env['PATH']}"
     env["CLAUDE_PROJECT_DIR"] = str(clone)
     done = subprocess.run(
-        [str(HOOK)], cwd=clone, env=env, capture_output=True, text=True, timeout=120
+        [SHELL, str(HOOK)], cwd=clone, env=env, capture_output=True, text=True, timeout=120
     )
     assert done.returncode == 0
     assert done.stdout.strip() == "", f"unerwartete Ausgabe: {done.stdout!r}"
     assert done.stderr.strip() == "", f"unerwartetes Rauschen auf stderr: {done.stderr!r}"
 
 
+@braucht_posix
 def test_ohne_git_im_pfad_geht_still_durch(tmp_path: Path) -> None:
     clone = _world(tmp_path, behind=3)
     env = _git_env()
     env["PATH"] = str(tmp_path / "leer")
     env["CLAUDE_PROJECT_DIR"] = str(clone)
     done = subprocess.run(
-        [str(HOOK)], cwd=clone, env=env, capture_output=True, text=True, timeout=120
+        [SHELL, str(HOOK)], cwd=clone, env=env, capture_output=True, text=True, timeout=120
     )
     assert done.returncode == 0
     assert done.stdout.strip() == ""
@@ -386,6 +461,7 @@ def test_raet_nicht_auf_main_wenn_der_default_branch_unbekannt_ist(tmp_path: Pat
     assert run.silent, f"unerwartete Ausgabe: {run.stdout!r}"
 
 
+@braucht_posix
 def test_leerer_branchname_faellt_nicht_durch(tmp_path: Path) -> None:
     """Der Fall, vor dem der `:?`-Schutz in CLAUDE.md warnt.
 
@@ -418,18 +494,91 @@ def test_leerer_branchname_faellt_nicht_durch(tmp_path: Path) -> None:
     env["PATH"] = f"{stubdir}{os.pathsep}{env['PATH']}"
     env["CLAUDE_PROJECT_DIR"] = str(clone)
     done = subprocess.run(
-        [str(HOOK)], cwd=clone, env=env, capture_output=True, text=True, timeout=120
+        [SHELL, str(HOOK)], cwd=clone, env=env, capture_output=True, text=True, timeout=120
     )
     assert done.returncode == 0
     assert done.stdout.strip() == "", f"unerwartete Ausgabe: {done.stdout!r}"
+
+
+# --- Die Shell-Auswahl selbst ------------------------------------------------
+
+
+def _fake_shell(ordner: Path, name: str = "bash.exe") -> Path:
+    ordner.mkdir(parents=True, exist_ok=True)
+    pfad = ordner / name
+    pfad.write_text("")
+    return pfad
+
+
+def test_shell_auswahl_uebergeht_den_wsl_starter(tmp_path: Path) -> None:
+    """Das `bash.exe` in System32 startet WSL.
+
+    Es sieht ein anderes Dateisystem und macht aus `C:\\Users\\...` nichts
+    Brauchbares — beim Handtest kam dort `C:UsershayalAppDataLocalTemphook.sh`
+    heraus. Wird es gewaehlt, sind die Tests rot ohne erkennbaren Grund.
+    """
+    system32 = tmp_path / "Windows" / "System32"
+    wsl = _fake_shell(system32)
+    git_sh = _fake_shell(tmp_path / "Git" / "bin", "sh.exe")
+
+    gewaehlt = _waehle_shell([str(wsl), str(git_sh)], system32)
+    assert gewaehlt == str(git_sh), "der WSL-Starter wurde nicht uebergangen"
+
+
+def test_shell_auswahl_nimmt_den_ersten_brauchbaren(tmp_path: Path) -> None:
+    erste = _fake_shell(tmp_path / "a", "sh.exe")
+    zweite = _fake_shell(tmp_path / "b", "sh.exe")
+    assert _waehle_shell([str(erste), str(zweite)], tmp_path / "System32") == str(erste)
+
+
+def test_shell_auswahl_ueberspringt_fehlende_und_leere_eintraege(tmp_path: Path) -> None:
+    """`shutil.which` liefert None, wenn nichts gefunden wird."""
+    echt = _fake_shell(tmp_path / "git", "sh.exe")
+    kandidaten = [None, str(tmp_path / "gibt-es-nicht.exe"), str(echt)]
+    assert _waehle_shell(kandidaten, tmp_path / "System32") == str(echt)
+
+
+def test_shell_auswahl_meldet_nichts_statt_zu_raten(tmp_path: Path) -> None:
+    """Nur der WSL-Starter da heisst: keine brauchbare Shell.
+
+    Dann muessen die Tests uebersprungen werden — mit Grund — und nicht mit
+    einer Shell laufen, die den Hook nicht ausfuehren kann.
+    """
+    system32 = tmp_path / "System32"
+    wsl = _fake_shell(system32)
+    assert _waehle_shell([None, str(wsl)], system32) is None
+
+
+def test_die_tests_laufen_hier_wirklich_und_werden_nicht_stillschweigend_uebersprungen() -> None:
+    """Sonst haette das ganze Modul gruen ausgesehen, ohne etwas zu pruefen."""
+    assert SHELL is not None
+    assert Path(SHELL).is_file()
 
 
 # --- Registrierung und Begruendung -------------------------------------------
 
 
 def test_hook_ist_ausfuehrbar_eingecheckt() -> None:
+    """Das Ausfuehrungsbit im git-Index, nicht im Dateisystem.
+
+    `os.access(..., os.X_OK)` beantwortet die Frage auf Windows nicht — dort
+    gibt es kein Exec-Bit, und der Aufruf meldet fuer jede vorhandene Datei
+    Erfolg. Der Test waere dort gruen, ohne etwas zu pruefen. Was zaehlt, ist
+    der Modus, mit dem die Datei eingecheckt ist: den tragen alle Klone.
+    """
     assert HOOK.is_file()
-    assert os.access(HOOK, os.X_OK), "ohne Ausfuehrungsbit startet der Hook nie"
+    done = subprocess.run(
+        ("git", "ls-files", "-s", "--", ".claude/hooks/session-start.sh"),
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    modus = done.stdout.split()[0] if done.stdout.split() else ""
+    assert modus == "100755", (
+        f"Modus im git-Index ist {modus!r}, erwartet '100755' — "
+        "ohne Ausfuehrungsbit startet der Hook auf POSIX nie"
+    )
 
 
 def test_hook_ist_als_sessionstart_registriert() -> None:
