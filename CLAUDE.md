@@ -77,7 +77,7 @@ spätere Anhebung hier stillschweigend überstimmen.
 Vor dem Lauf `ruff --version` prüfen: ein älteres ruff früher im `PATH`
 schlägt den Pin, ohne dass der Install etwas meldet.
 
-**Gates, wörtlich aus `ci.yml`** — Python 3.11/3.12/3.13:
+**Gates, wörtlich aus `ci.yml`** — Python 3.11/3.12/3.13/3.14:
 
 ```bash
 pip install -e ".[dev]"
@@ -90,7 +90,7 @@ PYTHONPATH=src pytest tests/test_allowlist.py -m "not live" -v   # eigener Job
 ```
 
 Der Job `allowlist` läuft auf **3.12**, ohne Matrix — die letzte Zeile oben
-gehört ihm. Der Rest fährt 3.11/3.12/3.13; ein `fail-fast: false` steht nicht
+gehört ihm. Der Rest fährt 3.11/3.12/3.13/3.14; ein `fail-fast: false` steht nicht
 da.
 
 **Ein vierter Gate hängt an jedem PR, ausserhalb von `ci.yml`:**
@@ -116,6 +116,13 @@ auseinandergelaufen:
   Nennt die Doku weniger als die CI prüft, ist man lokal grün und in der CI rot.
 - **Version:** `pyproject.toml` ↔ `server.json` / README / `src` — dafür gibt es
   ein Gate (`scripts/check_version_sync.py`), das die Divergenz selbst findet.
+- **Python-Version:** CI-Matrix in `ci.yml`, Classifiers und `requires-python`
+  in `pyproject.toml`, Basis-Image im `Dockerfile`, `target-version` bei ruff.
+  `tests/test_python_versions.py` hält die fünf gegeneinander. Beim Aufnehmen
+  von 3.14 kam heraus, dass das Image längst `python:3.14-slim` fuhr, während
+  die Matrix bei 3.13 endete — ausgeliefert wurde also eine Version, die nie
+  getestet wurde. Die READMEs und CONTRIBUTINGs nennen nur den Boden
+  («Python 3.11+») und wandern deshalb nicht mit.
 
 ### Fixtures: aufgezeichnet
 
