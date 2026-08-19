@@ -46,14 +46,39 @@ def _posix_shell() -> str | None:
         return shutil.which("sh") or shutil.which("bash")
 
     return _waehle_shell(
-        [
-            shutil.which("sh"),
-            shutil.which("bash"),
-            r"C:\Program Files\Git\bin\sh.exe",
-            r"C:\Program Files\Git\usr\bin\sh.exe",
-        ],
+        _windows_kandidaten(),
         Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32",
     )
+
+
+def _windows_kandidaten() -> list[str | None]:
+    """Die Shells, die auf Windows in Frage kommen — in dieser Reihenfolge.
+
+    `C:\\Program Files\\Git\\usr\\bin\\sh.exe` steht **absichtlich nicht** hier.
+    Das ist die rohe MSYS-Shell; sie zerlegt die Argumente selbst neu, statt sie
+    durchzureichen. Gemessen am 19.08.2026 auf Windows: derselbe Aufruf, der
+    ueber `bin\\sh.exe` die erwartete Meldung ausgab, blieb ueber `usr\\bin` ohne
+    jede Ausgabe, und ein `-c`-Einzeiler landete dort als
+
+        rev-parse: -c: line 2: unexpected EOF while looking for matching `)'
+
+    — die Shell hatte `rev-parse` fuer den Programmnamen gehalten. `bin\\sh.exe`
+    ist der Git-Wrapper, der korrekt weitergibt.
+
+    Entscheidend ist nicht die Unbequemlichkeit, sondern die Fehlerart: dieser
+    Kandidat **schweigt**, statt zu scheitern. Genau davor soll der Hook
+    schuetzen; eine Shell, die ihn stumm macht, gehoert nicht in seine
+    Auswahlliste.
+
+    Sollte `shutil.which` die MSYS-Shell trotzdem finden (wenn sie im PATH
+    liegt), faellt das auf: die Tests werden rot, weil sie Ausgabe erwarten —
+    nicht still gruen.
+    """
+    return [
+        shutil.which("sh"),
+        shutil.which("bash"),
+        r"C:\Program Files\Git\bin\sh.exe",
+    ]
 
 
 def _waehle_shell(kandidaten: list[str | None], system32: Path) -> str | None:
@@ -508,6 +533,27 @@ def _fake_shell(ordner: Path, name: str = "bash.exe") -> Path:
     pfad = ordner / name
     pfad.write_text("")
     return pfad
+
+
+def test_die_msys_shell_steht_nicht_in_der_kandidatenliste() -> None:
+    """`usr\\bin\\sh.exe` schweigt, statt zu scheitern — siehe _windows_kandidaten.
+
+    Der Test haengt an der Liste, nicht an einem Kommentar: wer den Kandidaten
+    wieder aufnimmt, sieht es hier.
+    """
+    kandidaten = [k for k in _windows_kandidaten() if k]
+    verboten = [k for k in kandidaten if k.lower().replace("/", "\\").endswith("usr\\bin\\sh.exe")]
+    assert not verboten, f"MSYS-Shell wieder in der Liste: {verboten}"
+
+
+def test_der_git_wrapper_steht_in_der_kandidatenliste() -> None:
+    """Gegenprobe zum vorigen: die funktionierende Shell darf nicht mitentfernt
+    werden. Auf Windows gemessen — ueber diesen Pfad kam die erwartete
+    Meldung."""
+    kandidaten = [k for k in _windows_kandidaten() if k]
+    assert any(k.lower().replace("/", "\\").endswith(r"git\bin\sh.exe") for k in kandidaten), (
+        f"der Git-Wrapper fehlt: {kandidaten}"
+    )
 
 
 def test_shell_auswahl_uebergeht_den_wsl_starter(tmp_path: Path) -> None:

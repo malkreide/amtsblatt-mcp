@@ -161,11 +161,28 @@ nie direkt. Ein `subprocess.run([".../session-start.sh"])` endet auf Windows mit
 `WinError 193: keine zulässige Win32-Anwendung` — einen Shebang kennt Windows
 nicht, und mit LF-Zeilenenden hat das nichts zu tun.
 
-Gewählt wird `sh`, dann `bash`, dann Git for Windows. Das `bash.exe` in
-`System32` wird **übergangen**: es startet WSL, sieht ein anderes Dateisystem
-und macht aus `C:\Users\…` nichts Brauchbares (`C:UsershayalAppData…`). Findet
+Gewählt wird `sh`, dann `bash`, dann `C:\Program Files\Git\bin\sh.exe`. Findet
 sich keine brauchbare Shell, überspringt das Modul mit einem Grund, der sagt,
 was fehlt — es fällt nicht rot aus.
+
+Zwei Shells sind ausdrücklich **nicht** dabei, beide am 19.08.2026 auf Windows
+gemessen:
+
+- `System32\bash.exe` startet WSL, sieht ein anderes Dateisystem und macht aus
+  `C:\Users\…` nichts Brauchbares — beim Handtest kam wörtlich
+  `C:UsershayalAppDataLocalTemphook.sh` heraus.
+- `Git\usr\bin\sh.exe` ist die rohe MSYS-Shell. Sie zerlegt die Argumente
+  selbst neu: derselbe Aufruf, der über `bin\sh.exe` die erwartete Meldung
+  ausgab, blieb dort **ohne jede Ausgabe**, und ein `-c`-Einzeiler landete als
+  `rev-parse: -c: line 2: unexpected EOF …` — die Shell hatte `rev-parse` für
+  den Programmnamen gehalten.
+
+Der zweite Fall ist der gefährlichere, und zwar nicht wegen der Unbequemlichkeit:
+diese Shell **schweigt, statt zu scheitern**. Genau davor soll der Hook
+schützen; eine Shell, die ihn stumm macht, gehört nicht in seine Auswahlliste.
+`test_die_msys_shell_steht_nicht_in_der_kandidatenliste` hält sie draussen,
+`test_der_git_wrapper_steht_in_der_kandidatenliste` verhindert, dass beim
+Aufräumen die funktionierende mitgeht.
 
 Die Auswahl steckt in `_waehle_shell()` und ist mit erfundenen Pfaden geprüft,
 damit der WSL-Ausschluss auch auf Linux eine Gegenprobe hat. Sonst liefe genau
