@@ -204,6 +204,19 @@ async def test_get_text_shares_the_same_policy():
 
 # --- The budget, measured on the wall clock ----------------------------------
 
+# Wall-clock numbers for the deadline test below, spread far enough apart that
+# scheduler jitter cannot move the outcome. Measured on 3.11 over 15 runs of
+# that test's own body: 0.051s median against a 0.05s budget, so the budget
+# dominates and the overhead is about a millisecond — except on the first call
+# through the client, which cost 0.086s. The old bound of 0.25s therefore left
+# only 0.199s of absolute headroom, and CI jitter is absolute, not proportional:
+# on a loaded runner a sibling server turned 0.105s into 0.55s. A stall of that
+# size trips this one too. Raising the budget does not shrink the stall, it
+# makes the stall small *relative to* what is measured.
+_BUDGET = 0.5
+_CUT_BY = 2.5
+_SLOW_RESPONSE = 8.0
+
 
 @respx.mock
 async def test_a_slow_response_is_cut_by_the_wall_clock_deadline(monkeypatch):
@@ -213,18 +226,34 @@ async def test_a_slow_response_is_cut_by_the_wall_clock_deadline(monkeypatch):
     about *real* time: the code that ignores the wall clock never sleeps, so no
     time passes and the broken version stays green. This test sleeps for real —
     deliberately, and it is the only one here that does.
+
+    The margins are wide on purpose — see `_BUDGET` above for the measurement
+    that set them. A warm-up call pays the first-call cost before the clock
+    starts, so the measured window holds the deadline and nothing else.
     """
-    monkeypatch.setattr(_http, "GAZETTE_TOTAL_BUDGET", 0.05)
+    # Warm-up on the untouched budget: pays whatever the first call through the
+    # client costs, outside the window measured below.
+    route = respx.get(URL).mock(return_value=_resp(200))
+    await _http._get_json(PATH)
+
+    monkeypatch.setattr(_http, "GAZETTE_TOTAL_BUDGET", _BUDGET)
 
     async def _slow(request):
-        await asyncio.sleep(0.30)
+        await asyncio.sleep(_SLOW_RESPONSE)
         return _resp(200)
 
-    respx.get(URL).mock(side_effect=_slow)
+    route.mock(side_effect=_slow)
     started = time.monotonic()
     with pytest.raises(TimeoutError):
         await _http._get_json(PATH)
-    assert time.monotonic() - started < 0.25, "REQUEST_TIMEOUT is not a budget"
+    elapsed = time.monotonic() - started
+
+    # Two-sided on purpose. The upper bound is the guarantee: a response that
+    # would have taken _SLOW_RESPONSE was cut. The lower bound says the cut came
+    # from the budget rather than from something failing straight away — a
+    # deadline computed wrong sails through an upper bound alone.
+    assert elapsed >= _BUDGET / 2, f"cut too early to be the budget: {elapsed:.3f}s"
+    assert elapsed < _CUT_BY, "REQUEST_TIMEOUT is not a budget"
 
 
 @respx.mock
