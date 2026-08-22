@@ -8,6 +8,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Behoben
 
+- **Browser-Clients scheiterten am Preflight, seit die Spec das Routing in
+  Header verschoben hat.** `2026-07-28` schickt `Mcp-Method`, `Mcp-Name` und
+  `Mcp-Protocol-Version` auf jeder Streamable-HTTP-Anfrage mit; die
+  CORS-Freigabeliste war noch für die alte Form geschrieben und nannte nur
+  `Mcp-Session-Id`. Ein Browser darf einen nicht safelisteten Header aber gar
+  nicht erst senden, wenn der Server ihn nicht nennt — die Anfrage starb also
+  vor dem ersten MCP-Byte, während stdio und Python-Clients, für die kein
+  Preflight gilt, weiterliefen. Genau deshalb fiel es nicht auf.
+  `test_preflight_allows_each_routing_header` fährt jeden Header einzeln gegen
+  beide HTTP-Transporte, und `test_cors_names_every_routing_header_the_sdk_reads`
+  hält die Liste gegen die Konstanten aus `mcp.shared.inbound` statt gegen eine
+  abgeschriebene Spec-Stelle.
+
+- **Der Protokoll-Abschnitt beider READMEs beschrieb ein anderes SDK als
+  `pyproject.toml`.** Dort stand `mcp[cli]>=1.28.1` — die Anforderung vor der
+  Migration auf `mcp` 2.x, die sie auf `>=2.0.0,<3` band; dazu zeigte die Zeile
+  «Gepinnt in» auf `server.py`, wo die Konstante seit dem ARCH-011-Split nicht
+  mehr steht. Beides liess sich nur finden, indem man die Dateien
+  nebeneinanderlegt. `test_both_readmes_name_the_sdk_requirement_pyproject_actually_declares`
+  und `test_both_readmes_point_at_the_file_that_defines_the_pin` tun das jetzt in der CI.
+
 - **Die Pruefsummen im Fixture-Nachweis waren Zierde.** `PROVENANCE.md` fuehrt
   je Datei einen SHA-256 — um genau einen Fall zu fangen: eine Aufzeichnung,
   die nach dem Lauf von Hand nachgebessert wurde. Eine korrigierte Antwort ist
@@ -26,6 +47,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   blind werden.
 
 ### Hinzugefügt
+
+- **Cache-Hinweise auf `tools/list` und `server/discover`** (SEP-2549, Spec
+  `2026-07-28`). Das SDK setzt `ttlMs` und `cacheScope` von sich aus auf
+  «sofort veraltet, nie geteilt» — wer nichts übergibt, verhält sich also nicht
+  neutral, sondern lässt jeden Client bei jeder Verbindung neu auflisten, für
+  eine Liste, die sich zur Laufzeit des Prozesses gar nicht ändern kann. Neu
+  fünf Minuten, Scope `public`: die sechs Werkzeuge werden beim Import
+  registriert, die Antwort ist für jeden Aufrufer dieselbe, und die
+  Freigabeliste greift pro Anfrage in den Werkzeugen — nie dadurch, dass ein
+  Werkzeug jemandem verborgen bliebe. `tests/test_cache_hints.py` prüft das über
+  eine echte `ClientSession` statt über die Konstante und stellt einen
+  hinweislosen `MCPServer` als Negativkontrolle daneben.
 
 - **Aufgezeichnete Fixtures** in `tests/fixtures/` — sieben echte Antworten, eine
   je Abfrageform (Suche nach Rubrik, nach Stichwort, nach Beschaffungskanton;

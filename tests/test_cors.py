@@ -1,4 +1,4 @@
-"""SDK-004: CORS must expose and accept `Mcp-Session-Id` — in front of auth.
+"""SDK-004: CORS must accept the headers MCP routes by — in front of auth.
 
 This server is cloud-deployed behind a bearer key, which makes the middleware
 *order* load-bearing: a browser never sends `Authorization` on a preflight
@@ -51,13 +51,26 @@ def _client(monkeypatch: pytest.MonkeyPatch, origins: str | None, kind: str) -> 
     return TestClient(build_http_app(kind))
 
 
-def _preflight(client: TestClient, path: str, origin: str = ORIGIN, method: str = "GET"):
+def _preflight(
+    client: TestClient,
+    path: str,
+    origin: str = ORIGIN,
+    method: str = "GET",
+    request_headers: str = "mcp-session-id",
+):
+    """Send a preflight.
+
+    `request_headers` is what the browser announces it intends to send. It is a
+    parameter because Starlette answers a preflight naming a header it does not
+    allow with **400 and no `Access-Control-Allow-Origin`** — so the header list
+    under test has to ride on the request, not just be read off the response.
+    """
     return client.options(
         path,
         headers={
             "Origin": origin,
             "Access-Control-Request-Method": method,
-            "Access-Control-Request-Headers": "mcp-session-id",
+            "Access-Control-Request-Headers": request_headers,
         },
     )
 
@@ -78,6 +91,80 @@ def test_preflight_succeeds_without_the_bearer_key(
 def test_preflight_allows_the_session_header(monkeypatch: pytest.MonkeyPatch, kind: str) -> None:
     resp = _preflight(_client(monkeypatch, ORIGIN, kind), ENDPOINTS[kind][0])
     assert "mcp-session-id" in resp.headers["access-control-allow-headers"].lower()
+
+
+@pytest.mark.parametrize("header", _cors.ROUTING_HEADERS)
+def test_preflight_allows_each_routing_header(
+    monkeypatch: pytest.MonkeyPatch, kind: str, header: str
+) -> None:
+    """Spec 2026-07-28 routes a streamable-http request by header.
+
+    Parametrised one header at a time on purpose: announcing all three in a
+    single preflight would still pass if only one were allow-listed and
+    Starlette were lenient about the rest — it is not, but the test should not
+    depend on that.
+    """
+    resp = _preflight(
+        _client(monkeypatch, ORIGIN, kind), ENDPOINTS[kind][0], request_headers=header
+    )
+    assert resp.status_code == 200, f"preflight announcing {header} was refused"
+    assert header.lower() in resp.headers["access-control-allow-headers"].lower()
+
+
+def test_preflight_allows_the_routing_headers_together(
+    monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    """What a browser actually sends: all of them, on the same request."""
+    announced = ", ".join(h.lower() for h in _cors.ROUTING_HEADERS)
+    resp = _preflight(
+        _client(monkeypatch, ORIGIN, kind), ENDPOINTS[kind][0], request_headers=announced
+    )
+    assert resp.status_code == 200
+    assert resp.headers["access-control-allow-origin"] == ORIGIN
+
+
+def test_a_header_nobody_allow_listed_is_still_refused(
+    monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    """The negative control for the two tests above.
+
+    Without it they would pass just as well against a CORS layer that waves
+    every header through — which would be a different bug, not a fix.
+    """
+    resp = _preflight(
+        _client(monkeypatch, ORIGIN, kind), ENDPOINTS[kind][0], request_headers="x-not-allowed"
+    )
+    assert resp.status_code == 400
+
+
+def test_cors_names_every_routing_header_the_sdk_reads() -> None:
+    """Held against the SDK's own constants rather than against a copy of the
+    spec text. `mcp.shared.inbound` is what the server actually reads a request
+    with, so a rename there becomes a failing test here instead of a browser
+    client that stops connecting for no visible reason."""
+    from mcp.shared.inbound import (
+        MCP_METHOD_HEADER,
+        MCP_NAME_HEADER,
+        MCP_PROTOCOL_VERSION_HEADER,
+    )
+
+    allowed = {h.lower() for h in _cors.ALLOW_HEADERS}
+    required = {MCP_METHOD_HEADER, MCP_NAME_HEADER, MCP_PROTOCOL_VERSION_HEADER}
+    assert required <= allowed, f"not allow-listed: {sorted(required - allowed)}"
+
+
+async def test_no_tool_schema_declares_an_mcp_param_header() -> None:
+    """`Mcp-Param-*` carries a tool argument as an HTTP header, opted into by an
+    `x-mcp-header` annotation on the input schema. CORS has no prefix wildcard,
+    so the first tool to use one has to name that exact header in
+    `ALLOW_HEADERS` or browser clients break on it. Nothing here uses one yet;
+    this test is the reminder on the day one does."""
+    from amtsblatt_mcp.server import mcp
+
+    offenders = [t.name for t in await mcp.list_tools() if "x-mcp-header" in str(t.input_schema)]
+    assert not offenders, (
+        f"{offenders} declare an Mcp-Param-* header — add it to _cors.ALLOW_HEADERS"
+    )
 
 
 def test_preflight_allows_the_authorization_header(

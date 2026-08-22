@@ -15,6 +15,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from mcp.server.caching import CacheHint
 from mcp.server.mcpserver import MCPServer
 from mcp.types import LATEST_PROTOCOL_VERSION
 
@@ -63,9 +64,38 @@ if LATEST_PROTOCOL_VERSION != MCP_PROTOCOL_VERSION:
     )
 
 
+# SEP-2549, spec 2026-07-28: every cacheable list result carries `ttlMs` and
+# `cacheScope`. The SDK defaults both to "immediately stale, never shared", so
+# a server that says nothing makes each client re-list on every connection —
+# and this list cannot change while the process runs. The six tools are
+# registered at import by `tools/`; there is no dynamic registration, no
+# per-caller filtering and no capability that would vary the list.
+#
+# `public` follows from that same fact rather than from convenience: the answer
+# is identical for every authorization context, so sharing a cached copy across
+# them discloses nothing. It would be wrong the moment a tool list became
+# caller-dependent — the green allow-list is enforced per request inside the
+# tools, not by hiding tools from anyone.
+#
+# Five minutes, not a day: the ceiling worth accepting is how long a client may
+# keep calling a tool list from before a deployment. `server/discover` carries
+# the same hint because it answers from the same static registration.
+#
+# `prompts/list` and `resources/list` are left unset on purpose. This server
+# registers neither, so hinting at them would describe a surface that does not
+# exist.
+LIST_CACHE_TTL_MS = 300_000
+
+CACHE_HINTS = {
+    "tools/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
+    "server/discover": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
+}
+
+
 mcp = MCPServer(
     "amtsblatt_mcp",
     lifespan=_lifespan,
+    cache_hints=CACHE_HINTS,
     instructions=(
         "Read-only access to amtsblattportal.ch — the Swiss official gazette portal "
         "(SHAB plus 27 cantonal gazettes). Covers public procurement (Submissionen), "

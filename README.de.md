@@ -337,8 +337,9 @@ Authentifizierung, daher wird kein Bulk-Dump gepflegt.
 | | |
 |---|---|
 | **Unterstützte Spec-Version** | `2026-07-28` |
-| **Gepinnt in** | `MCP_PROTOCOL_VERSION` in [`server.py`](src/amtsblatt_mcp/server.py) |
-| **SDK** | `mcp[cli]>=1.28.1` |
+| **Gepinnt in** | `MCP_PROTOCOL_VERSION` in [`_app.py`](src/amtsblatt_mcp/_app.py), re-exportiert über `server.py` |
+| **SDK** | `mcp[cli]>=2.0.0,<3` |
+| **Cache-Hinweise** | `tools/list` und `server/discover`: `ttlMs` 300000, `cacheScope` `public` |
 
 Das MCP-Python-SDK handelt die Protokollversion in der Session-Schicht aus und
 bietet dafür keinen Konstruktor-Parameter — die Version lässt sich also nicht
@@ -360,6 +361,21 @@ Laufzeit von jemandem, der `mcp` in seiner eigenen Umgebung aktualisiert hat.
   lesen, das Serververhalten prüfen, dann Konstante, diesen Abschnitt und
   `CHANGELOG.md` in einem Commit anheben.
 - Protokollversions-Bumps stehen explizit im `CHANGELOG.md`.
+
+### Cache-Hinweise
+
+Spec `2026-07-28` gibt jedem cachebaren Resultat ein `ttlMs` und ein
+`cacheScope`. Das SDK setzt beides auf «sofort veraltet, nie geteilt» — ein
+Server, der kein `cache_hints` übergibt, verhält sich also nicht neutral,
+sondern lässt jeden Client bei jeder Verbindung neu auflisten. Die Werkzeugliste
+dieses Servers wird beim Import registriert und ist für jeden Aufrufer dieselbe;
+sie wird deshalb als fünf Minuten gültig und über Autorisierungskontexte hinweg
+teilbar angekündigt (`CACHE_HINTS` in `_app.py`).
+
+`public` folgt aus dieser zweiten Eigenschaft, nicht aus Bequemlichkeit: die
+Freigabeliste greift pro Anfrage in den Werkzeugen, nie dadurch, dass ein
+Werkzeug jemandem verborgen bliebe. Sobald eine Werkzeugliste vom Aufrufer
+abhängt, muss der Scope im selben Commit auf `private` wechseln.
 
 ---
 

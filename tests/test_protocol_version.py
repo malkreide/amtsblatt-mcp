@@ -55,3 +55,42 @@ def test_readme_documents_an_update_policy() -> None:
     assert "update" in section or "policy" in section, (
         "the protocol section states a version but no update policy"
     )
+
+
+def _sdk_requirement() -> str:
+    """The `mcp[cli]` requirement, read out of `pyproject.toml`."""
+    import tomllib
+
+    data = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    matches = [d for d in data["project"]["dependencies"] if d.startswith("mcp[")]
+    assert len(matches) == 1, f"expected exactly one mcp requirement, found {matches}"
+    return matches[0]
+
+
+def _protocol_section(name: str) -> str:
+    return (REPO / name).read_text(encoding="utf-8").split("MCP Protocol Version", 1)[1][:1200]
+
+
+def test_both_readmes_name_the_sdk_requirement_pyproject_actually_declares() -> None:
+    """The row said `mcp[cli]>=1.28.1` for the 90 commits between the migration
+    to `mcp` 2.x (which bounded the requirement to `>=2.0.0,<3`) and this one.
+    Nothing compared the two, so the drift could only be found by reading both
+    files side by side — the one thing nobody does. This is that comparison."""
+    requirement = _sdk_requirement()
+    for name in ("README.md", "README.de.md"):
+        section = _protocol_section(name)
+        assert requirement in section, (
+            f"{name} does not name the declared SDK requirement `{requirement}`"
+        )
+
+
+def test_both_readmes_point_at_the_file_that_defines_the_pin() -> None:
+    """`MCP_PROTOCOL_VERSION` moved to `_app.py` in the ARCH-011 split while both
+    READMEs kept linking `server.py`. A link to the wrong file is worse than
+    none: it is checked once and then trusted."""
+    module = REPO / "src" / "amtsblatt_mcp" / "_app.py"
+    assert "MCP_PROTOCOL_VERSION = " in module.read_text(encoding="utf-8"), (
+        "the pin is no longer defined in _app.py — update the READMEs with it"
+    )
+    for name in ("README.md", "README.de.md"):
+        assert "_app.py" in _protocol_section(name), f"{name} points elsewhere for the pin"
