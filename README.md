@@ -353,8 +353,9 @@ authentication, so no bulk dump is maintained.
 | | |
 |---|---|
 | **Supported spec version** | `2026-07-28` |
-| **Pinned in** | `MCP_PROTOCOL_VERSION` in [`server.py`](src/amtsblatt_mcp/server.py) |
-| **SDK** | `mcp[cli]>=1.28.1` |
+| **Pinned in** | `MCP_PROTOCOL_VERSION` in [`_app.py`](src/amtsblatt_mcp/_app.py), re-exported from `server.py` |
+| **SDK** | `mcp[cli]>=2.0.0,<3` |
+| **Cache hints** | `tools/list` and `server/discover`: `ttlMs` 300000, `cacheScope` `public` |
 
 The MCP Python SDK negotiates the protocol version in the session layer and
 offers no constructor parameter for it, so the version cannot be pinned by
@@ -376,6 +377,20 @@ An SDK bump should break *our* build, not the runtime of someone who upgraded
   the constant, this section and `CHANGELOG.md` in one commit.
 - Protocol-version bumps are called out explicitly in `CHANGELOG.md`, not folded
   into a dependency-bump line.
+
+### Cache hints
+
+Spec `2026-07-28` gives every cacheable result a `ttlMs` and a `cacheScope`.
+The SDK defaults both to «immediately stale, never shared», so a server that
+passes no `cache_hints` is not neutral — it asks every client to re-list on
+every connection. This server's tool list is registered at import and identical
+for every caller, so it is announced as cacheable for five minutes and
+shareable across authorization contexts (`CACHE_HINTS` in `_app.py`).
+
+`public` rests on that second property, not on convenience: the green
+allow-list is enforced per request inside the tools, never by hiding a tool from
+a caller. The day a tool list becomes caller-dependent, the scope has to become
+`private` in the same commit.
 
 ---
 
