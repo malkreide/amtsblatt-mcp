@@ -144,7 +144,7 @@ wie der Code: Nichts ist rot, weil nichts geprüft wird, worauf es ankommt.
 
 ## Teil 2 — Dieses Repo
 
-**ruff: eine Quelle.** Der Pin `0.16.1` steht in `pyproject.toml` — und
+**ruff: eine Quelle.** Der Pin `0.16.3` steht in `pyproject.toml` — und
 **nicht** mehr als eigener Install-Schritt in der CI.
 
 Der CI-Schritt lief nach dem Install der Abhängigkeiten und überschrieb sie.
@@ -189,7 +189,12 @@ schliessen Live-Tests über `-m "not live"` aus, ohne sie fallen zu lassen.
 Diese Stellen müssen zusammen geändert werden — sie sind schon einmal
 auseinandergelaufen:
 
-- **ruff-Version:** `.github/workflows/ci.yml` und `pyproject.toml` (dev-Extra).
+- **ruff-Version:** steht nur noch in `pyproject.toml` (dev-Extra) — hier ist
+  also nichts abzugleichen. Die Zeile stand früher in dieser Liste, weil der
+  Pin zusätzlich als Install-Schritt in `ci.yml` lag; genau diese Doppelung
+  ist beseitigt (siehe Teil 2). Ein zweiter Pin entsteht gar nicht erst:
+  `test_ruff_pin_lives_only_in_the_dev_extra` in `tests/test_tool_naming.py`
+  fällt, sobald `ci.yml` sein eigenes ruff installiert.
 - **Gate-Befehle:** `README.md`, `README.de.md`, `CONTRIBUTING.md`,
   `CONTRIBUTING.de.md` — alle vier nennen dieselben Befehle wie `ci.yml`.
   Nennt die Doku weniger als die CI prüft, ist man lokal grün und in der CI rot.
