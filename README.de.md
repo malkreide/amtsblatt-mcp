@@ -336,7 +336,9 @@ Authentifizierung, daher wird kein Bulk-Dump gepflegt.
 
 | | |
 |---|---|
-| **Unterstützte Spec-Version** | `2026-07-28` |
+| **Über den `initialize`-Handshake bedient** | `2024-11-05` … **`2025-11-25`** — die Handshake-Obergrenze |
+| **Über den Pro-Request-Envelope bedient** | **`2026-07-28`** |
+| **Wer entscheidet** | Die erste Anfrage des Clients, einmal pro Verbindung. Eine Anfrage mit dem `2026-07-28`-`_meta`-Envelope öffnet eine moderne Verbindung, alles andere eine Handshake-Verbindung. |
 | **Gepinnt in** | `MCP_PROTOCOL_VERSION` in [`_app.py`](src/amtsblatt_mcp/_app.py), re-exportiert über `server.py` |
 | **SDK** | `mcp[cli]>=2.0.0,<3` |
 | **Cache-Hinweise** | `tools/list` und `server/discover`: `ttlMs` 300000, `cacheScope` `public` |

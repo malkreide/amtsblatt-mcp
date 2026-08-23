@@ -89,6 +89,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Taxonomie ungekürzt im Ordner (152 Rubriken, 825 Subrubriken). Stand
   15.08.2026: alle 49 grünen Codes vorhanden.
 
+- **Der Protokoll-Pin sicherte nur eine der beiden Spec-Aeren.** `mcp` 2.x
+  bedient zwei ueber denselben Server; die erste Anfrage einer Verbindung
+  entscheidet, welche gilt: der `initialize`-Handshake deckelt bei
+  `2025-11-25`, der Pro-Request-Envelope erreicht `2026-07-28`.
+
+  Die bisherige Zusicherung lautete `PIN == LATEST_PROTOCOL_VERSION` und las
+  sich vollstaendig. `LATEST_PROTOCOL_VERSION` ist aber ein Alias auf die
+  MODERNE Aera — gesichert war damit die Aera, in der heute praktisch niemand
+  spricht, waehrend die andere frei wandern konnte. Man sieht es dem
+  Konstantennamen nicht an.
+
+  **Der Wert der Konstante aendert sich nicht.** Er war richtig, nur
+  unvollstaendig beschrieben. Neu steht er gegen `LATEST_MODERN_VERSION` —
+  dieselbe Zahl, aber die Aera ist benannt —, die Handshake-Obergrenze bekommt
+  eine eigene Zusicherung, und ein dritter Test haelt die Alias-Eigenschaft
+  fest, damit die Falle beim naechsten Lesen benannt dasteht.
+
+  Nachgemessen statt aus Konstantennamen geschlossen: ein echter `initialize`
+  durch den zusammengebauten ASGI-Stack. Ein Client, der ueber den Handshake
+  nach `2026-07-28` fragt, bekommt `2025-11-25` zurueck.
+
+  Beide READMEs nennen jetzt beide Aeren; ein Test haelt jede Sprache einzeln
+  dagegen.
+
 ### Behoben
 
 - **Die Retry-Schleife fing keine Netzwerkfehler (`ARCH-014`).** `_get_json`

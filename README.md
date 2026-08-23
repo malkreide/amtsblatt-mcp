@@ -352,7 +352,9 @@ authentication, so no bulk dump is maintained.
 
 | | |
 |---|---|
-| **Supported spec version** | `2026-07-28` |
+| **Served via the `initialize` handshake** | `2024-11-05` … **`2025-11-25`** — the handshake ceiling |
+| **Served via the per-request envelope** | **`2026-07-28`** |
+| **Who picks** | The client's first request, once per connection. A request carrying the `2026-07-28` `_meta` envelope opens a modern connection; anything else opens a handshake connection. |
 | **Pinned in** | `MCP_PROTOCOL_VERSION` in [`_app.py`](src/amtsblatt_mcp/_app.py), re-exported from `server.py` |
 | **SDK** | `mcp[cli]>=2.0.0,<3` |
 | **Cache hints** | `tools/list` and `server/discover`: `ttlMs` 300000, `cacheScope` `public` |
