@@ -60,7 +60,7 @@ dev = [
     # ruff shipped most recently, and the local gate would report findings CI
     # never sees — or miss the ones it does.
     # test_ruff_pin_lives_only_in_the_dev_extra fails if a second pin appears.
-    "ruff==0.16.4",
+    "ruff==0.16.5",
     # OBS-006: tests/test_otel.py uses importorskip, so without these installed
     # it would skip silently in CI — and a test that always skips is not a test.
     "opentelemetry-api>=1.27.0",
