@@ -289,9 +289,9 @@ wie der Code: Nichts ist rot, weil nichts geprüft wird, worauf es ankommt.
 
 **ruff: eine Quelle.** Der Pin steht in `pyproject.toml`, dort exakt, und
 **nicht** mehr als eigener Install-Schritt in der CI. Die Version steht
-bewusst nicht hier: Dieser Satz nannte `0.16.3`, während der Pin längst auf
-`0.16.4` stand — eine zweite Nennung ist eine zweite Quelle, und die
-veraltet still. Das Gate prüft den Pin, nicht die Prosa.
+bewusst nicht hier: Dieser Satz nannte sie einmal und war beim Lesen längst
+überholt — eine zweite Nennung ist eine zweite Quelle, und die veraltet
+still. Das Gate prüft den Pin, nicht die Prosa.
 
 Der CI-Schritt lief nach dem Install der Abhängigkeiten und überschrieb sie.
 Eine Abweichung im Pin konnte deshalb in der CI gar nicht auffallen, sondern
