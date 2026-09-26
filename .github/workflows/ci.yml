@@ -186,7 +186,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Issue oeffnen, aktualisieren oder schliessen
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         # Ueber `env`, nicht ueber Actions-Expressions im Skript: Die
         # pytest-Ausgabe ist fremder Text, der sonst in einem
         # JavaScript-Template-Literal landet. Ein Backtick darin bricht das
