@@ -35,7 +35,12 @@ from typing import Any
 # 2: descriptions are dedented before hashing. Version 1 produced a different
 #    fingerprint on Python 3.13 than on 3.10–3.12 for an unchanged codebase,
 #    because 3.13 dedents docstrings at compile time.
-SNAPSHOT_VERSION = 2
+# 3: annotations are dumped by alias — `readOnlyHint`, the spelling on the wire,
+#    not `read_only_hint`, the spelling of the SDK's Python attribute. Version 2
+#    hashed the SDK's internal names, so the fingerprint recorded the SDK's
+#    naming convention alongside the tool surface — the same mistake as version
+#    1 made with the interpreter's indentation policy, one layer down.
+SNAPSHOT_VERSION = 3
 
 # The fields a client's model actually reads or is bound by. `title` and `icons`
 # are presentation; `meta` is transport bookkeeping. Including them would make
@@ -66,7 +71,15 @@ def _canonical(tool: Any) -> str:
         if value is None:
             continue
         if hasattr(value, "model_dump"):
-            value = value.model_dump(exclude_none=True, mode="json")
+            # `by_alias` is load-bearing, not styling. Without it the dump uses
+            # the SDK's Python field names, and those are not the protocol's:
+            # `mcp` 2.0 renamed every annotation attribute to snake_case while
+            # the wire kept `readOnlyHint`. A fingerprint over the Python names
+            # jumps on the next SDK rename with no tool having moved — and the
+            # obvious response, regenerating, re-pins the guard against a
+            # cosmetic change and waves through whatever rode along with it.
+            # The aliases are the spec's names; they only move with the spec.
+            value = value.model_dump(exclude_none=True, mode="json", by_alias=True)
         if field == "description" and isinstance(value, str):
             value = inspect.cleandoc(value)
         payload[field] = value

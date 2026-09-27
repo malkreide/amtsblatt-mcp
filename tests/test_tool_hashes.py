@@ -25,7 +25,13 @@ import pathlib
 import pytest
 
 from amtsblatt_mcp import __version__
-from amtsblatt_mcp._toolhash import HASHED_FIELDS, SNAPSHOT_VERSION, build_snapshot, tool_hash
+from amtsblatt_mcp._toolhash import (
+    HASHED_FIELDS,
+    SNAPSHOT_VERSION,
+    _canonical,
+    build_snapshot,
+    tool_hash,
+)
 from amtsblatt_mcp.server import mcp
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -160,3 +166,29 @@ async def test_annotations_are_part_of_the_fingerprint() -> None:
         update={"annotations": tool.annotations.model_copy(update={"read_only_hint": False})}
     )
     assert tool_hash(flipped) != before
+
+
+async def test_annotations_are_hashed_in_their_wire_form() -> None:
+    """The fingerprint follows the protocol's names, not the SDK's.
+
+    `mcp` 2.0 renamed every annotation attribute to snake_case on the Python
+    objects; the wire kept `readOnlyHint`. Snapshot version 2 dumped the Python
+    names, so the hash recorded the SDK's naming convention alongside the tool
+    surface — and would have jumped on the next rename with no tool having
+    moved. That reads exactly like six rewritten tools, and regenerating on it
+    re-pins the guard against a change nobody made, together with whatever
+    rode along in the same commit.
+
+    The other tests here cannot see this. Remove `by_alias` and regenerate the
+    snapshot, and every one of them is green again — the snapshot agrees with
+    itself, and a flipped hint still moves the hash. Only this assertion
+    separates "the digest matches" from "the digest measures the right thing".
+
+    Measured on `_canonical`, the string that is actually hashed. A test that
+    dumped the annotations itself would be judging pydantic rather than this
+    module, and would stay green with `by_alias` removed.
+    """
+    tool = next(t for t in await mcp.list_tools() if t.annotations is not None)
+    hashed = json.loads(_canonical(tool))["annotations"]
+    assert "readOnlyHint" in hashed, f"annotations hashed under {sorted(hashed)}"
+    assert "read_only_hint" not in hashed, "SDK attribute names leaked into the fingerprint"

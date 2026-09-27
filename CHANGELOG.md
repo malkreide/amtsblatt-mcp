@@ -8,6 +8,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Behoben
 
+- **Der Tool-Fingerabdruck hing an der Schreibweise des SDK, nicht an der des
+  Protokolls.** `_toolhash.py` serialisierte die Annotationen mit
+  `model_dump(exclude_none=True, mode="json")` — ohne `by_alias`. Unter `mcp`
+  2.x liefert das die Python-Attributnamen (`read_only_hint`), nicht die Namen
+  auf dem Draht (`readOnlyHint`): `mcp` 2.0 hat jedes Annotationsattribut
+  umbenannt, das Protokoll nicht. Der Fingerabdruck hielt damit neben der
+  Werkzeugoberfläche auch die Namenskonvention des SDK fest — derselbe Fehler,
+  den `snapshot_version` 1 mit der Einrückung des Interpreters gemacht hatte,
+  eine Schicht tiefer.
+
+  Zugeschnappt hat das hier noch nicht. Der Wächter kam am 2026-07-29 um 14:24
+  ins Repo, fünf Stunden *nach* der Migration auf `mcp` 2.x (09:16; per
+  Commit-Abstammung geprüft, nicht per Uhrzeit) — seine Basislinie hat nie eine
+  SDK-Umbenennung überquert. Scharf war es trotzdem: Die nächste Umbenennung
+  hätte alle sechs Hashes springen lassen, ohne dass sich ein Werkzeug bewegt.
+  Das liest sich wie sechs umgeschriebene Werkzeuge, und die naheliegende
+  Antwort, `update_tool_hashes.py` zu fahren, pinnt den Wächter gegen eine
+  Änderung, die niemand gemacht hat, und winkt durch, was im selben Commit
+  mitfuhr. In `swiss-food-safety-mcp` sprang der Digest beim Umstieg auf
+  fastmcp 4 genau so; dort fiel es auf, bevor jemand neu erzeugte.
+
+  Jetzt `by_alias=True`, und `snapshot_version` geht auf **3** — wofür das Feld
+  da ist. Nachgewiesen statt behauptet: Alle sechs Hashes ändern sich, und die
+  gehashten Inhalte unterscheiden sich je Werkzeug **ausschliesslich** in der
+  Schreibweise der Annotations-Schlüssel; Werte, Beschreibungen und Schemas
+  sind identisch. Kein Client muss deswegen neu freigeben.
+
+  `test_annotations_are_hashed_in_their_wire_form` misst `_canonical`, also den
+  String, der tatsächlich gehasht wird. Gegenprobe in zwei Stufen: `by_alias`
+  entfernt, fallen drei Tests; `by_alias` entfernt **und** die Basislinie neu
+  erzeugt — der gefährliche Ablauf — fällt nur noch dieser eine. Er ist damit
+  die einzige Zusicherung, die zwischen «der Digest stimmt» und «der Digest
+  misst das Richtige» unterscheidet.
+
 - **Browser-Clients scheiterten am Preflight, seit die Spec das Routing in
   Header verschoben hat.** `2026-07-28` schickt `Mcp-Method`, `Mcp-Name` und
   `Mcp-Protocol-Version` auf jeder Streamable-HTTP-Anfrage mit; die
@@ -164,7 +198,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Tool Definition Changes
 
-- (none)
+- (none). Alle sechs Hashes in `tool-hashes.json` haben sich geändert, aber
+  durch die Kanonisierung (`snapshot_version` 3, siehe *Behoben*), nicht durch
+  eine Definition. Kein Client muss neu freigeben.
 
 ## [0.22.1] - 2026-08-02
 
