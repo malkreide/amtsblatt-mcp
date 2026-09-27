@@ -123,19 +123,28 @@ HTTP_TRANSPORTS = {"streamable-http", "http", "sse"}
 
 
 def _stateless_requested() -> bool:
-    """SEC-009 / SCALE-002: opt into session-free operation.
+    """SEC-009 / SCALE-002: session-free operation, on by default.
 
-    Only reachable since the move off SSE. With `stateless_http` the SDK builds
-    a fresh transport per request and tracks no session at all, which removes
-    both findings rather than solving them: there is no session id to bind to a
-    user and none to route consistently to an instance.
+    Spec 2026-07-28 has no protocol-level sessions: a modern request is one
+    self-contained POST, and the SDK serves it without consulting the session
+    manager at all. The flag therefore only decides how the *handshake* era
+    (clients up to 2025-11-25) is served — and running that era session-free
+    too gives both eras the same semantics instead of two.
 
-    Opt-in rather than default, because it is not free — a stateless server
-    cannot resume an interrupted stream or push server-initiated
-    notifications. For this server, which keeps no cross-call state, it is
-    usually the right trade; the operator decides.
+    Default on since the move to native 2026-07-28. It used to be opt-in,
+    because a stateless server cannot resume an interrupted stream or push
+    server-initiated notifications. This server does neither: it keeps no
+    cross-call state and emits no notifications, so the trade costs nothing
+    here. What it buys is concrete: there is no session id to hijack or to route
+    by, and a 2026-07-28 request that omits the `MCP-Protocol-Version` header
+    still gets an answer, where the stateful path rejects it with
+    "Missing session ID".
+
+    `MCP_STATELESS=0` restores session tracking for handshake-era clients.
+    Anything other than an explicit off-value keeps the default — a typo must
+    not silently re-enable sessions.
     """
-    return os.environ.get("MCP_STATELESS", "").strip().lower() in {"1", "true", "yes"}
+    return os.environ.get("MCP_STATELESS", "").strip().lower() not in {"0", "false", "no"}
 
 
 def build_http_app(kind: str = "streamable-http"):

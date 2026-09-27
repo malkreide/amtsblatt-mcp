@@ -68,7 +68,8 @@ code one: every client config pointing at `/sse` has to move to `/mcp` first.
 The warning in the logs is what makes that visible; the deadline is the spec's,
 not ours.
 
-**`MCP_STATELESS` became reachable in the same release.** It was previously
+**`MCP_STATELESS` became reachable in the same release, and the default with
+native `2026-07-28`.** It was previously
 recorded here as unavailable, correctly: SSE has no stateless mode. On
 streamable-http it removes session hijacking and session affinity as questions
 rather than answering them, which is the strongest available response to

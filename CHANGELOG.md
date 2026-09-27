@@ -6,6 +6,72 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Geändert
+
+- **Nativ auf Spec `2026-07-28`: zustandsloser Betrieb ist jetzt der Standard.**
+  `MCP_STATELESS` war opt-in, mit einer Begründung, die für ein Protokoll mit
+  Sessions stimmte — ein zustandsloser Server kann keinen Stream fortsetzen und
+  keine servergetriebenen Notifications senden. `2026-07-28` kennt keine
+  Sessions auf Protokollebene mehr, und dieser Server nutzt keines der beiden.
+  Die Flagge entscheidet ohnehin nur noch, wie Handshake-Clients (bis
+  `2025-11-25`) bedient werden: eine moderne Anfrage läuft im SDK am
+  Session-Manager vorbei, was immer sie sagt.
+
+  Gemessen, was der Standard ändert: Das SDK wählt die Ära über den Header
+  `MCP-Protocol-Version`. Fehlt er, landet eine moderne Anfrage im
+  Handshake-Pfad — zustandsbehaftet mit HTTP 400 «Missing session ID»
+  abgewiesen, zustandslos beantwortet.
+  `test_ohne_versions_header_haengt_die_antwort_am_session_modus` fährt beide
+  Zweige.
+
+  `MCP_STATELESS=0` (auch `false`, `no`) schaltet Sessions wieder ein. Jeder
+  andere Wert lässt den Standard stehen, auch ein Tippfehler: ein falsch
+  geschriebener Schalter darf die Session-Angriffsfläche nicht still wieder
+  öffnen. `SECURITY.md`, `docs/load-balancing.md`, `ROADMAP.md` und beide
+  READMEs sagen jetzt, was sie vorher sagten und warum es damals stimmte.
+
+  **Für Betreiber:** Wer mehrere Instanzen hinter einem Load Balancer fährt,
+  braucht keine Sticky Sessions mehr. Wer sich auf `DELETE /mcp` zur
+  Session-Beendigung verlassen hat, bekommt nun 405 — es gibt keine Session
+  mehr zu beenden.
+
+- **`serverInfo.version` war leer.** `MCPServer` bekam keine Version, und das
+  SDK setzt dann `""` statt einer eigenen. Unter dem Handshake fiel das kaum
+  auf, weil `serverInfo` einmal pro Verbindung kam. `2026-07-28` hat keinen
+  Handshake und stempelt `io.modelcontextprotocol/serverInfo` in das `_meta`
+  **jedes** Resultats: der Server nannte bei jeder Antwort seinen Namen und
+  verschwieg den Build. Die Version kommt jetzt aus den Paket-Metadaten
+  (`__version__`), nicht aus einem Literal — `check_version_sync.py` bleibt
+  damit zuständig.
+
+### Hinzugefügt
+
+- **`tests/test_modern_era.py`: die moderne Ära gefahren statt behauptet.**
+  `test_protocol_version.py` mass die Handshake-Ära durch den echten
+  ASGI-Stack, die moderne nur als Konstante. Ob ein `2026-07-28`-Client durch
+  Bearer-Gate, Rate-Limit und CORS hindurch überhaupt eine Antwort bekommt,
+  zeigte kein Test. Jetzt 14 Tests: `server/discover` ohne Handshake samt
+  Cache-Hinweisen, `serverInfo` in jedem Resultat, die Freigabeliste in der
+  modernen Ära, `initialize` → 404/`-32601`, widersprüchlicher `Mcp-Name` →
+  400/`-32020`, 401 vor der Ära-Weiche, eine unbekannte Revision benannt
+  abgewiesen; dazu ein `mcp.Client` im Modus `auto` über HTTP und über stdio
+  (Unterprozess, denn stdio ist der Standard-Transport und hat keinen Header),
+  mit dem Legacy-Handshake als Gegenprobe.
+
+  Gegenprobe: `version=` entfernt, fallen genau die vier `serverInfo`-Tests;
+  den alten Opt-in-Standard zurückgesetzt, fallen genau der
+  Header-Fall und die vier Standard-Tests in `test_transport.py`.
+
+### Offen, bewusst nicht angefasst
+
+- `server/discover` kündigt `prompts` und `resources` an (mit `listChanged` und
+  `subscribe`), obwohl der Server keine registriert. `MCPServer` installiert die
+  Handler bedingungslos und bietet keinen öffentlichen Weg, sie zu entfernen;
+  beide Listen antworten leer. Ein Eingriff über private SDK-Attribute wäre
+  beim nächsten SDK-Update die nächste stille Drift. Der Kommentar bei
+  `CACHE_HINTS` sagt das jetzt, statt zu behaupten, die Oberfläche existiere
+  nicht.
+
 ### Behoben
 
 - **Der Tool-Fingerabdruck hing an der Schreibweise des SDK, nicht an der des

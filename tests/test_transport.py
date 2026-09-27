@@ -53,7 +53,7 @@ def test_streamable_http_is_the_default() -> None:
     assert _paths(srv.build_http_app()) == {"/mcp"}
 
 
-# --- MCP_STATELESS: reachable for the first time ---------------------------
+# --- MCP_STATELESS: on by default since native 2026-07-28 -----------------
 
 
 def _record(monkeypatch: pytest.MonkeyPatch) -> dict:
@@ -75,19 +75,35 @@ def _record(monkeypatch: pytest.MonkeyPatch) -> dict:
     return seen
 
 
-def test_stateless_reaches_the_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reading the env var and never applying it is the failure this catches."""
-    monkeypatch.setenv("MCP_STATELESS", "1")
+def test_stateless_is_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Spec 2026-07-28 has no protocol-level sessions; the default follows it.
+
+    Asserted at the SDK call, not at the helper: reading the default correctly
+    and never passing it on is the failure this catches.
+    """
     seen = _record(monkeypatch)
     srv.build_http_app("streamable-http")
     assert seen.get("stateless_http") is True
 
 
-def test_stateless_is_off_unless_asked_for(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The negative control: the flag must not ride along by accident."""
+@pytest.mark.parametrize("value", ["0", "false", "no", " FALSE "])
+def test_sessions_can_be_switched_back_on(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    """The negative control: the opt-out must reach the SDK as well."""
+    monkeypatch.setenv("MCP_STATELESS", value)
     seen = _record(monkeypatch)
     srv.build_http_app("streamable-http")
     assert seen.get("stateless_http") is False
+
+
+@pytest.mark.parametrize("value", ["1", "true", "yes", "", "flase"])
+def test_anything_but_an_explicit_off_stays_stateless(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    """A typo must not quietly bring sessions — and their exposure — back."""
+    monkeypatch.setenv("MCP_STATELESS", value)
+    seen = _record(monkeypatch)
+    srv.build_http_app("streamable-http")
+    assert seen.get("stateless_http") is True
 
 
 def test_sse_never_reaches_the_streamable_builder(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -152,7 +168,7 @@ def test_the_built_transport_is_recorded(events) -> None:
     built = [e for e in events() if e.get("event") == "http_app_built"]
     assert len(built) == 1
     assert built[0]["transport"] == "streamable-http"
-    assert built[0]["stateless"] is False
+    assert built[0]["stateless"] is True
 
 
 # --- the dispatch table ----------------------------------------------------
@@ -171,3 +187,11 @@ def test_every_http_transport_name_is_dispatchable() -> None:
 
 def test_http_transports_contains_the_documented_names() -> None:
     assert srv.HTTP_TRANSPORTS == {"streamable-http", "http", "sse"}
+
+
+def test_sse_is_never_reported_stateless(events) -> None:
+    """Now that stateless is the default, the SSE branch is where the log could
+    lie by omission: SSE has sessions whatever the flag says."""
+    srv.build_http_app("sse")
+    built = [e for e in events() if e.get("event") == "http_app_built"]
+    assert built[0]["stateless"] is False
