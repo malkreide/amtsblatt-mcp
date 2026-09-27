@@ -1,5 +1,5 @@
 {
-  "snapshot_version": 2,
+  "snapshot_version": 3,
   "package_version": "0.22.1",
   "hashed_fields": [
     "name",
@@ -8,13 +8,13 @@
     "output_schema",
     "annotations"
   ],
-  "surface_sha256": "3a2b8a062aa12a5f058d127eaa0fdc41cc1f58f7a923ce7fcec5e8191ee80063",
+  "surface_sha256": "a436b43dc4fef3297958c93b52a42b8dbae0a99620c8b57c0aac2a6292bfa232",
   "tools": {
-    "gazette_get_publication": "d2ccf74899651f8166f808ce43b77119bdc688e883cc37c736021aec67ca10a1",
-    "gazette_list_rubrics": "e66404eb3fcc84c9aa78442141acf02eb292df3cb4eed18ac7f8d1ace725a6c6",
-    "gazette_search_detailed": "938f20c73d2ea33b5de6455b45961373851cbf9f4e0f1b3e7d4837d2c00a8158",
-    "gazette_search_procurement": "fc64767e0b906f99a7048bab838ea268906c2ebc5eac99f15a6740076bd02639",
-    "gazette_search_publications": "6077875b56a2b3c1ff479c5ea8eca525ab0e3276ad1595e7565f4fafbacaa5ee",
-    "gazette_source_status": "428a87083671160e26a08cbbadafaee16db6c9f70cec53ba587b154c89c9da5c"
+    "gazette_get_publication": "2395f352d12ec399bd5c0c50625b17a02711d256585aedc0d5c675e17e25c210",
+    "gazette_list_rubrics": "961df666df18eb78f452beaeb12dbe58cb0979bcbb54e195347661f872f68571",
+    "gazette_search_detailed": "c4bef1676fefb0bac2e486db871eb1129cf61046aeab673488bba44ad4cfa892",
+    "gazette_search_procurement": "78c7e050b4d988ab72afe66060b6518029d119c6e6188bc90ec04184f23edf4a",
+    "gazette_search_publications": "25ea349de807a27978e726b866fa463dad24948e325fed7bc113f063c9460441",
+    "gazette_source_status": "48336ccc62a867aac952a98411ed7abefb61861d6012ab0987d086cc091486d9"
   }
 }
