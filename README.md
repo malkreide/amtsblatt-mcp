@@ -118,7 +118,7 @@ The endpoint is **`/mcp`**.
 |---|---|---|
 | `MCP_TRANSPORT` | `stdio` | `stdio`, `streamable-http` (alias `http`), or the deprecated `sse` |
 | `MCP_HOST` | `127.0.0.1` | HTTP bind address. Defaults to loopback; set `0.0.0.0` to expose on all interfaces (the Docker image does this deliberately). |
-| `MCP_STATELESS` | _(unset)_ | `1` runs streamable-http with no session tracking at all. Removes session hijacking and session affinity as questions rather than answering them (`SEC-009`, `SCALE-002`). Opt-in, because a stateless server cannot resume an interrupted stream or push server-initiated notifications. Ignored on `sse`, which has no stateless mode. |
+| `MCP_STATELESS` | _(on)_ | streamable-http runs with no session tracking at all — the native mode of spec `2026-07-28`, which has no protocol-level sessions. Removes session hijacking and session affinity as questions rather than answering them (`SEC-009`, `SCALE-002`). `0` / `false` / `no` restores sessions for handshake-era clients; any other value keeps the default. Ignored on `sse`, which has no stateless mode. |
 | `MCP_CORS_ORIGINS` | _(unset)_ | Comma-separated origins allowed to call the endpoint from a browser. Unset means no cross-origin browser access at all — stdio and non-browser clients are unaffected. `Mcp-Session-Id` is exposed and accepted for the listed origins, so a browser client can hold a session. `*` is honoured but logs a warning and disables credentials, because browsers reject a wildcard origin together with credentials. |
 | `MCP_API_KEY` | — | Bearer token; **required** on every HTTP transport |
 | `MCP_RATE_LIMIT` / `MCP_RATE_WINDOW` | `60` / `60` | Sliding-window rate limit |
@@ -354,7 +354,8 @@ authentication, so no bulk dump is maintained.
 |---|---|
 | **Served via the `initialize` handshake** | `2024-11-05` … **`2025-11-25`** — the handshake ceiling |
 | **Served via the per-request envelope** | **`2026-07-28`** |
-| **Who picks** | The client's first request, once per connection. A request carrying the `2026-07-28` `_meta` envelope opens a modern connection; anything else opens a handshake connection. |
+| **Who picks** | Over HTTP, the `MCP-Protocol-Version` header of each request: `2026-07-28` is served as a self-contained request with no handshake and no session; a handshake-era value or no header goes to the `initialize` path. Over stdio, the client's first request: a `server/discover` probe opens a modern connection. |
+| **`serverInfo`** | Name `amtsblatt_mcp` and the package version, stamped into the `_meta` of every modern result |
 | **Pinned in** | `MCP_PROTOCOL_VERSION` in [`_app.py`](src/amtsblatt_mcp/_app.py), re-exported from `server.py` |
 | **SDK** | `mcp[cli]>=2.0.0,<3` |
 | **Cache hints** | `tools/list` and `server/discover`: `ttlMs` 300000, `cacheScope` `public` |
@@ -369,6 +370,12 @@ configuration. It is pinned as a declared constant and enforced by detection:
 
 An SDK bump should break *our* build, not the runtime of someone who upgraded
 `mcp` in their own environment.
+
+That both eras are actually *served* — through the bearer gate, rate limit and
+CORS, not just named in a constant — is measured in
+`tests/test_modern_era.py`: raw `2026-07-28` requests with routing headers, an
+`mcp.Client` in `auto` mode over HTTP and over stdio, and the legacy handshake
+as the negative control.
 
 ### Update policy
 

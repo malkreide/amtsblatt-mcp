@@ -289,17 +289,22 @@ and has no stateless mode, so gaining the option meant migrating to
 streamable-http — a deliberate change to a cloud-deployed service rather than a
 remediation step. That migration has now happened.
 
-With `MCP_TRANSPORT=streamable-http MCP_STATELESS=1` the server tracks no session
+With `MCP_TRANSPORT=streamable-http` the server now tracks no session
 at all. Session hijacking and session affinity stop being risks to mitigate and
 become states that cannot occur. Neither check flips to `pass`: `SEC-009` asks
 for *binding* and `SCALE-002` for *routing*, and absence is neither. But the
 exposure each describes is gone while it is enabled, which is worth more than the
 score.
 
-It is opt-in rather than the default, because it is not free — a stateless server
-cannot resume an interrupted stream or deliver server-initiated notifications.
-This server keeps no cross-call state, so the trade is usually right; the
-operator decides. On `MCP_TRANSPORT=sse` the flag is ignored, deliberately:
+**It is the default since the move to native `2026-07-28`**, and this paragraph
+used to call it opt-in. That was a defensible trade while sessions were part of
+the protocol: a stateless server cannot resume an interrupted stream or deliver
+server-initiated notifications. Spec `2026-07-28` has no protocol-level sessions
+at all, and this server neither resumes streams nor sends notifications, so the
+cost is nil here while the exposure it removes is real. `MCP_STATELESS=0`
+restores session tracking for handshake-era clients; any other value, including
+a typo, keeps the default — a misspelt switch must not quietly re-open the
+session surface. On `MCP_TRANSPORT=sse` the flag is ignored, deliberately:
 leaving it apparently in effect would tell an operator they run session-free when
 they do not.
 

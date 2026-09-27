@@ -34,20 +34,24 @@ stateless mode. It now serves streamable-http on `/mcp` by default, so:
 
 ```bash
 export MCP_TRANSPORT=streamable-http
-export MCP_STATELESS=1
+# MCP_STATELESS is on by default; nothing else to set.
 ```
 
 The SDK then builds
 a fresh transport per request and tracks no session at all. Any instance can
 serve any request; no affinity is needed and no session state exists to lose.
 
-This is opt-in rather than the default because it is not free:
+**The default since the move to native spec `2026-07-28`.** Until then this was
+opt-in, because it is not free:
 
 - **No SSE stream resumption.** `Last-Event-ID` needs a session to resume into.
 - **No server-initiated notifications.** They need a session to be delivered to.
 
-For a read-only server with no per-user state, neither matters much. For a
-single-instance local run, stateless buys nothing.
+`2026-07-28` has no protocol-level sessions at all — a modern request is served
+without consulting the session manager, whatever the flag says — and this
+server uses neither feature, so the flag now only decides how handshake-era
+clients are served. `MCP_STATELESS=0` restores sessions for them; the rest of
+this document then applies.
 
 Both servers keep the bearer gate in front of the transport either way; see
 `SECURITY.md` for the operator notes on running the SSE transport exposed.
@@ -160,7 +164,7 @@ This is not an effort question — the input does not exist. What *is* true toda
 | Session bound to user id | **Impossible** — same reason |
 | 401/403 on mismatch | Not applicable — no user to mismatch |
 | Explicit TTL | Not settable through `MCPServer` (see above) |
-| Server-side invalidation | **Yes** — `DELETE` on the streamable-http endpoint terminates a session |
+| Server-side invalidation | **Yes, with `MCP_STATELESS=0`** — `DELETE` on the streamable-http endpoint terminates a session. By default there is no session to invalidate, and `DELETE` answers 405. |
 
 Running stateless (Option 1) is the strongest available answer: with no sessions,
 session hijacking and cross-session access are structurally impossible rather

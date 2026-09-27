@@ -19,6 +19,7 @@ from mcp.server.caching import CacheHint
 from mcp.server.mcpserver import MCPServer
 from mcp.types import LATEST_PROTOCOL_VERSION
 
+from . import __version__
 from ._http import _close_client
 from ._log import log_event
 
@@ -82,8 +83,11 @@ if LATEST_PROTOCOL_VERSION != MCP_PROTOCOL_VERSION:
 # the same hint because it answers from the same static registration.
 #
 # `prompts/list` and `resources/list` are left unset on purpose. This server
-# registers neither, so hinting at them would describe a surface that does not
-# exist.
+# registers neither prompts nor resources. The SDK still answers both methods
+# (with an empty list) and advertises them in `server/discover`, because
+# `MCPServer` installs the handlers unconditionally and offers no way to drop
+# them — but a cache hint on an always-empty list would only make that
+# advertisement look deliberate.
 LIST_CACHE_TTL_MS = 300_000
 
 CACHE_HINTS = {
@@ -92,8 +96,16 @@ CACHE_HINTS = {
 }
 
 
+# `version` is not decoration under spec 2026-07-28. Without a handshake there
+# is no `initialize` result to carry `serverInfo` once per connection; the
+# modern envelope stamps it into the `_meta` of *every* result instead
+# (`io.modelcontextprotocol/serverInfo`). Left unset, the SDK reports an empty
+# string — it never substitutes its own — so every answer would name the
+# server and withhold which build gave it. The value comes from the package
+# metadata, never from a literal (`scripts/check_version_sync.py`).
 mcp = MCPServer(
     "amtsblatt_mcp",
+    version=__version__,
     lifespan=_lifespan,
     cache_hints=CACHE_HINTS,
     instructions=(
