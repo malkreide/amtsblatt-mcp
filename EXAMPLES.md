@@ -34,7 +34,7 @@ Realitätsnahe Anfragen nach Zielgruppe. Der Server erschliesst **amtsblattporta
 
 **«Welche amtlichen Bekanntmachungen zu einem Stichwort gab es in einem Zeitraum?»**
 - **API-Key nötig:** Nein
-- → `gazette_search_publications(keyword="Ausschreibung", canton="BS", date_start="2026-04-01", date_end="2026-06-30")`
+- → `gazette_search_publications(keyword="Ausschreibung", canton="ZH", date_start="2026-04-01", date_end="2026-06-30")` (am 27.09.2026: 21 Treffer aus vier Rubriken — Umwelt, Verkehr und Energie; Rechtsetzung und politische Rechte; Weitere kantonale Bekanntmachungen; Handelsregistereintragungen)
 - Warum nützlich: Ohne Angabe einer Rubrik werden automatisch alle freigegebenen (grünen) Rubriken einbezogen — eine reine Stichwortsuche kann nie versehentlich eine gesperrte Rubrik erreichen.
 
 **«Ich möchte auch ältere/archivierte Beschaffungen sehen.»**
