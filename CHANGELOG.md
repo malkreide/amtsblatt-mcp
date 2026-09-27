@@ -6,6 +6,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-09-27
+
+Der Server spricht MCP-Spec **`2026-07-28` nativ** und läuft auf HTTP
+standardmässig **ohne Sessions**. Minor statt Patch, weil sich damit ein
+Standardverhalten ändert, das Betreiber sehen; die sechs Werkzeugdefinitionen
+bleiben unverändert (siehe *Tool Definition Changes*), kein Client muss neu
+freigeben.
+
+> **Für Betreiber — vor dem Update lesen.**
+>
+> - `MCP_STATELESS` ist jetzt **an**, ohne dass man es setzt. Wer mehrere
+>   Instanzen hinter einem Load Balancer fährt, braucht keine Sticky Sessions
+>   mehr.
+> - `DELETE /mcp` antwortet mit **405** statt eine Session zu beenden — es gibt
+>   keine mehr.
+> - Wer für Clients der Handshake-Ära (bis `2025-11-25`) weiterhin Sessions
+>   braucht, setzt `MCP_STATELESS=0`.
+> - `stdio` und der abgekündigte `sse`-Transport sind davon nicht betroffen.
+
+Ausserdem in diesem Release, seit 0.22.1: Browser-Clients scheitern nicht mehr
+am CORS-Preflight für die Routing-Header von `2026-07-28`; die Retry-Schleife
+fängt Netzwerkfehler (`ARCH-014`) und ist begrenzt, gestreut und gehorsam
+gegenüber `Retry-After`; `tools/list` und `server/discover` tragen
+Cache-Hinweise (SEP-2549); jede moderne Antwort nennt die Server-Version.
+
 ### Geändert
 
 - **Nativ auf Spec `2026-07-28`: zustandsloser Betrieb ist jetzt der Standard.**
