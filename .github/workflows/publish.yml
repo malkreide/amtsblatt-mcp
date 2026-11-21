@@ -90,13 +90,19 @@ jobs:
           fi
 
           VERSION="$PYPROJECT_VERSION"
-          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' \
+          # `.packages[]`, nicht `.packages[0]`: Ein zweiter Package-Eintrag
+          # bliebe sonst im publizierten Manifest auf der alten Version stehen,
+          # waehrend check_version_sync.py die committete Datei gruen meldet.
+          jq --arg v "$VERSION" '.version = $v | .packages[].version = $v' \
             server.json > server.tmp && mv server.tmp server.json
           echo "server.json set to version $VERSION"
 
       - name: Install mcp-publisher
         run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          # pipefail + --fail: Ohne beides bestimmt `tar` den Exit-Code, und ein
+          # HTTP-Fehler kaeme als Fehlerseite mit Exit 0 bei tar an.
+          set -o pipefail
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
 
       - name: Authenticate to MCP Registry (GitHub OIDC)
         run: ./mcp-publisher login github-oidc
