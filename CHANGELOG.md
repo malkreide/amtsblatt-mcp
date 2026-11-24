@@ -26,6 +26,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   umgeleiteter Ausgabe (Pipe, Agent, Hook) schreibt Python stdout in cp1252,
   und das Gate brach mit `UnicodeEncodeError` und Exit 1 ab, obwohl die
   Prüfung bestanden hatte. Die ausgegebenen Bezeichnungen tragen jetzt `->`.
+- **Der Rat von `scripts/check_ruff_pin.py` nennt die Zielumgebung**
+  (`OPS-006`). Bei einer Abweichung oder ohne erreichbares ruff riet das Gate
+  zu `pip install -e ".[dev]"`; ohne aktive Umgebung landete das im
+  System-Python und verstellte dort das ruff anderer Repos. Der Rat lautet
+  jetzt `uv pip install --python .venv -e ".[dev]"`.
 
 ### Added
 

@@ -47,7 +47,7 @@ _PIN = re.compile(r"""['"]ruff==([0-9][^'"\s;]*)['"]""")
 # Aus `ruff 0.16.1` bzw. `ruff 0.16.1 (abc1234 2026-01-01)`.
 _REPORTED = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+)")
 
-_INSTALL = '    pip install -e ".[dev]"'
+_INSTALL = '    uv pip install --python .venv -e ".[dev]"'
 
 
 def pinned_version() -> str:
