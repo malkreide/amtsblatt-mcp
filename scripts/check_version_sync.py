@@ -9,10 +9,11 @@ Stellen, die dieselbe Nummer wiederholen:
     `packages[*].version`
   - die Versions-Badges der READMEs
 
-Hintergrund: `publish.yml` synchronisiert `server.json` beim Veröffentlichen
-aus dem Tag-Namen — die *committete* Version wirkt also nie auf das
-publizierte Artefakt und fällt deshalb nicht auf, wenn sie veraltet. Die
-README-Badges erzwingt überhaupt nichts.
+Hintergrund: `publish.yml` überschreibt `server.json` beim Veröffentlichen —
+in diesem Repo mit der Version aus `pyproject.toml`, gegen den Tag geprüft;
+andere Repos des Portfolios setzen sie aus dem Tag-Namen. So oder so wirkt
+die *committete* Version nie auf das publizierte Artefakt und fällt deshalb
+nicht auf, wenn sie veraltet. Die README-Badges erzwingt überhaupt nichts.
 
 Zweiter Teil: in `src/` darf keine Versionsnummer stehen. Der Laufzeit-Wert
 kommt aus den Paket-Metadaten (`importlib.metadata.version()`); ein wieder
@@ -118,7 +119,8 @@ def find_hardcoded(dist: str) -> list[tuple[str, int, str]]:
     dunder = re.compile(r"""__version__\s*=\s*["']([^"']+)["']""")
 
     for path in sorted(SRC.rglob("*.py")):
-        for lineno, line in enumerate(code_lines(path.read_text(encoding="utf-8")), start=1):
+        lines = code_lines(path.read_text(encoding="utf-8"))
+        for lineno, line in enumerate(lines, start=1):
             values = own_ua_versions(line, dist)
             for m in dunder.finditer(line):
                 if re.match(r"\d+\.\d", m.group(1)):
@@ -136,7 +138,8 @@ def collect_declared(expected: str) -> list[tuple[str, str]]:
         server = json.loads(SERVER_JSON.read_text(encoding="utf-8"))
         found.append(("server.json → version", server.get("version", "")))
         for i, pkg in enumerate(server.get("packages", [])):
-            found.append((f"server.json → packages[{i}].version", pkg.get("version", "")))
+            where = f"server.json → packages[{i}].version"
+            found.append((where, pkg.get("version", "")))
 
     for readme in sorted(ROOT.glob("README*.md")):
         for match in _BADGE.finditer(readme.read_text(encoding="utf-8")):
@@ -175,7 +178,8 @@ def main() -> None:
     if version is None:
         # `dynamic = ["version"]`: die Version entsteht beim Bauen, ein
         # Literal in src/ ist dort die Quelle und kein Fehler.
-        print("Versions-Sync übersprungen: pyproject.toml nutzt eine dynamische Version.")
+        grund = "pyproject.toml nutzt eine dynamische Version."
+        print(f"Versions-Sync übersprungen: {grund}")
         return
 
     found = collect_declared(version)
@@ -189,7 +193,7 @@ def main() -> None:
             print(f"  {where} = {value!r}", file=sys.stderr)
         print(
             "\nAlle Stellen im selben Commit bumpen. Hinweis: publish.yml "
-            "überschreibt server.json beim Veröffentlichen ohnehin aus dem Tag — "
+            "überschreibt server.json beim Veröffentlichen ohnehin — "
             "die committete Version bleibt trotzdem die, die Menschen lesen.",
             file=sys.stderr,
         )
@@ -209,7 +213,8 @@ def main() -> None:
         sys.exit(1)
 
     checked = ", ".join(where for where, _ in found) or "keine weiteren Stellen"
-    print(f"Versions-Sync OK ({version}; geprüft: {checked}; keine hartkodierte Version in src/)")
+    rest = "keine hartkodierte Version in src/"
+    print(f"Versions-Sync OK ({version}; geprüft: {checked}; {rest})")
 
 
 if __name__ == "__main__":

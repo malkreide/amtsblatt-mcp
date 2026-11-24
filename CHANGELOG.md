@@ -6,6 +6,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`publish.yml` setzt die Version in jedem Package-Eintrag von `server.json`**
+  (`IDENT-003`). Der jq-Ausdruck schrieb nur `.packages[0].version`; ein zweiter
+  Eintrag wäre im publizierten Manifest auf der alten Version stehen geblieben,
+  während `check_version_sync.py` die committete Datei grün meldete. Heute ohne
+  Folgen, weil das Manifest einen Eintrag führt — ein Zustand, keine Eigenschaft.
+- **Der Download von `mcp-publisher` kann nicht mehr still scheitern**
+  (`OPS-005`): `set -o pipefail` und `curl --fail`. Bisher bestimmte `tar` den
+  Exit-Code, und ein HTTP-Fehler kam als Fehlerseite mit Exit 0 dort an.
+- **`scripts/check_version_sync.py` ist bei jeder Portfolio-Breite
+  formatgerecht** (`OPS-005`). Der Docstring sicherte `line-length 88` zu, vier
+  Zeilen brachen dort um; die CI prüfte nur die eigene Breite 100. Dazu stimmt
+  die Beschreibung der Überschreibung jetzt: Hier kommt die Version aus
+  `pyproject.toml`, nicht aus dem Tag-Namen.
+
+### Added
+
+- `tests/test_guard_scripts.py`: Tests für die beiden kopierten Guard-Skripte
+  `check_version_sync.py` und `check_ruff_pin.py`, die bisher keine hatten —
+  inklusive Formatprüfung bei 88, 100, 110 und 120.
+- `tests/test_publish_workflow.py`: hält den jq-Ausdruck und den
+  Publisher-Download in `publish.yml` fest. Der Test, der jq tatsächlich
+  ausführt, läuft auf `ubuntu-latest` (jq vorinstalliert) und wird ohne jq
+  übersprungen.
+
 ## [0.23.0] — 2026-09-27
 
 Der Server spricht MCP-Spec **`2026-07-28` nativ** und läuft auf HTTP
