@@ -21,6 +21,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Zeilen brachen dort um; die CI prüfte nur die eigene Breite 100. Dazu stimmt
   die Beschreibung der Überschreibung jetzt: Hier kommt die Version aus
   `pyproject.toml`, nicht aus dem Tag-Namen.
+- **`scripts/check_version_sync.py` endet unter cp1252 wie unter UTF-8**
+  (`OPS-005`). Die Erfolgsmeldung trug den Pfeil U+2192; unter Windows mit
+  umgeleiteter Ausgabe (Pipe, Agent, Hook) schreibt Python stdout in cp1252,
+  und das Gate brach mit `UnicodeEncodeError` und Exit 1 ab, obwohl die
+  Prüfung bestanden hatte. Die ausgegebenen Bezeichnungen tragen jetzt `->`.
 
 ### Added
 
