@@ -36,6 +36,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Publisher-Download in `publish.yml` fest. Der Test, der jq tatsächlich
   ausführt, läuft auf `ubuntu-latest` (jq vorinstalliert) und wird ohne jq
   übersprungen.
+- `tests/test_gates_cp1252.py` (`OPS-005`, Modus 5): fährt jedes Gate unter
+  `PYTHONIOENCODING=cp1252` und verlangt keinen Traceback und denselben
+  Exit-Code wie unter UTF-8. Ein zweiter Test hält fest, dass jedes Skript, das
+  Hook oder Workflows erwähnen, entweder gefahren wird oder mit Grund
+  ausgenommen ist (`classify_live_run.py`: braucht Argumente, schreibt nach
+  `$GITHUB_OUTPUT`).
 
 ## [0.23.0] — 2026-09-27
 
