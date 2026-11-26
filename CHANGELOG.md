@@ -21,6 +21,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Zeilen brachen dort um; die CI prüfte nur die eigene Breite 100. Dazu stimmt
   die Beschreibung der Überschreibung jetzt: Hier kommt die Version aus
   `pyproject.toml`, nicht aus dem Tag-Namen.
+- **`scripts/check_version_sync.py` endet unter cp1252 wie unter UTF-8**
+  (`OPS-005`). Die Erfolgsmeldung trug den Pfeil U+2192; unter Windows mit
+  umgeleiteter Ausgabe (Pipe, Agent, Hook) schreibt Python stdout in cp1252,
+  und das Gate brach mit `UnicodeEncodeError` und Exit 1 ab, obwohl die
+  Prüfung bestanden hatte. Die ausgegebenen Bezeichnungen tragen jetzt `->`.
+- **Der Rat von `scripts/check_ruff_pin.py` nennt die Zielumgebung**
+  (`OPS-006`). Bei einer Abweichung oder ohne erreichbares ruff riet das Gate
+  zu `pip install -e ".[dev]"`; ohne aktive Umgebung landete das im
+  System-Python und verstellte dort das ruff anderer Repos. Der Rat lautet
+  jetzt `uv pip install --python .venv -e ".[dev]"`.
 
 ### Added
 
@@ -31,6 +41,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Publisher-Download in `publish.yml` fest. Der Test, der jq tatsächlich
   ausführt, läuft auf `ubuntu-latest` (jq vorinstalliert) und wird ohne jq
   übersprungen.
+- `tests/test_gates_cp1252.py` (`OPS-005`, Modus 5): fährt jedes Gate unter
+  `PYTHONIOENCODING=cp1252` und verlangt keinen Traceback und denselben
+  Exit-Code wie unter UTF-8. Ein zweiter Test hält fest, dass jedes Skript, das
+  Hook oder Workflows erwähnen, entweder gefahren wird oder mit Grund
+  ausgenommen ist (`classify_live_run.py`: braucht Argumente, schreibt nach
+  `$GITHUB_OUTPUT`).
 
 ## [0.23.0] — 2026-09-27
 
